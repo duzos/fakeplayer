@@ -111,12 +111,12 @@ jobs:
           curseforge-id: 845992
           curseforge-token: "${{ secrets.CURSEFORGE_TOKEN }}"
 
-          version: ${{ steps.versions.outputs.mod_version }}-${{ steps.versions.outputs.mc_version }}-forge
-          name: Fake Players ${{ steps.versions.outputs.mod_version }} (${{ steps.versions.outputs.mc_version }} Forge)
+          version: ${{ steps.versions.outputs.mod_version }}-${{ steps.versions.outputs.mc_version }}-neoforge
+          name: Fake Players ${{ steps.versions.outputs.mod_version }} (${{ steps.versions.outputs.mc_version }} NeoForge)
 
           github-generate-changelog: true
           version-type: release
 
-          loaders: forge
+          loaders: neoforge
           java: 17
           files: forge/build/libs/!(*-@(dev|sources|javadoc)).jar
