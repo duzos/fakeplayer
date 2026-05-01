@@ -1,9 +1,7 @@
-name: Publish (Modrinth + CurseForge)
+name: Publish (CurseForge only)
 
 on:
   workflow_dispatch:
-  release:
-    types: [ published ]
 
 jobs:
   fabric:
@@ -35,8 +33,6 @@ jobs:
           changelog-file: CHANGELOG.md
           curseforge-id: 845992
           curseforge-token: "${{ secrets.CURSEFORGE_TOKEN }}"
-          modrinth-id: 1RSY6DQH
-          modrinth-token: "${{ secrets.MODRINTH_TOKEN }}"
 
           github-generate-changelog: true
           version-type: release
@@ -93,8 +89,6 @@ jobs:
           changelog-file: CHANGELOG.md
           curseforge-id: 845992
           curseforge-token: "${{ secrets.CURSEFORGE_TOKEN }}"
-          modrinth-id: 1RSY6DQH
-          modrinth-token: "${{ secrets.MODRINTH_TOKEN }}"
 
           github-generate-changelog: true
           version-type: release
