@@ -6,4 +6,4 @@
 - Added `config/players.json` for default skin, attributes, and persistence.
 - Tolerate missing nbt tags when loading legacy fake players.
 - Cached custom name component to avoid per-frame allocation.
-- 1.20.4 build now targets NeoForge.
+- 1.21.1 build targets NeoForge and Java 21.
