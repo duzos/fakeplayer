@@ -16,29 +16,33 @@ neoForge {
     if (at.exists()) {
         accessTransformers = ["src/main/resources/META-INF/accesstransformer.cfg"]
     }
+    mods {
+        register(mod_id) {
+            sourceSet sourceSets.main
+        }
+    }
+
     runs {
         client {
             client()
+            loadedMods = mods
             programArguments.addAll '--username', 'Alice'
         }
         client2 {
             client()
+            loadedMods = mods
             programArguments.addAll '--username', 'Bob'
             gameDirectory = file('run/client2')
         }
         data {
             data()
+            loadedMods = mods
             programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
         }
         server {
             server()
+            loadedMods = mods
             gameDirectory = file('run/server')
-        }
-    }
-
-    mods {
-        "${mod_id}" {
-            sourceSet sourceSets.main
         }
     }
 }
