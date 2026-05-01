@@ -139,6 +139,11 @@ public class FakePlayerEntity extends PathfinderMob {
 	}
 
 	@Override
+	public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+		return false;
+	}
+
+	@Override
 	protected void dropCustomDeathLoot(DamageSource source, int p_21386_, boolean p_21387_) {
 		super.dropCustomDeathLoot(source, p_21386_, p_21387_);
 

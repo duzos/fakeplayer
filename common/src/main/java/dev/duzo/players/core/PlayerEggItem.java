@@ -30,6 +30,7 @@ public class PlayerEggItem extends Item {
 	private boolean trySpawnPlayer(ItemStack source, ServerLevel level, Vec3 pos) {
 		FakePlayerEntity entity = new FakePlayerEntity(level);
 		entity.setPos(pos.x, pos.y, pos.z);
+		entity.setPersistenceRequired();
 		level.addFreshEntity(entity);
 
 		if (source.hasCustomHoverName()) {
