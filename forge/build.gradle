@@ -22,6 +22,12 @@ legacyForge {
     runs {
         client {
             client()
+            programArguments.addAll '--username', 'Alice'
+        }
+        client2 {
+            client()
+            programArguments.addAll '--username', 'Bob'
+            gameDirectory = file('run/client2')
         }
         data {
             data()
@@ -29,6 +35,7 @@ legacyForge {
         }
         server {
             server()
+            gameDirectory = file('run/server')
         }
     }
 
