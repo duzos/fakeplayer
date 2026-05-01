@@ -1,6 +1,8 @@
 package dev.duzo.players.core;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
@@ -33,8 +35,9 @@ public class PlayerEggItem extends Item {
 		entity.setPersistenceRequired();
 		level.addFreshEntity(entity);
 
-		if (source.hasCustomHoverName()) {
-			entity.setCustomName(source.getHoverName());
+		Component customName = source.get(DataComponents.CUSTOM_NAME);
+		if (customName != null) {
+			entity.setCustomName(customName);
 		}
 
 		return true;

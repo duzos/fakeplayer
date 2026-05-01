@@ -1,6 +1,7 @@
 package dev.duzo.players.api;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -78,7 +79,8 @@ public class InteractionRegistry {
 			ItemStack stack = player.getMainHandItem();
 			if (!stack.is(Items.PAPER)) return InteractionResult.FAIL;
 
-			String text = stack.hasCustomHoverName() ? stack.getHoverName().getString() : "Hello World!";
+			Component customName = stack.get(DataComponents.CUSTOM_NAME);
+			String text = customName != null ? customName.getString() : "Hello World!";
 			entity.sendChat(text);
 			playSound(entity, SoundEvents.BOOK_PAGE_TURN);
 			return InteractionResult.SUCCESS;

@@ -25,7 +25,7 @@ public interface ICommonRegistry {
 	<T extends Item> void addToGroup(Supplier<T> item, ResourceKey<CreativeModeTab> tab);
 
 	default <T extends Item> void addToGroup(Supplier<T> item, String tab) {
-		addToGroup(item, ResourceKey.create(Registries.CREATIVE_MODE_TAB, new ResourceLocation(tab)));
+		addToGroup(item, ResourceKey.create(Registries.CREATIVE_MODE_TAB, ResourceLocation.parse(tab)));
 	}
 
 	void registerCommand(Consumer<CommandDispatcher<CommandSourceStack>> command);

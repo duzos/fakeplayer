@@ -31,7 +31,7 @@ public class SkinGrabber {
 	public static final String SKIN_URL = "https://mineskin.eu/skin/";
 	public static final String DEFAULT_DIR = "./" + Constants.MOD_ID + "/";
 	public static final String SKIN_DIR = DEFAULT_DIR + "/skins/";
-	private static final ResourceLocation MISSING = new ResourceLocation(Constants.MOD_ID, "textures/skins/error.png");
+	private static final ResourceLocation MISSING = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "textures/skins/error.png");
 	private static final String USER_AGENT = Constants.MOD_ID + "/1.0";
 
 	private final ConcurrentHashMap<String, ResourceLocation> downloads;

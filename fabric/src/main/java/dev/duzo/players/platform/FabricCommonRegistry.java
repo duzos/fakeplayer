@@ -24,7 +24,7 @@ public class FabricCommonRegistry implements ICommonRegistry {
 
 	private static <T, R extends Registry<? super T>> Supplier<T> registerSupplier(R registry, String modid, String id, Supplier<T> object) {
 		final T registeredObject = Registry.register((Registry<T>) registry,
-				new ResourceLocation(modid, id), object.get());
+				ResourceLocation.fromNamespaceAndPath(modid, id), object.get());
 
 		return () -> registeredObject;
 	}

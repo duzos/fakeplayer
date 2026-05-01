@@ -16,6 +16,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -31,6 +32,7 @@ import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -133,12 +135,12 @@ public class FakePlayerEntity extends PathfinderMob {
 	}
 
 	@Override
-	protected void defineSynchedData() {
-		super.defineSynchedData();
+	protected void defineSynchedData(SynchedEntityData.Builder builder) {
+		super.defineSynchedData(builder);
 
-		this.entityData.define(PHYSICAL_STATE, 0);
-		this.entityData.define(SKIN_DATA, new SkinData(PlayersConfig.get().defaultSkin).toNbt());
-		this.entityData.define(SLIM, false);
+		builder.define(PHYSICAL_STATE, 0);
+		builder.define(SKIN_DATA, new SkinData(PlayersConfig.get().defaultSkin).toNbt());
+		builder.define(SLIM, false);
 	}
 
 	@Override
@@ -152,11 +154,11 @@ public class FakePlayerEntity extends PathfinderMob {
 	}
 
 	@Override
-	protected void dropCustomDeathLoot(DamageSource source, int p_21386_, boolean p_21387_) {
-		super.dropCustomDeathLoot(source, p_21386_, p_21387_);
+	protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean dropExperience) {
+		super.dropCustomDeathLoot(level, source, dropExperience);
 
 		ItemStack egg = FPItems.PLAYER_EGG.get().getDefaultInstance();
-		egg.setHoverName(this.getCustomName());
+		egg.set(DataComponents.CUSTOM_NAME, this.getCustomName());
 		this.spawnAtLocation(egg);
 	}
 

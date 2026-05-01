@@ -47,11 +47,11 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 	}
 
 	@Override
-	protected void renderNameTag(FakePlayerEntity entity, Component name, PoseStack stack, MultiBufferSource buffer, int p_114502_) {
+	protected void renderNameTag(FakePlayerEntity entity, Component name, PoseStack stack, MultiBufferSource buffer, int packedLight, float partialTick) {
 		if (!entity.isCustomNameVisible()) {
 			return;
 		}
 
-		super.renderNameTag(entity, name, stack, buffer, p_114502_);
+		super.renderNameTag(entity, name, stack, buffer, packedLight, partialTick);
 	}
 }

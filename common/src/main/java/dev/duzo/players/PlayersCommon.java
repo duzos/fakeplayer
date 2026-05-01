@@ -25,6 +25,6 @@ public class PlayersCommon {
     }
 
     public static ResourceLocation id(String path) {
-        return new ResourceLocation(Constants.MOD_ID, path);
+        return ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, path);
     }
 }
