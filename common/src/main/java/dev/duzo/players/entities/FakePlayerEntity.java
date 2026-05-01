@@ -81,7 +81,8 @@ public class FakePlayerEntity extends PathfinderMob {
 		return Mob.createMobAttributes()
 				.add(Attributes.MAX_HEALTH, config.maxHealth)
 				.add(Attributes.MOVEMENT_SPEED, config.movementSpeed)
-				.add(Attributes.ATTACK_DAMAGE, config.attackDamage);
+				.add(Attributes.ATTACK_DAMAGE, config.attackDamage)
+				.add(Attributes.TEMPT_RANGE);
 	}
 
 	@Override
