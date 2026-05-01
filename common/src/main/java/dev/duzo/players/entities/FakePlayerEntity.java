@@ -257,7 +257,16 @@ public class FakePlayerEntity extends PathfinderMob {
 		}
 
 		public static SkinData fromNbt(CompoundTag nbt) {
-			return new SkinData(nbt.getString("Name"), nbt.getString("Key"), nbt.getString("Url"));
+			String name = nbt.getString("Name");
+			if (name.isEmpty()) {
+				return new SkinData("duzo");
+			}
+			String key = nbt.getString("Key");
+			String url = nbt.getString("Url");
+			if (key.isEmpty() || url.isEmpty()) {
+				return new SkinData(name);
+			}
+			return new SkinData(name, key, url);
 		}
 
 		public CompoundTag toNbt() {
