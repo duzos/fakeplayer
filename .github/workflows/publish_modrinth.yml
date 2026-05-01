@@ -1,9 +1,7 @@
-name: Publish (Modrinth + CurseForge)
+name: Publish (Modrinth only)
 
 on:
   workflow_dispatch:
-  release:
-    types: [ published ]
 
 jobs:
   fabric:
@@ -33,8 +31,6 @@ jobs:
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           changelog-file: CHANGELOG.md
-          curseforge-id: 845992
-          curseforge-token: "${{ secrets.CURSEFORGE_TOKEN }}"
           modrinth-id: 1RSY6DQH
           modrinth-token: "${{ secrets.MODRINTH_TOKEN }}"
 
@@ -91,8 +87,6 @@ jobs:
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           changelog-file: CHANGELOG.md
-          curseforge-id: 845992
-          curseforge-token: "${{ secrets.CURSEFORGE_TOKEN }}"
           modrinth-id: 1RSY6DQH
           modrinth-token: "${{ secrets.MODRINTH_TOKEN }}"
 
