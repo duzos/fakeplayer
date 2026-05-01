@@ -24,6 +24,15 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Read versions
+        id: versions
+        shell: bash
+        run: |
+          MV=$(grep -E '^version=' gradle.properties | cut -d= -f2-)
+          MCV=$(grep -E '^minecraft_version=' gradle.properties | cut -d= -f2-)
+          echo "mod_version=$MV" >> "$GITHUB_OUTPUT"
+          echo "mc_version=$MCV" >> "$GITHUB_OUTPUT"
+
       - name: Build Fabric
         run: ./gradlew -p fabric build
 
@@ -33,6 +42,9 @@ jobs:
           changelog-file: CHANGELOG.md
           modrinth-id: 1RSY6DQH
           modrinth-token: "${{ secrets.MODRINTH_TOKEN }}"
+
+          version: ${{ steps.versions.outputs.mod_version }}-${{ steps.versions.outputs.mc_version }}-fabric
+          name: Fake Players ${{ steps.versions.outputs.mod_version }} (${{ steps.versions.outputs.mc_version }} Fabric)
 
           github-generate-changelog: true
           version-type: release
@@ -60,6 +72,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: 'gradle'
+
+      - name: Read versions
+        id: versions
+        shell: bash
+        run: |
+          MV=$(grep -E '^version=' gradle.properties | cut -d= -f2-)
+          MCV=$(grep -E '^minecraft_version=' gradle.properties | cut -d= -f2-)
+          echo "mod_version=$MV" >> "$GITHUB_OUTPUT"
+          echo "mc_version=$MCV" >> "$GITHUB_OUTPUT"
 
       - name: Restore DataGen cache
         id: cache-restore
@@ -89,6 +110,9 @@ jobs:
           changelog-file: CHANGELOG.md
           modrinth-id: 1RSY6DQH
           modrinth-token: "${{ secrets.MODRINTH_TOKEN }}"
+
+          version: ${{ steps.versions.outputs.mod_version }}-${{ steps.versions.outputs.mc_version }}-forge
+          name: Fake Players ${{ steps.versions.outputs.mod_version }} (${{ steps.versions.outputs.mc_version }} Forge)
 
           github-generate-changelog: true
           version-type: release
