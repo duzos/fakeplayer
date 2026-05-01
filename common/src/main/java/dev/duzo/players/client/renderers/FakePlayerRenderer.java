@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.client.renderer.entity.state.PlayerRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Pose;
 
 public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, PlayerRenderState, FakePlayerModel> {
 	private final boolean slim;
@@ -46,6 +47,11 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
 			fake.slim = entity.isSlim();
+		}
+		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING) {
+			state.pose = Pose.SLEEPING;
+			state.bedOrientation = entity.getDirection();
+			state.walkAnimationSpeed = 0;
 		}
 		if (!entity.isCustomNameVisible()) {
 			state.nameTag = null;
