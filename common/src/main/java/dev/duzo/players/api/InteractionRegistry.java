@@ -42,35 +42,35 @@ public class InteractionRegistry {
 		register(Items.OBSERVER, (player, entity) -> {
 			entity.setNoAi(!entity.isNoAi());
 			player.sendSystemMessage(Component.literal(entity.isNoAi() ? "AI Disabled" : "AI Enabled"), true);
-			playSound(entity, SoundEvents.UI_BUTTON_CLICK);
+			playSound(entity, SoundEvents.UI_BUTTON_CLICK.value());
 			return InteractionResult.SUCCESS;
 		});
 
 		register(ItemTags.STAIRS, ((player, entity) -> {
 			entity.setPhysicalState(entity.isSitting() ? FakePlayerEntity.PhysicalState.STANDING : FakePlayerEntity.PhysicalState.SITTING);
 			player.sendSystemMessage(Component.literal(entity.isSitting() ? "Sitting" : "Standing"), true);
-			playSound(entity, SoundEvents.UI_BUTTON_CLICK);
+			playSound(entity, SoundEvents.UI_BUTTON_CLICK.value());
 			return InteractionResult.SUCCESS;
 		}));
 
 		register(ItemTags.BEDS, ((player, entity) -> {
 			entity.setPhysicalState(entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING ? FakePlayerEntity.PhysicalState.STANDING : FakePlayerEntity.PhysicalState.LAYING);
 			player.sendSystemMessage(Component.literal(entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING ? "Laying" : "Standing"), true);
-			playSound(entity, SoundEvents.UI_BUTTON_CLICK);
+			playSound(entity, SoundEvents.UI_BUTTON_CLICK.value());
 			return InteractionResult.SUCCESS;
 		}));
 
 		register(ItemTags.SLABS, ((player, entity) -> {
 			entity.setSlim(!entity.isSlim());
 			player.sendSystemMessage(Component.literal(entity.isSlim() ? "Slim" : "Normal"), true);
-			playSound(entity, SoundEvents.UI_BUTTON_CLICK);
+			playSound(entity, SoundEvents.UI_BUTTON_CLICK.value());
 			return InteractionResult.SUCCESS;
 		}));
 
 		register(Items.ENDER_EYE, ((player, entity) -> {
 			entity.setCustomNameVisible(!entity.isCustomNameVisible());
 			player.sendSystemMessage(Component.literal(entity.isCustomNameVisible() ? "Name Visible" : "Name Hidden"), true);
-			playSound(entity, SoundEvents.UI_BUTTON_CLICK);
+			playSound(entity, SoundEvents.UI_BUTTON_CLICK.value());
 			return InteractionResult.SUCCESS;
 		}));
 
