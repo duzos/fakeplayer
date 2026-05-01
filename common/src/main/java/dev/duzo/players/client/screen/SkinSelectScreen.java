@@ -41,6 +41,10 @@ public class SkinSelectScreen extends Screen {
 	}
 
 	@Override
+	public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float delta) {
+	}
+
+	@Override
 	protected void init() {
 		this.top = (this.height - this.bgHeight) / 2; // this means everythings centered and scaling, same for below
 		this.left = (this.width - this.bgWidth) / 2;
@@ -148,8 +152,8 @@ public class SkinSelectScreen extends Screen {
 
 		InventoryScreen.renderEntityInInventoryFollowsMouse(
 				context,
-				x, y,
-				x, y,
+				x - 25, y - 70,
+				x + 25, y,
 				24,
 				0.0625F,
 				(float) (x - mouseX),
