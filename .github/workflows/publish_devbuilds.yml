@@ -6,6 +6,7 @@ on:
     branches:
       - 'ver/**'
       - 'feat/**'
+
 jobs:
   fabric:
     runs-on: ubuntu-latest
@@ -14,40 +15,36 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Make Gradle Wrapper Executable
-        if: ${{ runner.os != 'Windows' }}
-        run: chmod +x ./gradlew
-
-      # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
-      # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@417ae3ccd767c252f5661f1ace9f835f9654f2b5 # v3.1.0
-
-      - name: Data Generation
-        run: ./gradlew -p forge Data
-        continue-on-error: true
+          cache: 'gradle'
 
       - name: Build Fabric
-        run: ./gradlew -p fabric build
-
+        run: ./gradlew --configuration-cache -p fabric build
 
       - name: Publish FABRIC artifacts
-        uses: DrTheodor/discord-webhook-upload-action@v1.2
+        uses: drtheodor/discord-webhook-upload-action@v0.2
         with:
           url: ${{ secrets.DEV_BUILDS }}
-          file: 'fabric/build/libs/*'
           username: FABRIC builds
           avatar: 'https://wiki.tf2classic.com/w/images/b/b3/Engineer_BLU.png'
-          commit: '> :sparkles: [%MESSAGE%](<%LINK%>) by [%AUTHOR%](<%AUTHOR_LINK%>)'
-          message: |
+          message_commit: '> :sparkles: [${commitMessage}](<${commitUrl}>) by [${authorName}](<${authorUrl}>)'
+          message_header: |
             <:new1:1253371736510959636><:new2:1253371805734015006> New `${{ github.repository }}` dev build `#${{ github.run_number }}`:
-            %COMMITS%
+          file: |
+            fabric/build/libs/*.jar
+            !fabric/build/libs/*-sources.jar
+            !fabric/build/libs/*-dev.jar
+
   forge:
     runs-on: ubuntu-latest
     permissions:
@@ -55,37 +52,51 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'
 
-      - name: Make Gradle Wrapper Executable
-        if: ${{ runner.os != 'Windows' }}
-        run: chmod +x ./gradlew
+      - name: Restore DataGen cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: forge/src/generated
+          key: datagen-${{ github.run_id }}
+          restore-keys:
+            datagen-
 
-      # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
-      # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@417ae3ccd767c252f5661f1ace9f835f9654f2b5 # v3.1.0
-
-      - name: Data Generation
-        run: ./gradlew -p forge Data
+      - name: Run DataGen
+        run: ./gradlew --configuration-cache -p forge Data
         continue-on-error: true
 
-      - name: Build Forge
-        run: ./gradlew -p forge build
+      - name: Save DataGen cache
+        uses: actions/cache/save@v4
+        with:
+          path: forge/src/generated
+          key: ${{ steps.cache-restore.outputs.cache-primary-key }}
 
+      - name: Build Forge
+        run: ./gradlew --configuration-cache -p forge build
 
       - name: Publish FORGE artifacts
-        uses: DrTheodor/discord-webhook-upload-action@v1.2
+        uses: drtheodor/discord-webhook-upload-action@v0.2
         with:
           url: ${{ secrets.DEV_BUILDS }}
-          file: 'forge/build/libs/*'
           username: FORGE builds
           avatar: 'https://wiki.tf2classic.com/w/images/b/b3/Engineer_RED.png'
-          commit: '> :sparkles: [%MESSAGE%](<%LINK%>) by [%AUTHOR%](<%AUTHOR_LINK%>)'
-          message: |
+          message_commit: '> :sparkles: [${commitMessage}](<${commitUrl}>) by [${authorName}](<${authorUrl}>)'
+          message_header: |
             <:new1:1253371736510959636><:new2:1253371805734015006> New `${{ github.repository }}` dev build `#${{ github.run_number }}`:
-            %COMMITS%
+          file: |
+            forge/build/libs/*.jar
+            !forge/build/libs/*-sources.jar
+            !forge/build/libs/*-dev.jar
