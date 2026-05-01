@@ -37,7 +37,7 @@ public record OpenScreenPacketS2C(int id, CompoundTag data) {
 	}
 
 	public enum ScreenLookup {
-		SKIN_SELECT((data) -> new SkinSelectScreen((FakePlayerEntity) Minecraft.getInstance().level.getEntity(data.getInt("EntityId"))));
+		SKIN_SELECT((data) -> new SkinSelectScreen((FakePlayerEntity) Minecraft.getInstance().level.getEntity(data.getIntOr("EntityId", -1))));
 
 		public final Function<CompoundTag, Screen> supplier;
 

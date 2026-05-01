@@ -223,7 +223,7 @@ public class SkinGrabber {
 	private ResourceLocation registerImage(NativeImage image) {
 		TextureManager manager = Minecraft.getInstance().getTextureManager();
 		ResourceLocation id = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "player_" + System.nanoTime());
-		manager.register(id, new DynamicTexture(image));
+		manager.register(id, new DynamicTexture(id::toString, image));
 		return id;
 	}
 

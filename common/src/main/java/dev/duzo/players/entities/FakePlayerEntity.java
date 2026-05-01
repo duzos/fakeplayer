@@ -120,9 +120,9 @@ public class FakePlayerEntity extends PathfinderMob {
 
 		this.dataCache = null;
 		this.nameCache = null;
-		this.entityData.set(PHYSICAL_STATE, nbt.getInt("State"));
-		this.entityData.set(SKIN_DATA, nbt.getCompound("SkinData"));
-		this.entityData.set(SLIM, nbt.getBoolean("Slim"));
+		this.entityData.set(PHYSICAL_STATE, nbt.getIntOr("State", 0));
+		this.entityData.set(SKIN_DATA, nbt.getCompoundOrEmpty("SkinData"));
+		this.entityData.set(SLIM, nbt.getBooleanOr("Slim", false));
 	}
 
 	@Override
@@ -265,12 +265,12 @@ public class FakePlayerEntity extends PathfinderMob {
 		}
 
 		public static SkinData fromNbt(CompoundTag nbt) {
-			String name = nbt.getString("Name");
+			String name = nbt.getStringOr("Name", "");
 			if (name.isEmpty()) {
 				return new SkinData(PlayersConfig.get().defaultSkin);
 			}
-			String key = nbt.getString("Key");
-			String url = nbt.getString("Url");
+			String key = nbt.getStringOr("Key", "");
+			String url = nbt.getStringOr("Url", "");
 			if (key.isEmpty() || url.isEmpty()) {
 				return new SkinData(name);
 			}
