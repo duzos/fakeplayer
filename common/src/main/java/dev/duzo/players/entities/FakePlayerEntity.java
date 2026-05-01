@@ -159,7 +159,7 @@ public class FakePlayerEntity extends PathfinderMob {
 
 		ItemStack egg = FPItems.PLAYER_EGG.get().getDefaultInstance();
 		egg.set(DataComponents.CUSTOM_NAME, this.getCustomName());
-		this.spawnAtLocation(egg);
+		this.spawnAtLocation(level, egg);
 	}
 
 	public PhysicalState getPhysicalState() {
@@ -248,7 +248,7 @@ public class FakePlayerEntity extends PathfinderMob {
 	public void sendChat(String message) {
 		if (this.level().isClientSide) return;
 
-		this.getServer().getPlayerList().broadcastChatMessage(PlayerChatMessage.system(message), this.createCommandSourceStack(), ChatType.bind(ChatType.CHAT, this));
+		this.getServer().getPlayerList().broadcastChatMessage(PlayerChatMessage.system(message), this.createCommandSourceStackForNameResolution((net.minecraft.server.level.ServerLevel) this.level()), ChatType.bind(ChatType.CHAT, this));
 	}
 
 

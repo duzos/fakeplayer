@@ -120,7 +120,7 @@ public class SkinGrabber {
 	private static void doNotchTransparencyHack(NativeImage p_118013_, int p_118014_, int p_118015_, int p_118016_, int p_118017_) {
 		for (int i = p_118014_; i < p_118016_; ++i) {
 			for (int j = p_118015_; j < p_118017_; ++j) {
-				int k = p_118013_.getPixelRGBA(i, j);
+				int k = p_118013_.getPixel(i, j);
 				if ((k >> 24 & 255) < 128) {
 					return;
 				}
@@ -129,7 +129,7 @@ public class SkinGrabber {
 
 		for (int l = p_118014_; l < p_118016_; ++l) {
 			for (int i1 = p_118015_; i1 < p_118017_; ++i1) {
-				p_118013_.setPixelRGBA(l, i1, p_118013_.getPixelRGBA(l, i1) & 16777215);
+				p_118013_.setPixel(l, i1, p_118013_.getPixel(l, i1) & 16777215);
 			}
 		}
 
@@ -138,7 +138,7 @@ public class SkinGrabber {
 	private static void setNoAlpha(NativeImage p_118023_, int p_118024_, int p_118025_, int p_118026_, int p_118027_) {
 		for (int i = p_118024_; i < p_118026_; ++i) {
 			for (int j = p_118025_; j < p_118027_; ++j) {
-				p_118023_.setPixelRGBA(i, j, p_118023_.getPixelRGBA(i, j) | -16777216);
+				p_118023_.setPixel(i, j, p_118023_.getPixel(i, j) | -16777216);
 			}
 		}
 	}
@@ -222,7 +222,9 @@ public class SkinGrabber {
 
 	private ResourceLocation registerImage(NativeImage image) {
 		TextureManager manager = Minecraft.getInstance().getTextureManager();
-		return manager.register("player_", new DynamicTexture(image));
+		ResourceLocation id = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "player_" + System.nanoTime());
+		manager.register(id, new DynamicTexture(image));
+		return id;
 	}
 
 	private static boolean isValidUrl(String url) {

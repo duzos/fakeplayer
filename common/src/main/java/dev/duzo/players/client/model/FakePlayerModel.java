@@ -1,19 +1,21 @@
 package dev.duzo.players.client.model;
 
-import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.renderer.entity.state.PlayerRenderState;
 
-public class FakePlayerModel extends PlayerModel<FakePlayerEntity> {
+import dev.duzo.players.client.renderers.FakePlayerRenderState;
+
+public class FakePlayerModel extends PlayerModel {
 	public FakePlayerModel(ModelPart part, boolean slim) {
 		super(part, slim);
 	}
 
 	@Override
-	public void setupAnim(FakePlayerEntity entity, float p_102867_, float p_102868_, float p_102869_, float p_102870_, float p_102871_) {
-		super.setupAnim(entity, p_102867_, p_102868_, p_102869_, p_102870_, p_102871_);
+	public void setupAnim(PlayerRenderState state) {
+		super.setupAnim(state);
 
-		if (entity.isSitting() && !this.riding) {
+		if (state instanceof FakePlayerRenderState fake && fake.isSitting && !state.isPassenger) {
 			this.translateSitting();
 		}
 	}

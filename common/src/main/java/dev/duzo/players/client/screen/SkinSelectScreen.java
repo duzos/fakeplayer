@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.PlainTextButton;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
@@ -144,7 +145,7 @@ public class SkinSelectScreen extends Screen {
 	}
 
 	private void drawBackground(GuiGraphics context) {
-		context.blit(TEXTURE, left, top, 0, 0, bgWidth, bgHeight);
+		context.blit(RenderType::guiTextured, TEXTURE, left, top, 0, 0, bgWidth, bgHeight, 256, 256);
 	}
 
 	private void renderSkin(GuiGraphics context, int x, int y, int mouseX, int mouseY, String key) {
