@@ -9,7 +9,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.PlainTextButton;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
@@ -67,11 +67,11 @@ public class SkinSelectScreen extends Screen {
 		Component currentText = Component.literal("Downloading skins...");
 		if (SkinGrabber.INSTANCE.hasDownloads()) {
 			context.drawString(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
-					(int) (top + (bgHeight * 0.5)), 0xffffff, true);
+					(int) (top + (bgHeight * 0.5)), 0xFFFFFFFF, true);
 
 			currentText = Component.literal(SkinGrabber.INSTANCE.getDownloadsRemaining() + " skins remaining");
 			context.drawString(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
-					(int) (top + (bgHeight * 0.65)), 0xffffff, true);
+					(int) (top + (bgHeight * 0.65)), 0xFFFFFFFF, true);
 
 			wasDownloading = true;
 			return;
@@ -87,13 +87,13 @@ public class SkinSelectScreen extends Screen {
 
 		currentText = Component.literal(this.getSelectedSkin().length() > 11 ? this.getSelectedSkin().substring(0, 11) : this.getSelectedSkin());
 		context.drawString(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
-				(int) (top + (bgHeight * 0.5)), 0xffffff, true);
+				(int) (top + (bgHeight * 0.5)), 0xFFFFFFFF, true);
 
 		this.renderSkin(context, (int) (left + (bgWidth * 0.5f)), (int) (top + (bgHeight * 0.45f)), mouseX, mouseY, this.getSelectedSkin());
 
 		currentText = Component.literal((index + 1) + "/" + sizeCache);
 		context.drawString(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
-				(int) (top + (bgHeight * 0.7)), 0xffffff, true);
+				(int) (top + (bgHeight * 0.7)), 0xFFFFFFFF, true);
 	}
 
 	private String getSelectedSkin() {
@@ -145,7 +145,7 @@ public class SkinSelectScreen extends Screen {
 	}
 
 	private void drawBackground(GuiGraphics context) {
-		context.blit(RenderType::guiTextured, TEXTURE, left, top, 0, 0, bgWidth, bgHeight, 256, 256);
+		context.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, left, top, 0, 0, bgWidth, bgHeight, 256, 256);
 	}
 
 	private void renderSkin(GuiGraphics context, int x, int y, int mouseX, int mouseY, String key) {

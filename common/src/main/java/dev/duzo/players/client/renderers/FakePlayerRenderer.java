@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
 import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
 import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.client.renderer.entity.state.PlayerRenderState;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Pose;
@@ -47,6 +48,8 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
 			fake.slim = entity.isSlim();
+			state.skin = new PlayerSkin(fake.skinTexture, null, null, null,
+				fake.slim ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE, false);
 		}
 		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING) {
 			state.pose = Pose.SLEEPING;

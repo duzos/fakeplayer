@@ -9,6 +9,8 @@ import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.PlayerChatMessage;
@@ -106,23 +108,37 @@ public class FakePlayerEntity extends PathfinderMob {
 	}
 
 	@Override
-	public void addAdditionalSaveData(CompoundTag nbt) {
-		super.addAdditionalSaveData(nbt);
+	public void addAdditionalSaveData(ValueOutput output) {
+		super.addAdditionalSaveData(output);
 
-		nbt.putInt("State", this.getPhysicalState().ordinal());
-		nbt.put("SkinData", this.entityData.get(SKIN_DATA));
-		nbt.putBoolean("Slim", this.isSlim());
+		output.putInt("State", this.getPhysicalState().ordinal());
+		SkinData skin = this.getSkinData();
+		ValueOutput skinOut = output.child("SkinData");
+		skinOut.putString("Name", skin.name());
+		skinOut.putString("Key", skin.key());
+		skinOut.putString("Url", skin.url());
+		output.putBoolean("Slim", this.isSlim());
 	}
 
 	@Override
-	public void readAdditionalSaveData(CompoundTag nbt) {
-		super.readAdditionalSaveData(nbt);
+	public void readAdditionalSaveData(ValueInput input) {
+		super.readAdditionalSaveData(input);
 
 		this.dataCache = null;
 		this.nameCache = null;
-		this.entityData.set(PHYSICAL_STATE, nbt.getIntOr("State", 0));
-		this.entityData.set(SKIN_DATA, nbt.getCompoundOrEmpty("SkinData"));
-		this.entityData.set(SLIM, nbt.getBooleanOr("Slim", false));
+		this.entityData.set(PHYSICAL_STATE, input.getIntOr("State", 0));
+		ValueInput skinIn = input.childOrEmpty("SkinData");
+		String name = skinIn.getStringOr("Name", "");
+		SkinData skin;
+		if (name.isEmpty()) {
+			skin = new SkinData(PlayersConfig.get().defaultSkin);
+		} else {
+			String key = skinIn.getStringOr("Key", "");
+			String url = skinIn.getStringOr("Url", "");
+			skin = (key.isEmpty() || url.isEmpty()) ? new SkinData(name) : new SkinData(name, key, url);
+		}
+		this.entityData.set(SKIN_DATA, skin.toNbt());
+		this.entityData.set(SLIM, input.getBooleanOr("Slim", false));
 	}
 
 	@Override

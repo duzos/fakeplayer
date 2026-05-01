@@ -34,7 +34,7 @@ public class MoveTowardsItemsGoal extends Goal {
 
 	public boolean canContinueToUse() {
 		LivingEntity livingentity = this.mob.getTarget();
-		if (livingentity == null || !livingentity.isAlive() || !this.mob.isWithinRestriction(livingentity.blockPosition())) {
+		if (livingentity == null || !livingentity.isAlive() || !this.mob.isWithinHome(livingentity.blockPosition())) {
 			return false;
 		}
 		if (!this.followingTargetEvenIfNotSeen) {
