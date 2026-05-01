@@ -152,12 +152,12 @@ public class SkinSelectScreen extends Screen {
 
 		InventoryScreen.renderEntityInInventoryFollowsMouse(
 				context,
-				x - 25, y - 70,
-				x + 25, y,
+				x - 25, y - 35,
+				x + 25, y + 35,
 				24,
 				0.0625F,
-				(float) (x - mouseX),
-				(float) (y - mouseY - 24),
+				(float) mouseX,
+				(float) mouseY,
 				this.render
 		);
 	}
