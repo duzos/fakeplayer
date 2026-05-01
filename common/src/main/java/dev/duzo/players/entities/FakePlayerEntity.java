@@ -3,6 +3,7 @@ package dev.duzo.players.entities;
 import dev.duzo.players.api.InteractionRegistry;
 import dev.duzo.players.api.SkinGrabber;
 import dev.duzo.players.client.PlayersCommonClient;
+import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
@@ -74,7 +75,11 @@ public class FakePlayerEntity extends PathfinderMob {
 	}
 
 	public static AttributeSupplier.Builder getHumanoidAttributes() {
-		return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 25.0D).add(Attributes.MOVEMENT_SPEED, 0.2D).add(Attributes.ATTACK_DAMAGE, 1D);
+		PlayersConfig config = PlayersConfig.get();
+		return Mob.createMobAttributes()
+				.add(Attributes.MAX_HEALTH, config.maxHealth)
+				.add(Attributes.MOVEMENT_SPEED, config.movementSpeed)
+				.add(Attributes.ATTACK_DAMAGE, config.attackDamage);
 	}
 
 	@Override
@@ -132,7 +137,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		super.defineSynchedData();
 
 		this.entityData.define(PHYSICAL_STATE, 0);
-		this.entityData.define(SKIN_DATA, new SkinData("duzo").toNbt());
+		this.entityData.define(SKIN_DATA, new SkinData(PlayersConfig.get().defaultSkin).toNbt());
 		this.entityData.define(SLIM, false);
 	}
 
@@ -143,7 +148,7 @@ public class FakePlayerEntity extends PathfinderMob {
 
 	@Override
 	public boolean removeWhenFarAway(double distanceToClosestPlayer) {
-		return false;
+		return !PlayersConfig.get().persistFakePlayers;
 	}
 
 	@Override
@@ -203,7 +208,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		super.setCustomName(component);
 
 		if (component == null) {
-			this.setSkin("duzo");
+			this.setSkin(PlayersConfig.get().defaultSkin);
 			return;
 		}
 		this.setSkin(component.getString());
@@ -259,7 +264,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		public static SkinData fromNbt(CompoundTag nbt) {
 			String name = nbt.getString("Name");
 			if (name.isEmpty()) {
-				return new SkinData("duzo");
+				return new SkinData(PlayersConfig.get().defaultSkin);
 			}
 			String key = nbt.getString("Key");
 			String url = nbt.getString("Url");

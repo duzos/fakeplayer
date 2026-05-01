@@ -2,6 +2,7 @@ package dev.duzo.players;
 
 import dev.duzo.players.commands.SendChatCommand;
 import dev.duzo.players.commands.SkinUrlCommand;
+import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
 import dev.duzo.players.network.PlayersNetwork;
@@ -11,6 +12,8 @@ import net.minecraft.server.MinecraftServer;
 
 public class PlayersCommon {
     public static void init() {
+        PlayersConfig.load();
+
         FPItems.init();
         FPEntities.init();
 
