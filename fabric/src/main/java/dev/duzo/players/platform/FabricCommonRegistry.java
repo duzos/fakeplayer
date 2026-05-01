@@ -9,7 +9,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -24,7 +24,7 @@ public class FabricCommonRegistry implements ICommonRegistry {
 
 	private static <T, R extends Registry<? super T>> Supplier<T> registerSupplier(R registry, String modid, String id, Supplier<T> object) {
 		final T registeredObject = Registry.register((Registry<T>) registry,
-				ResourceLocation.fromNamespaceAndPath(modid, id), object.get());
+				Identifier.fromNamespaceAndPath(modid, id), object.get());
 
 		return () -> registeredObject;
 	}

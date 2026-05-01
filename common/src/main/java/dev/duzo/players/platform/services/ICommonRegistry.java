@@ -4,7 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -25,7 +25,7 @@ public interface ICommonRegistry {
 	<T extends Item> void addToGroup(Supplier<T> item, ResourceKey<CreativeModeTab> tab);
 
 	default <T extends Item> void addToGroup(Supplier<T> item, String tab) {
-		addToGroup(item, ResourceKey.create(Registries.CREATIVE_MODE_TAB, ResourceLocation.parse(tab)));
+		addToGroup(item, ResourceKey.create(Registries.CREATIVE_MODE_TAB, Identifier.parse(tab)));
 	}
 
 	void registerCommand(Consumer<CommandDispatcher<CommandSourceStack>> command);

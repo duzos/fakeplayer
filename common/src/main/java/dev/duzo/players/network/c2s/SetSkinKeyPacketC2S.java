@@ -6,10 +6,10 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public record SetSkinKeyPacketC2S(int id, String key, String url) {
-	public static final ResourceLocation LOCATION = PlayersCommon.id("set_skin_key");
+	public static final Identifier LOCATION = PlayersCommon.id("set_skin_key");
 
 	public static SetSkinKeyPacketC2S decode(FriendlyByteBuf buf) {
 		return new SetSkinKeyPacketC2S(buf.readInt(), buf.readUtf(), buf.readUtf());

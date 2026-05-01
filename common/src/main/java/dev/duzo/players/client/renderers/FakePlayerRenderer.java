@@ -13,13 +13,13 @@ import net.minecraft.client.renderer.entity.layers.BeeStingerLayer;
 import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
 import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
 import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
-import net.minecraft.client.renderer.entity.state.PlayerRenderState;
-import net.minecraft.client.resources.PlayerSkin;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Pose;
 
-public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, PlayerRenderState, FakePlayerModel> {
+public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, AvatarRenderState, FakePlayerModel> {
 	private final boolean slim;
 
 	public FakePlayerRenderer(EntityRendererProvider.Context context, boolean slim) {
@@ -37,14 +37,14 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 	}
 
 	@Override
-	public PlayerRenderState createRenderState() {
-		return new FakePlayerRenderState();
+	public AvatarRenderState createRenderState() {
+		return new FakeAvatarRenderState();
 	}
 
 	@Override
-	public void extractRenderState(FakePlayerEntity entity, PlayerRenderState state, float partialTick) {
+	public void extractRenderState(FakePlayerEntity entity, AvatarRenderState state, float partialTick) {
 		super.extractRenderState(entity, state, partialTick);
-		if (state instanceof FakePlayerRenderState fake) {
+		if (state instanceof FakeAvatarRenderState fake) {
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
 			fake.slim = entity.isSlim();
@@ -62,7 +62,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 	}
 
 	@Override
-	public void render(PlayerRenderState state, PoseStack matrices, MultiBufferSource buffer, int packedLight) {
+	public void render(AvatarRenderState state, PoseStack matrices, MultiBufferSource buffer, int packedLight) {
 		matrices.pushPose();
 		if (state.isBaby) {
 			matrices.scale(0.5f, 0.5f, 0.5f);
@@ -70,7 +70,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 			matrices.scale(0.9375F, 0.9375F, 0.9375F);
 		}
 
-		if (state instanceof FakePlayerRenderState fake && fake.isSitting) {
+		if (state instanceof FakeAvatarRenderState fake && fake.isSitting) {
 			matrices.translate(0, -0.5f, 0);
 		}
 
@@ -79,15 +79,15 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 	}
 
 	@Override
-	public ResourceLocation getTextureLocation(PlayerRenderState state) {
-		if (state instanceof FakePlayerRenderState fake && fake.skinTexture != null) {
+	public Identifier getTextureLocation(AvatarRenderState state) {
+		if (state instanceof FakeAvatarRenderState fake && fake.skinTexture != null) {
 			return fake.skinTexture;
 		}
 		return null;
 	}
 
 	@Override
-	protected void renderNameTag(PlayerRenderState state, Component name, PoseStack stack, MultiBufferSource buffer, int packedLight) {
+	protected void renderNameTag(AvatarRenderState state, Component name, PoseStack stack, MultiBufferSource buffer, int packedLight) {
 		if (state.nameTag == null) {
 			return;
 		}

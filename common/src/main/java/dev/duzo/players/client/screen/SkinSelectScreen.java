@@ -11,10 +11,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public class SkinSelectScreen extends Screen {
-	private static final ResourceLocation TEXTURE = PlayersCommon.id("textures/gui/select.png");
+	private static final Identifier TEXTURE = PlayersCommon.id("textures/gui/select.png");
 	private final FakePlayerEntity target;
 	int bgHeight = 138;
 	int bgWidth = 216;

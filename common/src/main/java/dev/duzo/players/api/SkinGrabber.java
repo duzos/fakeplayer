@@ -8,7 +8,7 @@ import dev.duzo.players.Constants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import javax.annotation.Nullable;
 import javax.imageio.ImageIO;
@@ -31,10 +31,10 @@ public class SkinGrabber {
 	public static final String SKIN_URL = "https://mineskin.eu/skin/";
 	public static final String DEFAULT_DIR = "./" + Constants.MOD_ID + "/";
 	public static final String SKIN_DIR = DEFAULT_DIR + "/skins/";
-	private static final ResourceLocation MISSING = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "textures/skins/error.png");
+	private static final Identifier MISSING = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "textures/skins/error.png");
 	private static final String USER_AGENT = Constants.MOD_ID + "/1.0";
 
-	private final ConcurrentHashMap<String, ResourceLocation> downloads;
+	private final ConcurrentHashMap<String, Identifier> downloads;
 	private final ConcurrentHashMap<String, String> urls;
 	private final ConcurrentQueueMap<String, String> downloadQueue;
 	private final SkinCache cache;
@@ -51,7 +51,7 @@ public class SkinGrabber {
 		jeryn = new JerynSkins(new ArrayList<>());
 	}
 
-	public static ResourceLocation missing() {
+	public static Identifier missing() {
 		return MISSING;
 	}
 
@@ -150,11 +150,11 @@ public class SkinGrabber {
 	 * @param name The name of the player
 	 * @return The skin, or a missing texture if it doesn't exist / is downloading
 	 */
-	public ResourceLocation getSkin(String name) {
+	public Identifier getSkin(String name) {
 		return getSkinOrDownload(name, SKIN_URL + name);
 	}
 
-	public Optional<ResourceLocation> getPossibleSkin(String id) {
+	public Optional<Identifier> getPossibleSkin(String id) {
 		id = id.toLowerCase().replace(" ", "_");
 
 		if (downloads.containsKey(id)) {
@@ -164,10 +164,10 @@ public class SkinGrabber {
 		return Optional.empty();
 	}
 
-	public ResourceLocation getSkinOrDownload(String id, String url) {
+	public Identifier getSkinOrDownload(String id, String url) {
 		id = id.toLowerCase().replace(" ", "_");
 
-		ResourceLocation existing = getPossibleSkin(id).orElse(null);
+		Identifier existing = getPossibleSkin(id).orElse(null);
 		if (existing != null) {
 			return existing;
 		}
@@ -185,10 +185,10 @@ public class SkinGrabber {
 		return urls.get(key);
 	}
 
-	private ResourceLocation registerSkin(String name) {
+	private Identifier registerSkin(String name) {
 		// register new skin to prepare
 		File file = new File(SKIN_DIR + name.toLowerCase().replace(" ", "_") + ".png");
-		ResourceLocation location = fileToLocation(file);
+		Identifier location = fileToLocation(file);
 		downloads.put(name, location);
 		return location;
 	}
@@ -206,12 +206,12 @@ public class SkinGrabber {
 		}
 	}
 
-	private ResourceLocation fileToLocation(File file) {
+	private Identifier fileToLocation(File file) {
 		NativeImage image;
 		try {
 			image = processLegacySkin(NativeImage.read(new FileInputStream(file)));
 		} catch (IOException e) {
-			Constants.LOG.error("Failed to load ResourceLocation from file", e);
+			Constants.LOG.error("Failed to load Identifier from file", e);
 			return missing();
 		}
 		if (image == null) {
@@ -220,9 +220,9 @@ public class SkinGrabber {
 		return registerImage(image);
 	}
 
-	private ResourceLocation registerImage(NativeImage image) {
+	private Identifier registerImage(NativeImage image) {
 		TextureManager manager = Minecraft.getInstance().getTextureManager();
-		ResourceLocation id = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "player_" + System.nanoTime());
+		Identifier id = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "player_" + System.nanoTime());
 		manager.register(id, new DynamicTexture(id::toString, image));
 		return id;
 	}

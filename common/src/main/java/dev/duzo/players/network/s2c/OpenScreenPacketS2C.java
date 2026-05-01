@@ -9,12 +9,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.function.Function;
 
 public record OpenScreenPacketS2C(int id, CompoundTag data) {
-	public static final ResourceLocation LOCATION = PlayersCommon.id("open_screen");
+	public static final Identifier LOCATION = PlayersCommon.id("open_screen");
 
 	public static OpenScreenPacketS2C decode(FriendlyByteBuf buf) {
 		return new OpenScreenPacketS2C(buf.readInt(), buf.readNbt());

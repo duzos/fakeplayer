@@ -1,10 +1,10 @@
 package dev.duzo.players.client.model;
 
-import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.player.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.renderer.entity.state.PlayerRenderState;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 
-import dev.duzo.players.client.renderers.FakePlayerRenderState;
+import dev.duzo.players.client.renderers.FakeAvatarRenderState;
 
 public class FakePlayerModel extends PlayerModel {
 	public FakePlayerModel(ModelPart part, boolean slim) {
@@ -12,10 +12,10 @@ public class FakePlayerModel extends PlayerModel {
 	}
 
 	@Override
-	public void setupAnim(PlayerRenderState state) {
+	public void setupAnim(AvatarRenderState state) {
 		super.setupAnim(state);
 
-		if (state instanceof FakePlayerRenderState fake && fake.isSitting && !state.isPassenger) {
+		if (state instanceof FakeAvatarRenderState fake && fake.isSitting && !state.isPassenger) {
 			this.rightArm.xRot += (-(float) Math.PI / 5F);
 			this.leftArm.xRot += (-(float) Math.PI / 5F);
 

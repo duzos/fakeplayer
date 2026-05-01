@@ -8,7 +8,6 @@ import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.network.chat.ChatType;
@@ -17,7 +16,7 @@ import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -44,7 +43,9 @@ import javax.annotation.Nullable;
 
 public class FakePlayerEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Integer> PHYSICAL_STATE = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.INT);
-	private static final EntityDataAccessor<CompoundTag> SKIN_DATA = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.COMPOUND_TAG);
+	private static final EntityDataAccessor<String> SKIN_NAME = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
+	private static final EntityDataAccessor<String> SKIN_KEY = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
+	private static final EntityDataAccessor<String> SKIN_URL = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
 	private static final EntityDataAccessor<Boolean> SLIM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
 	private SkinData dataCache;
 	private Component nameCache;
@@ -137,7 +138,7 @@ public class FakePlayerEntity extends PathfinderMob {
 			String url = skinIn.getStringOr("Url", "");
 			skin = (key.isEmpty() || url.isEmpty()) ? new SkinData(name) : new SkinData(name, key, url);
 		}
-		this.entityData.set(SKIN_DATA, skin.toNbt());
+		this.applySkin(skin);
 		this.entityData.set(SLIM, input.getBooleanOr("Slim", false));
 	}
 
@@ -145,7 +146,7 @@ public class FakePlayerEntity extends PathfinderMob {
 	public void onSyncedDataUpdated(EntityDataAccessor<?> data) {
 		super.onSyncedDataUpdated(data);
 
-		if (SKIN_DATA.equals(data)) {
+		if (SKIN_NAME.equals(data) || SKIN_KEY.equals(data) || SKIN_URL.equals(data)) {
 			this.dataCache = null;
 			this.nameCache = null;
 		}
@@ -155,9 +156,19 @@ public class FakePlayerEntity extends PathfinderMob {
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
 		super.defineSynchedData(builder);
 
+		SkinData defaultSkin = new SkinData(PlayersConfig.get().defaultSkin);
 		builder.define(PHYSICAL_STATE, 0);
-		builder.define(SKIN_DATA, new SkinData(PlayersConfig.get().defaultSkin).toNbt());
+		builder.define(SKIN_NAME, defaultSkin.name());
+		builder.define(SKIN_KEY, defaultSkin.key());
+		builder.define(SKIN_URL, defaultSkin.url());
 		builder.define(SLIM, false);
+	}
+
+	private void applySkin(SkinData skin) {
+		this.entityData.set(SKIN_NAME, skin.name());
+		this.entityData.set(SKIN_KEY, skin.key());
+		this.entityData.set(SKIN_URL, skin.url());
+		this.dataCache = skin;
 	}
 
 	@Override
@@ -233,13 +244,12 @@ public class FakePlayerEntity extends PathfinderMob {
 		this.setSkin(component.getString());
 	}
 
-	public ResourceLocation getSkin() {
+	public Identifier getSkin() {
 		return this.getSkinData().getSkin();
 	}
 
 	public void setSkin(SkinData skin) {
-		this.entityData.set(SKIN_DATA, skin.toNbt());
-		this.dataCache = skin;
+		this.applySkin(skin);
 	}
 
 	public void setSkin(String username) {
@@ -248,7 +258,11 @@ public class FakePlayerEntity extends PathfinderMob {
 
 	public SkinData getSkinData() {
 		if (dataCache == null) {
-			dataCache = SkinData.fromNbt(this.entityData.get(SKIN_DATA));
+			dataCache = new SkinData(
+				this.entityData.get(SKIN_NAME),
+				this.entityData.get(SKIN_KEY),
+				this.entityData.get(SKIN_URL)
+			);
 		}
 
 		return dataCache;
@@ -280,28 +294,7 @@ public class FakePlayerEntity extends PathfinderMob {
 			this(username, username, SkinGrabber.SKIN_URL + username);
 		}
 
-		public static SkinData fromNbt(CompoundTag nbt) {
-			String name = nbt.getStringOr("Name", "");
-			if (name.isEmpty()) {
-				return new SkinData(PlayersConfig.get().defaultSkin);
-			}
-			String key = nbt.getStringOr("Key", "");
-			String url = nbt.getStringOr("Url", "");
-			if (key.isEmpty() || url.isEmpty()) {
-				return new SkinData(name);
-			}
-			return new SkinData(name, key, url);
-		}
-
-		public CompoundTag toNbt() {
-			CompoundTag nbt = new CompoundTag();
-			nbt.putString("Name", this.name);
-			nbt.putString("Key", this.key);
-			nbt.putString("Url", this.url);
-			return nbt;
-		}
-
-		public ResourceLocation getSkin() {
+		public Identifier getSkin() {
 			return SkinGrabber.INSTANCE.getSkinOrDownload(this.key, this.url);
 		}
 

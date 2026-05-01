@@ -4,7 +4,7 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.platform.Services;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 
 import java.util.function.Supplier;
@@ -19,7 +19,7 @@ public class FPItems {
 	}
 
 	private static Item.Properties properties(String name) {
-		ResourceLocation id = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, name);
+		Identifier id = Identifier.fromNamespaceAndPath(Constants.MOD_ID, name);
 		return new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id));
 	}
 
