@@ -1,30 +1,25 @@
 package dev.duzo.players;
 
 import dev.duzo.players.platform.ForgeCommonRegistry;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.fml.loading.FMLLoader;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLLoader;
 
 @Mod(Constants.MOD_ID)
 public class PlayersForge {
-    public PlayersForge() {
+    public PlayersForge(IEventBus modEventBus) {
         PlayersCommon.init();
 
-        IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
-        ForgeCommonRegistry.init(bus);
+        ForgeCommonRegistry.init(modEventBus);
 
-        // check if this is for client
         if (FMLLoader.getDist() == Dist.CLIENT) {
-            initClient();
+            initClient(modEventBus);
         }
     }
 
     @OnlyIn(Dist.CLIENT)
-    private static void initClient() {
-        IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
-
+    private static void initClient(IEventBus modEventBus) {
     }
 }
