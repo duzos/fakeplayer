@@ -2,6 +2,7 @@ package dev.duzo.players;
 
 import dev.duzo.players.commands.SendChatCommand;
 import dev.duzo.players.commands.SkinUrlCommand;
+import dev.duzo.players.commands.SpawnCommand;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
@@ -19,6 +20,7 @@ public class PlayersCommon {
 
         Services.COMMON_REGISTRY.registerCommand(SkinUrlCommand::register);
         Services.COMMON_REGISTRY.registerCommand(SendChatCommand::register);
+        Services.COMMON_REGISTRY.registerCommand(SpawnCommand::register);
 
         PlayersNetwork.init();
     }
