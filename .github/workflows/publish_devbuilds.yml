@@ -29,7 +29,7 @@ jobs:
           cache: 'gradle'
 
       - name: Build Fabric
-        run: ./gradlew --configuration-cache -p fabric build
+        run: ./gradlew-p fabric build
 
       - name: Publish FABRIC artifacts
         uses: drtheodor/discord-webhook-upload-action@v0.2
@@ -75,7 +75,7 @@ jobs:
             datagen-
 
       - name: Run DataGen
-        run: ./gradlew --configuration-cache -p forge Data
+        run: ./gradlew-p forge Data
         continue-on-error: true
 
       - name: Save DataGen cache
@@ -85,7 +85,7 @@ jobs:
           key: ${{ steps.cache-restore.outputs.cache-primary-key }}
 
       - name: Build Forge
-        run: ./gradlew --configuration-cache -p forge build
+        run: ./gradlew-p forge build
 
       - name: Publish FORGE artifacts
         uses: drtheodor/discord-webhook-upload-action@v0.2
