@@ -42,6 +42,7 @@ public class FakePlayerEntity extends PathfinderMob {
 	private static final EntityDataAccessor<CompoundTag> SKIN_DATA = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.COMPOUND_TAG);
 	private static final EntityDataAccessor<Boolean> SLIM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
 	private SkinData dataCache;
+	private Component nameCache;
 
 	public FakePlayerEntity(EntityType<? extends FakePlayerEntity> type, Level level) {
 		super(type, level);
@@ -110,6 +111,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		super.readAdditionalSaveData(nbt);
 
 		this.dataCache = null;
+		this.nameCache = null;
 		this.entityData.set(PHYSICAL_STATE, nbt.getInt("State"));
 		this.entityData.set(SKIN_DATA, nbt.getCompound("SkinData"));
 		this.entityData.set(SLIM, nbt.getBoolean("Slim"));
@@ -121,6 +123,7 @@ public class FakePlayerEntity extends PathfinderMob {
 
 		if (SKIN_DATA.equals(data)) {
 			this.dataCache = null;
+			this.nameCache = null;
 		}
 	}
 
@@ -189,7 +192,10 @@ public class FakePlayerEntity extends PathfinderMob {
 
 	@Override
 	public @Nullable Component getCustomName() {
-		return Component.literal(this.getSkinData().name());
+		if (nameCache == null) {
+			nameCache = Component.literal(this.getSkinData().name());
+		}
+		return nameCache;
 	}
 
 	@Override
