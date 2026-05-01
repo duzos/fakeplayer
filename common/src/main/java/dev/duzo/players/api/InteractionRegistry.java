@@ -4,6 +4,9 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionResult;
@@ -37,54 +40,53 @@ public class InteractionRegistry {
 
 	private void defaults() {
 		register(Items.OBSERVER, (player, entity) -> {
-			// toggle ai
 			entity.setNoAi(!entity.isNoAi());
 			player.sendSystemMessage(Component.literal(entity.isNoAi() ? "AI Disabled" : "AI Enabled"), true);
+			playSound(entity, SoundEvents.UI_BUTTON_CLICK);
 			return InteractionResult.SUCCESS;
 		});
 
 		register(ItemTags.STAIRS, ((player, entity) -> {
-			// toggle sitting
 			entity.setPhysicalState(entity.isSitting() ? FakePlayerEntity.PhysicalState.STANDING : FakePlayerEntity.PhysicalState.SITTING);
 			player.sendSystemMessage(Component.literal(entity.isSitting() ? "Sitting" : "Standing"), true);
-
+			playSound(entity, SoundEvents.UI_BUTTON_CLICK);
 			return InteractionResult.SUCCESS;
 		}));
 
 		register(ItemTags.BEDS, ((player, entity) -> {
-			// toggle sleeping
 			entity.setPhysicalState(entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING ? FakePlayerEntity.PhysicalState.STANDING : FakePlayerEntity.PhysicalState.LAYING);
 			player.sendSystemMessage(Component.literal(entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING ? "Laying" : "Standing"), true);
-
+			playSound(entity, SoundEvents.UI_BUTTON_CLICK);
 			return InteractionResult.SUCCESS;
 		}));
 
 		register(ItemTags.SLABS, ((player, entity) -> {
-			// toggle slim
 			entity.setSlim(!entity.isSlim());
 			player.sendSystemMessage(Component.literal(entity.isSlim() ? "Slim" : "Normal"), true);
-
+			playSound(entity, SoundEvents.UI_BUTTON_CLICK);
 			return InteractionResult.SUCCESS;
 		}));
 
 		register(Items.ENDER_EYE, ((player, entity) -> {
-			// toggle name visibility
 			entity.setCustomNameVisible(!entity.isCustomNameVisible());
 			player.sendSystemMessage(Component.literal(entity.isCustomNameVisible() ? "Name Visible" : "Name Hidden"), true);
-
+			playSound(entity, SoundEvents.UI_BUTTON_CLICK);
 			return InteractionResult.SUCCESS;
 		}));
 
 		register(Items.PAPER, ((player, entity) -> {
-			// get itemstack name
 			ItemStack stack = player.getMainHandItem();
 			if (!stack.is(Items.PAPER)) return InteractionResult.FAIL;
 
 			String text = stack.hasCustomHoverName() ? stack.getHoverName().getString() : "Hello World!";
 			entity.sendChat(text);
-
+			playSound(entity, SoundEvents.BOOK_PAGE_TURN);
 			return InteractionResult.SUCCESS;
 		}));
+	}
+
+	private static void playSound(FakePlayerEntity entity, SoundEvent sound) {
+		entity.level().playSound(null, entity.getX(), entity.getY(), entity.getZ(), sound, SoundSource.NEUTRAL, 0.5f, 1.0f);
 	}
 
 	private Interaction fallback() {
