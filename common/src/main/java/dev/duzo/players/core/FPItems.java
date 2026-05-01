@@ -26,6 +26,6 @@ public class FPItems {
 	public static void init() {
 		Services.COMMON_REGISTRY.addToGroup(PLAYER_AI, "ingredients");
 		Services.COMMON_REGISTRY.addToGroup(PLAYER_SHELL, "ingredients");
-		Services.COMMON_REGISTRY.addToGroup(PLAYER_EGG, "spawn_eggs");
+		Services.COMMON_REGISTRY.addToGroup(PLAYER_EGG, "ingredients");
 	}
 }
