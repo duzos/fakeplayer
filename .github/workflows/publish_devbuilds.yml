@@ -44,6 +44,7 @@ jobs:
             fabric/build/libs/*.jar
             !fabric/build/libs/*-sources.jar
             !fabric/build/libs/*-dev.jar
+            !fabric/build/libs/*-javadoc.jar
 
   forge:
     runs-on: ubuntu-latest
@@ -100,3 +101,4 @@ jobs:
             forge/build/libs/*.jar
             !forge/build/libs/*-sources.jar
             !forge/build/libs/*-dev.jar
+            !forge/build/libs/*-javadoc.jar
