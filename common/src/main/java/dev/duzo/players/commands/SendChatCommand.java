@@ -20,7 +20,7 @@ public class SendChatCommand {
 		dispatcher.register(
 				Commands.literal(Constants.MOD_ID)
 						.then(Commands.literal("chat")
-								.requires((p) -> p.hasPermission(Commands.LEVEL_GAMEMASTERS))
+								.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
 								.then(Commands.argument("targets", EntityArgument.entities())
 										.then(Commands.argument("message", StringArgumentType.greedyString())
 												.executes(SendChatCommand::execute)))));

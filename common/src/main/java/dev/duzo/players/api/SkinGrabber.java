@@ -292,15 +292,19 @@ public class SkinGrabber {
 		// check cache
 		SkinCache.CacheData data = cache.get(id).orElse(null);
 		if (data != null) {
-			try {
-				Constants.debug("Using cached skin for {}", id);
-				urls.put(id, data.url());
-				this.registerSkin(id);
-				connection = false;
-				return;
-			} catch (Exception exception) {
-				Constants.LOG.error("Failed to load cached skin for {}", id, exception);
-			}
+			final String cachedId = id;
+			Constants.debug("Using cached skin for {}", cachedId);
+			urls.put(cachedId, data.url());
+			Minecraft.getInstance().execute(() -> {
+				try {
+					this.registerSkin(cachedId);
+				} catch (Exception ex) {
+					Constants.LOG.error("Failed to load cached skin for {}", cachedId, ex);
+				} finally {
+					connection = false;
+				}
+			});
+			return;
 		}
 
 		urls.put(id, url);
@@ -308,12 +312,19 @@ public class SkinGrabber {
 		new Thread(() -> {
 			try {
 				this.downloadImageFromURL(id, new File(SKIN_DIR), url);
-				this.registerSkin(id);
 				this.cache.add(id, url);
-				Constants.debug("Downloaded {} for {}!", url, id);
+				Minecraft.getInstance().execute(() -> {
+					try {
+						this.registerSkin(id);
+						Constants.debug("Downloaded {} for {}!", url, id);
+					} catch (Exception ex) {
+						Constants.LOG.error("Failed to register skin {}", id, ex);
+					} finally {
+						connection = false;
+					}
+				});
 			} catch (Exception exception) {
 				Constants.LOG.error("Failed to download {} for {}", url, id, exception);
-			} finally {
 				connection = false;
 			}
 		}, Constants.MOD_ID + "-Download").start();

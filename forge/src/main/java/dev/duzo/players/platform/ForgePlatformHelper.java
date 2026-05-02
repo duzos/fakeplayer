@@ -2,7 +2,7 @@ package dev.duzo.players.platform;
 
 import dev.duzo.players.platform.services.IPlatformHelper;
 import net.neoforged.fml.ModList;
-import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.fml.loading.FMLEnvironment;
 
 public class ForgePlatformHelper implements IPlatformHelper {
 
@@ -21,6 +21,6 @@ public class ForgePlatformHelper implements IPlatformHelper {
     @Override
     public boolean isDevelopmentEnvironment() {
 
-        return !FMLLoader.isProduction();
+        return !FMLEnvironment.isProduction();
     }
 }

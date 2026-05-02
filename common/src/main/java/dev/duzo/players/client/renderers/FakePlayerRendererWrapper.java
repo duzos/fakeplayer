@@ -3,13 +3,16 @@ package dev.duzo.players.client.renderers;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.duzo.players.client.model.FakePlayerModel;
 import dev.duzo.players.entities.FakePlayerEntity;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
-import net.minecraft.world.entity.player.PlayerSkin;
+import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.core.ClientAsset;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.player.PlayerModelType;
+import net.minecraft.world.entity.player.PlayerSkin;
 
 public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEntity, AvatarRenderState, FakePlayerModel> {
 	private final FakePlayerRenderer wide;
@@ -33,8 +36,14 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
 			fake.slim = entity.isSlim();
-			state.skin = new PlayerSkin(fake.skinTexture, null, null, null,
-				fake.slim ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE, false);
+			state.skin = PlayerSkin.insecure(
+				new ClientAsset.DownloadedTexture(fake.skinTexture, ""),
+				null, null,
+				fake.slim ? PlayerModelType.SLIM : PlayerModelType.WIDE);
+			if (fake.isSitting) {
+				state.isPassenger = true;
+				state.y -= 0.5;
+			}
 		}
 		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING) {
 			state.pose = Pose.SLEEPING;
@@ -47,10 +56,10 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 	}
 
 	@Override
-	public void render(AvatarRenderState state, PoseStack stack, MultiBufferSource buffer, int packedLight) {
+	public void submit(AvatarRenderState state, PoseStack stack, SubmitNodeCollector collector, CameraRenderState camera) {
 		boolean isSlim = state instanceof FakeAvatarRenderState fake && fake.slim;
 		FakePlayerRenderer renderer = isSlim ? this.slim : this.wide;
-		renderer.render(state, stack, buffer, packedLight);
+		renderer.submit(state, stack, collector, camera);
 	}
 
 	@Override

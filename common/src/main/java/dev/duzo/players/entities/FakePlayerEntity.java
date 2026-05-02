@@ -277,9 +277,9 @@ public class FakePlayerEntity extends PathfinderMob {
 	}
 
 	public void sendChat(String message) {
-		if (this.level().isClientSide) return;
+		if (this.level().isClientSide()) return;
 
-		this.getServer().getPlayerList().broadcastChatMessage(PlayerChatMessage.system(message), this.createCommandSourceStackForNameResolution((net.minecraft.server.level.ServerLevel) this.level()), ChatType.bind(ChatType.CHAT, this));
+		this.level().getServer().getPlayerList().broadcastChatMessage(PlayerChatMessage.system(message), this.createCommandSourceStackForNameResolution((net.minecraft.server.level.ServerLevel) this.level()), ChatType.bind(ChatType.CHAT, this));
 	}
 
 

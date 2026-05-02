@@ -20,7 +20,7 @@ public class SkinUrlCommand {
 		dispatcher.register(
 				Commands.literal(Constants.MOD_ID)
 						.then(Commands.literal("url")
-								.requires((p) -> p.hasPermission(Commands.LEVEL_GAMEMASTERS))
+								.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
 								.then(Commands.argument("target", EntityArgument.entity())
 										.then(Commands.argument("texture", StringArgumentType.greedyString())
 												.executes(SkinUrlCommand::execute)))));

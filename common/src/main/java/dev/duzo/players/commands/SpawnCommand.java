@@ -19,7 +19,7 @@ public class SpawnCommand {
 		dispatcher.register(
 				Commands.literal(Constants.MOD_ID)
 						.then(Commands.literal("spawn")
-								.requires((p) -> p.hasPermission(Commands.LEVEL_GAMEMASTERS))
+								.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
 								.then(Commands.argument("skin", StringArgumentType.word())
 										.executes(ctx -> spawn(ctx, ctx.getSource().getPosition()))
 										.then(Commands.argument("pos", Vec3Argument.vec3())

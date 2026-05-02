@@ -3,9 +3,10 @@ package dev.duzo.players.client.renderers;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.duzo.players.client.model.FakePlayerModel;
 import dev.duzo.players.entities.FakePlayerEntity;
-import net.minecraft.client.model.HumanoidArmorModel;
 import net.minecraft.client.model.geom.ModelLayers;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.model.player.PlayerModel;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.entity.ArmorModelSet;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.layers.ArrowLayer;
@@ -14,10 +15,12 @@ import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
 import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
 import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
-import net.minecraft.world.entity.player.PlayerSkin;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.core.ClientAsset;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.player.PlayerModelType;
+import net.minecraft.world.entity.player.PlayerSkin;
 
 public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, AvatarRenderState, FakePlayerModel> {
 	private final boolean slim;
@@ -27,12 +30,13 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 		this.slim = slim;
 
 		this.addLayer(new HumanoidArmorLayer<>(this,
-			new HumanoidArmorModel<>(context.bakeLayer(slim ? ModelLayers.PLAYER_SLIM_INNER_ARMOR : ModelLayers.PLAYER_INNER_ARMOR)),
-			new HumanoidArmorModel<>(context.bakeLayer(slim ? ModelLayers.PLAYER_SLIM_OUTER_ARMOR : ModelLayers.PLAYER_OUTER_ARMOR)),
+			ArmorModelSet.bake(slim ? ModelLayers.PLAYER_SLIM_ARMOR : ModelLayers.PLAYER_ARMOR,
+				context.getModelSet(),
+				modelPart -> new PlayerModel(modelPart, slim)),
 			context.getEquipmentRenderer()));
 		this.addLayer(new ItemInHandLayer<>(this));
 		this.addLayer(new ArrowLayer<>(this, context));
-		this.addLayer(new CustomHeadLayer<>(this, context.getModelSet()));
+		this.addLayer(new CustomHeadLayer<>(this, context.getModelSet(), context.getPlayerSkinRenderCache()));
 		this.addLayer(new BeeStingerLayer<>(this, context));
 	}
 
@@ -48,8 +52,14 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
 			fake.slim = entity.isSlim();
-			state.skin = new PlayerSkin(fake.skinTexture, null, null, null,
-				fake.slim ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE, false);
+			state.skin = PlayerSkin.insecure(
+				new ClientAsset.DownloadedTexture(fake.skinTexture, ""),
+				null, null,
+				fake.slim ? PlayerModelType.SLIM : PlayerModelType.WIDE);
+			if (fake.isSitting) {
+				state.isPassenger = true;
+				state.y -= 0.5;
+			}
 		}
 		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING) {
 			state.pose = Pose.SLEEPING;
@@ -62,7 +72,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 	}
 
 	@Override
-	public void render(AvatarRenderState state, PoseStack matrices, MultiBufferSource buffer, int packedLight) {
+	public void submit(AvatarRenderState state, PoseStack matrices, SubmitNodeCollector collector, CameraRenderState camera) {
 		matrices.pushPose();
 		if (state.isBaby) {
 			matrices.scale(0.5f, 0.5f, 0.5f);
@@ -74,7 +84,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 			matrices.translate(0, -0.5f, 0);
 		}
 
-		super.render(state, matrices, buffer, packedLight);
+		super.submit(state, matrices, collector, camera);
 		matrices.popPose();
 	}
 
@@ -84,14 +94,6 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 			return fake.skinTexture;
 		}
 		return null;
-	}
-
-	@Override
-	protected void renderNameTag(AvatarRenderState state, Component name, PoseStack stack, MultiBufferSource buffer, int packedLight) {
-		if (state.nameTag == null) {
-			return;
-		}
-		super.renderNameTag(state, name, stack, buffer, packedLight);
 	}
 
 	public boolean isSlim() {
