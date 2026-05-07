@@ -54,6 +54,12 @@ public class FakePlayerEntity extends PathfinderMob {
 	}
 
 	@Override
+	public void tick() {
+		super.tick();
+		this.updateSwingTime();
+	}
+
+	@Override
 	protected InteractionResult mobInteract(Player player, InteractionHand hand) {
 		if (hand == InteractionHand.MAIN_HAND && player.level().isClientSide()) {
 			if (player.isShiftKeyDown()) {
