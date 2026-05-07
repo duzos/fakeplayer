@@ -1,0 +1,28 @@
+name: Sync project description
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - README.md
+
+jobs:
+  modrinth:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch Modrinth body
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          jq -Rs '{body: .}' README.md > body.json
+          curl --fail-with-body -sS \
+            -X PATCH "https://api.modrinth.com/v2/project/1RSY6DQH" \
+            -H "Authorization: $MODRINTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @body.json
