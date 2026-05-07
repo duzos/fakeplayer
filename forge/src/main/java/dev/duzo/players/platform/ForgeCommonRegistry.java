@@ -5,16 +5,22 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.platform.services.ICommonRegistry;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -29,6 +35,7 @@ import java.util.function.Supplier;
 public class ForgeCommonRegistry implements ICommonRegistry {
 	public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(Registries.ITEM, Constants.MOD_ID);
 	public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(Registries.ENTITY_TYPE, Constants.MOD_ID);
+	public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, Constants.MOD_ID);
 	public static final HashMap<Supplier<? extends EntityType<?>>, Supplier<AttributeSupplier.Builder>> ATTRIBUTES = new HashMap<>();
 	public static final HashMap<ResourceKey<CreativeModeTab>, List<Supplier<Item>>> GROUPS = new HashMap<>();
 	public static final List<Consumer<CommandDispatcher<CommandSourceStack>>> COMMANDS = new ArrayList<>();
@@ -36,6 +43,7 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 	public static void init(IEventBus bus) {
 		ITEMS.register(bus);
 		ENTITIES.register(bus);
+		MENUS.register(bus);
 	}
 
 	@Override
@@ -79,5 +87,15 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 	@Override
 	public void registerCommand(Consumer<CommandDispatcher<CommandSourceStack>> command) {
 		COMMANDS.add(command);
+	}
+
+	@Override
+	public <T extends AbstractContainerMenu> Supplier<MenuType<T>> registerMenu(String modid, String name, ExtendedMenuFactory<T> factory) {
+		return MENUS.register(name, () -> IMenuTypeExtension.create(factory::create));
+	}
+
+	@Override
+	public void openMenu(ServerPlayer player, MenuProvider provider, Consumer<FriendlyByteBuf> data) {
+		player.openMenu(provider, data);
 	}
 }
