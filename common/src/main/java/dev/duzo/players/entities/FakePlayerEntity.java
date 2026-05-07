@@ -2,12 +2,14 @@ package dev.duzo.players.entities;
 
 import dev.duzo.players.api.InteractionRegistry;
 import dev.duzo.players.api.SkinGrabber;
-import dev.duzo.players.client.PlayersCommonClient;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
+import dev.duzo.players.entities.inventory.FakePlayerInventory;
+import dev.duzo.players.menu.FakePlayerMenuProvider;
+import dev.duzo.players.platform.Services;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -20,6 +22,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -48,6 +51,7 @@ public class FakePlayerEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Boolean> SLIM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
 	private SkinData dataCache;
 	private Component nameCache;
+	private final FakePlayerInventory inventory = new FakePlayerInventory(this);
 
 	public FakePlayerEntity(EntityType<? extends FakePlayerEntity> type, Level level) {
 		super(type, level);
@@ -65,19 +69,22 @@ public class FakePlayerEntity extends PathfinderMob {
 
 	@Override
 	protected InteractionResult mobInteract(Player player, InteractionHand hand) {
-		if (hand == InteractionHand.MAIN_HAND && player.level().isClientSide()) {
-			if (player.isShiftKeyDown()) {
-				PlayersCommonClient.openSelectScreen(this);
-
-				return InteractionResult.SUCCESS;
-			}
+		if (hand != InteractionHand.MAIN_HAND) {
+			return super.mobInteract(player, hand);
 		}
 
-		if (hand == InteractionHand.MAIN_HAND && !player.level().isClientSide()) {
-			if (player.isShiftKeyDown()) {
-				return InteractionResult.SUCCESS;
+		if (player.isShiftKeyDown()) {
+			if (!player.level().isClientSide()) {
+				Services.COMMON_REGISTRY.openMenu(
+						(ServerPlayer) player,
+						new FakePlayerMenuProvider(this),
+						buf -> buf.writeInt(this.getId())
+				);
 			}
+			return InteractionResult.SUCCESS;
+		}
 
+		if (!player.level().isClientSide()) {
 			return InteractionRegistry.INSTANCE.get(player.getItemInHand(hand).getItem()).run((ServerPlayer) player, this);
 		}
 
@@ -124,6 +131,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		skinOut.putString("Key", skin.key());
 		skinOut.putString("Url", skin.url());
 		output.putBoolean("Slim", this.isSlim());
+		this.inventory.storeAsItemList(output.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC));
 	}
 
 	@Override
@@ -145,6 +153,11 @@ public class FakePlayerEntity extends PathfinderMob {
 		}
 		this.entityData.set(SKIN_DATA, skin.toNbt());
 		this.entityData.set(SLIM, input.getBooleanOr("Slim", false));
+		input.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC).ifPresent(this.inventory::fromItemList);
+	}
+
+	public FakePlayerInventory getInventory() {
+		return inventory;
 	}
 
 	@Override
@@ -179,6 +192,8 @@ public class FakePlayerEntity extends PathfinderMob {
 	@Override
 	protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean dropExperience) {
 		super.dropCustomDeathLoot(level, source, dropExperience);
+
+		Containers.dropContents(this.level(), this, this.inventory);
 
 		ItemStack egg = FPItems.PLAYER_EGG.get().getDefaultInstance();
 		egg.set(DataComponents.CUSTOM_NAME, this.getCustomName());
@@ -237,6 +252,13 @@ public class FakePlayerEntity extends PathfinderMob {
 			return;
 		}
 		this.setSkin(component.getString());
+	}
+
+	public void setNameWithoutSkin(@Nullable Component component) {
+		super.setCustomName(component);
+		String name = component == null ? PlayersConfig.get().defaultSkin : component.getString();
+		this.setSkin(this.getSkinData().withName(name));
+		this.nameCache = null;
 	}
 
 	public ResourceLocation getSkin() {
