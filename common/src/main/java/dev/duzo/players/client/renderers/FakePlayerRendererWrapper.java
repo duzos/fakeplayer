@@ -3,11 +3,14 @@ package dev.duzo.players.client.renderers;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.duzo.players.client.model.FakePlayerModel;
 import dev.duzo.players.entities.FakePlayerEntity;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.entity.HumanoidMobRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.state.PlayerRenderState;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.Pose;
 
 public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEntity, PlayerRenderState, FakePlayerModel> {
@@ -28,6 +31,11 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 	@Override
 	public void extractRenderState(FakePlayerEntity entity, PlayerRenderState state, float partialTick) {
 		super.extractRenderState(entity, state, partialTick);
+		HumanoidMobRenderer.extractHumanoidRenderState(entity, state, partialTick, this.itemModelResolver);
+		state.leftArmPose = entity.getItemHeldByArm(HumanoidArm.LEFT).isEmpty()
+			? HumanoidModel.ArmPose.EMPTY : HumanoidModel.ArmPose.ITEM;
+		state.rightArmPose = entity.getItemHeldByArm(HumanoidArm.RIGHT).isEmpty()
+			? HumanoidModel.ArmPose.EMPTY : HumanoidModel.ArmPose.ITEM;
 		if (state instanceof FakePlayerRenderState fake) {
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
