@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "iCi",
+    "CRC",
+    "iCi"
+  ],
+  "key": {
+    "i": "minecraft:iron_ingot",
+    "C": "minecraft:clay",
+    "R": "minecraft:redstone_block"
+  },
+  "result": {
+    "id": "players:player_shell",
+    "count": 1
+  }
+}
