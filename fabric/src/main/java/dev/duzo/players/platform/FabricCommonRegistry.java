@@ -2,25 +2,48 @@ package dev.duzo.players.platform;
 
 import com.mojang.brigadier.CommandDispatcher;
 import dev.duzo.players.platform.services.ICommonRegistry;
+import io.netty.buffer.Unpooled;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceKey;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class FabricCommonRegistry implements ICommonRegistry {
+
+	private static final StreamCodec<RegistryFriendlyByteBuf, FriendlyByteBuf> RAW_BYTES_CODEC = StreamCodec.of(
+			(out, buf) -> {
+				byte[] data = new byte[buf.readableBytes()];
+				buf.readBytes(data);
+				out.writeByteArray(data);
+			},
+			in -> new FriendlyByteBuf(Unpooled.wrappedBuffer(in.readByteArray()))
+	);
 
 	private static <T, R extends Registry<? super T>> Supplier<T> registerSupplier(R registry, String modid, String id, Supplier<T> object) {
 		final T registeredObject = Registry.register((Registry<T>) registry,
@@ -55,6 +78,38 @@ public class FabricCommonRegistry implements ICommonRegistry {
 	public void registerCommand(Consumer<CommandDispatcher<CommandSourceStack>> command) {
 		CommandRegistrationCallback.EVENT.register((dispatcher, access, env) -> {
 			command.accept(dispatcher);
+		});
+	}
+
+	@Override
+	public <T extends AbstractContainerMenu> Supplier<MenuType<T>> registerMenu(String modid, String name, ExtendedMenuFactory<T> factory) {
+		ExtendedScreenHandlerType<T, FriendlyByteBuf> type = new ExtendedScreenHandlerType<>(
+				factory::create,
+				RAW_BYTES_CODEC
+		);
+		return registerSupplier(BuiltInRegistries.MENU, modid, name, () -> type);
+	}
+
+	@Override
+	public void openMenu(ServerPlayer player, MenuProvider provider, Consumer<FriendlyByteBuf> data) {
+		player.openMenu(new ExtendedScreenHandlerFactory<FriendlyByteBuf>() {
+			@Override
+			public FriendlyByteBuf getScreenOpeningData(ServerPlayer p) {
+				FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+				data.accept(buf);
+				return buf;
+			}
+
+			@Override
+			public Component getDisplayName() {
+				return provider.getDisplayName();
+			}
+
+			@Nullable
+			@Override
+			public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player p) {
+				return provider.createMenu(containerId, playerInventory, p);
+			}
 		});
 	}
 }
