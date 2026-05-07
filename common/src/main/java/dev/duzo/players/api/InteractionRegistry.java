@@ -1,6 +1,8 @@
 package dev.duzo.players.api;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.menu.FakePlayerMenuProvider;
+import dev.duzo.players.platform.Services;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -85,6 +87,14 @@ public class InteractionRegistry {
 			playSound(entity, SoundEvents.BOOK_PAGE_TURN);
 			return InteractionResult.SUCCESS;
 		}));
+
+		Interaction openInventory = (player, entity) -> {
+			Services.COMMON_REGISTRY.openMenu(player, new FakePlayerMenuProvider(entity), buf -> buf.writeInt(entity.getId()));
+			playSound(entity, SoundEvents.CHEST_OPEN);
+			return InteractionResult.SUCCESS;
+		};
+		register(Items.CHEST, openInventory);
+		register(Items.TRAPPED_CHEST, openInventory);
 	}
 
 	private static void playSound(FakePlayerEntity entity, SoundEvent sound) {
