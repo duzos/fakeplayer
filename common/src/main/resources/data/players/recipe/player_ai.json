@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "iLi",
+    "iOi",
+    "iRi"
+  ],
+  "key": {
+    "i": "minecraft:iron_ingot",
+    "L": "minecraft:lime_dye",
+    "O": "minecraft:observer",
+    "R": "minecraft:redstone_block"
+  },
+  "result": {
+    "id": "players:player_ai",
+    "count": 1
+  }
+}
