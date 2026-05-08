@@ -40,6 +40,8 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 	private Button slimToggle;
 	private Button tagToggle;
 
+	private Boolean lastShiftDown;
+
 	public FakePlayerInventoryScreen(FakePlayerMenu menu, Inventory playerInventory, Component title) {
 		super(menu, playerInventory, title);
 
@@ -85,7 +87,8 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		this.addRenderableWidget(this.slimToggle);
 		this.addRenderableWidget(this.tagToggle);
 
-		applyTooltips();
+		this.lastShiftDown = null;
+		refreshTooltipsIfShiftChanged();
 	}
 
 	@Override
@@ -97,11 +100,13 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		if (this.aiToggle != null) this.aiToggle.setMessage(toggleLabel("AI", !entity.isNoAi()));
 		if (this.slimToggle != null) this.slimToggle.setMessage(toggleLabel("SL", entity.isSlim()));
 		if (this.tagToggle != null) this.tagToggle.setMessage(toggleLabel("TG", entity.isCustomNameVisible()));
-		applyTooltips();
+		refreshTooltipsIfShiftChanged();
 	}
 
-	private void applyTooltips() {
+	private void refreshTooltipsIfShiftChanged() {
 		boolean shift = hasShiftDown();
+		if (this.lastShiftDown != null && this.lastShiftDown == shift) return;
+		this.lastShiftDown = shift;
 		setTip(this.nameEdit, shift, "Name", "Live-updates the entity name. Skin only changes when you press Apply.");
 		setTip(this.applyButton, shift, "Apply skin", "Re-fetches and applies the skin matching the typed name.");
 		setTip(this.selectButton, shift, "Skin gallery", "Opens the skin selector for browsing downloaded skins.");
