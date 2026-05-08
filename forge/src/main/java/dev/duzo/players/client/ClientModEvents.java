@@ -5,12 +5,11 @@ import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
 import dev.duzo.players.client.screen.FakePlayerInventoryScreen;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPMenus;
-import net.minecraft.client.gui.screens.MenuScreens;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 @EventBusSubscriber(modid = Constants.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientModEvents {
@@ -20,7 +19,7 @@ public class ClientModEvents {
 	}
 
 	@SubscribeEvent
-	public static void onClientSetup(FMLClientSetupEvent event) {
-		event.enqueueWork(() -> MenuScreens.register(FPMenus.FAKE_PLAYER.get(), FakePlayerInventoryScreen::new));
+	public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
+		event.register(FPMenus.FAKE_PLAYER.get(), FakePlayerInventoryScreen::new);
 	}
 }

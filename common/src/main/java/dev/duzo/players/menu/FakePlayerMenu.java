@@ -9,7 +9,6 @@ import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -48,7 +47,7 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 			this.addSlot(new EquipmentBoundSlot(entity, eq, 8, 8 + i * 18) {
 				@Override
 				public boolean mayPlace(ItemStack stack) {
-					return Mob.getEquipmentSlotForItem(stack) == eq;
+					return entity != null && entity.getEquipmentSlotForItem(stack) == eq;
 				}
 
 				@Override
