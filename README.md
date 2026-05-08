@@ -28,6 +28,8 @@ And much more!
 
 *An interaction is when the player right clicks the mob with an item*
 
+- **Chest**: Open the management GUI (see below)
+- **Shift + Right-click** *(any item)*: Also opens the management GUI
 - **Observer**: Toggle the fake player's AI
 - **Name Tag**: Change the fake player's name + skin
 - **Stairs**: Make the fake player sit
@@ -35,6 +37,37 @@ And much more!
 - **Slabs**: Toggle slim skin
 - **Eye of Ender**: Toggle name tag visibility
 - **Paper**: Send a chat message
+
+#### Management GUI
+
+Right-click a fake player with a chest, or shift + right-click them with anything, to open a full management screen.
+
+**Inventory** *(left and bottom)*
+
+The screen mirrors the vanilla player layout:
+
+- 4 armor slots top-left (helmet, chestplate, leggings, boots) — accept matching armor only
+- 1 offhand slot at the vanilla offhand position
+- 27-slot main storage (3 rows of 9)
+- 9 hotbar slots — the **first** hotbar slot is bound to the fake player's main-hand item; the other 8 are extra storage
+- The player's own inventory sits below for shift-click transfers
+
+The 27 storage slots and 8 extra hotbar slots are saved on the entity and **drop when it's killed**. Armor and held items follow vanilla equipment-drop rules.
+
+**Controls** *(top-right panel)*
+
+| Control | Effect |
+|---|---|
+| Name edit box | Live-updates the fake player's display name. Skin is **not** touched until you press Apply Skin. |
+| Apply Skin | Re-fetches and applies the skin matching whatever is currently typed. |
+| Skin Selector | Opens the trending-skins gallery. |
+| Pose | Cycles the fake player's pose: standing → sitting → laying. |
+| AI / SL / TG toggles | Three small toggle buttons. Green = on, red = off. |
+| ↳ AI | When off, the fake player stops moving, looking around, and attacking. |
+| ↳ SL (Slim) | Switches between the slim (Alex) and classic (Steve) model. |
+| ↳ TG (Tag) | Toggles whether the floating name tag is visible above the entity. |
+
+Hold **Shift** while hovering any control to see a longer description in the tooltip.
 
 #### How do I get one?
 You need to craft a ```Robot Shell``` and a ```Robot AI``` and combine them in a crafting table
@@ -59,7 +92,7 @@ To do this, you run the command ```/players url <entity> <url>```
 
 The mod provides a list of trending skins that you can use for your fake players.
 
-To use this feature, shift and right-click the fake player to open the GUI.
+Open the management GUI (chest or shift + right-click) and press the **Skin Selector** button to browse them.
 
 ### Slim Skin Support!
 This mod supports both slim skins and regular skins.
