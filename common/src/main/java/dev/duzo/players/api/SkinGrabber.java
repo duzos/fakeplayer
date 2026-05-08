@@ -373,7 +373,7 @@ public class SkinGrabber {
 		new Thread(() -> {
 			try {
 				this.downloadImageFromURL(id, new File(SKIN_DIR), url);
-				this.registerSkin(id);
+				Minecraft.getInstance().execute(() -> this.registerSkin(id));
 				this.cache.add(id, url);
 				Constants.debug("Downloaded {} for {}!", url, id);
 			} catch (Exception exception) {
