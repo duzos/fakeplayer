@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -186,12 +187,13 @@ public class AIMarkerItem extends Item {
 	}
 
 	@Override
-	public InteractionResult use(Level level, Player player, InteractionHand hand) {
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+		ItemStack stack = player.getItemInHand(hand);
 		if (player.isShiftKeyDown() && !level.isClientSide() && player instanceof ServerPlayer) {
-			silentlyConsume(player.getItemInHand(hand));
-			return InteractionResult.CONSUME;
+			silentlyConsume(stack);
+			return InteractionResultHolder.consume(stack);
 		}
-		return InteractionResult.PASS;
+		return InteractionResultHolder.pass(stack);
 	}
 
 	private static void silentlyConsume(ItemStack stack) {
