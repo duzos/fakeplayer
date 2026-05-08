@@ -145,7 +145,7 @@ public class SkinSelectScreen extends Screen {
 					top + 4, 0xff5555, true);
 		}
 
-		context.drawString(this.font, HINT, left + 8, top + 8, 0xffffff, false);
+		context.drawString(this.font, HINT, left + 8, top + 12, 0xffffff, false);
 	}
 
 	private String getSelectedSkin() {
