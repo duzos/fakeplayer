@@ -208,7 +208,7 @@ public class SkinSelectScreen extends Screen {
 			Path path = Paths.get(picked);
 			byte[] bytes = Files.readAllBytes(path);
 			LocalSkinStore.validate(bytes);
-			String key = SkinGrabber.encodeURL(new String(bytes));
+			String key = LocalSkinStore.hashBytes(bytes);
 			SkinGrabber.INSTANCE.registerLocalBytes(key, bytes);
 			Network.getNetworkHandler().sendToServer(new UploadSkinPacketC2S(this.target.getId(), key, bytes));
 			this.onClose();
