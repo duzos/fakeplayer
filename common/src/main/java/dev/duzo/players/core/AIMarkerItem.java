@@ -89,6 +89,17 @@ public class AIMarkerItem extends Item {
 		writeTag(stack, tag);
 	}
 
+	public static byte purpose(ItemStack stack) {
+		return purposeFromTag(readTag(stack));
+	}
+
+	@Nullable
+	public static BlockPos regionA(ItemStack stack) {
+		CompoundTag tag = readTag(stack);
+		if (tag == null || !tag.contains(TAG_REGION_A)) return null;
+		return BlockPos.of(tag.getLongOr(TAG_REGION_A, 0L));
+	}
+
 	@Nullable
 	private static UUID readUUID(CompoundTag tag, String key) {
 		return tag.getIntArray(key)
