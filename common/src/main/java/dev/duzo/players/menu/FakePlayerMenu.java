@@ -13,7 +13,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
 
 public class FakePlayerMenu extends AbstractContainerMenu {
@@ -120,13 +119,15 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 		} else {
 			// Player -> try armor by item type, then offhand if it's an offhand-equippable, then storage rows, then hotbar
 			boolean placed = false;
-			if (entity != null && stack.getItem() instanceof ArmorItem) {
+			if (entity != null) {
 				EquipmentSlot eq = entity.getEquipmentSlotForItem(stack);
-				int armorIdx = ARMOR_START + eq.getIndex();
-				if (armorIdx >= ARMOR_START && armorIdx < ARMOR_END) {
-					Slot target = this.slots.get(armorIdx);
-					if (target.mayPlace(stack) && !target.hasItem()) {
-						placed = this.moveItemStackTo(stack, armorIdx, armorIdx + 1, false);
+				if (eq.getType() == EquipmentSlot.Type.HUMANOID_ARMOR) {
+					int armorIdx = ARMOR_START + eq.getIndex();
+					if (armorIdx >= ARMOR_START && armorIdx < ARMOR_END) {
+						Slot target = this.slots.get(armorIdx);
+						if (target.mayPlace(stack) && !target.hasItem()) {
+							placed = this.moveItemStackTo(stack, armorIdx, armorIdx + 1, false);
+						}
 					}
 				}
 			}
