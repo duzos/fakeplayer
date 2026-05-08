@@ -5,11 +5,11 @@ import commonnetwork.networking.data.Side;
 import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 public record BondPacketC2S(int id, boolean bond) {
-	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_bond");
+	public static final Identifier LOCATION = PlayersCommon.id("ai_bond");
 
 	public static BondPacketC2S decode(FriendlyByteBuf buf) {
 		return new BondPacketC2S(buf.readInt(), buf.readBoolean());

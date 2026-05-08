@@ -6,6 +6,7 @@ import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.ai.AIState;
+import net.minecraft.nbt.CompoundTag;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
 import dev.duzo.players.entities.inventory.FakePlayerInventory;
@@ -51,7 +52,7 @@ public class FakePlayerEntity extends PathfinderMob {
 	private static final EntityDataAccessor<String> SKIN_KEY = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
 	private static final EntityDataAccessor<String> SKIN_URL = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
 	private static final EntityDataAccessor<Boolean> SLIM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
-	private static final EntityDataAccessor<CompoundTag> AI_STATE = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.COMPOUND_TAG);
+	private static final EntityDataAccessor<String> AI_STATE = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
 	private SkinData dataCache;
 	private AIState aiCache;
 	private Component nameCache;
@@ -135,7 +136,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		skinOut.putString("Key", skin.key());
 		skinOut.putString("Url", skin.url());
 		output.putBoolean("Slim", this.isSlim());
-		output.store("AIState", CompoundTag.CODEC, this.entityData.get(AI_STATE));
+		output.putString("AIState", this.entityData.get(AI_STATE));
 		this.inventory.storeAsItemList(output.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC));
 	}
 
@@ -159,7 +160,8 @@ public class FakePlayerEntity extends PathfinderMob {
 		}
 		this.applySkin(skin);
 		this.entityData.set(SLIM, input.getBooleanOr("Slim", false));
-		input.read("AIState", CompoundTag.CODEC).ifPresent(t -> this.entityData.set(AI_STATE, t));
+		String aiSnbt = input.getStringOr("AIState", "");
+		if (!aiSnbt.isEmpty()) this.entityData.set(AI_STATE, aiSnbt);
 		input.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC).ifPresent(this.inventory::fromItemList);
 	}
 
@@ -189,7 +191,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		builder.define(SKIN_KEY, defaultSkin.key());
 		builder.define(SKIN_URL, defaultSkin.url());
 		builder.define(SLIM, false);
-		builder.define(AI_STATE, new AIState().toNbt());
+		builder.define(AI_STATE, new AIState().toNbt().toString());
 	}
 
 	private void applySkin(SkinData skin) {
@@ -315,20 +317,29 @@ public class FakePlayerEntity extends PathfinderMob {
 
 	public AIState getAIState() {
 		if (aiCache == null) {
-			aiCache = AIState.fromNbt(this.entityData.get(AI_STATE));
+			aiCache = AIState.fromNbt(parseAiSnbt(this.entityData.get(AI_STATE)));
 		}
 		return aiCache;
 	}
 
 	public void setAIState(AIState state) {
-		this.entityData.set(AI_STATE, state.toNbt());
+		this.entityData.set(AI_STATE, state.toNbt().toString());
 		this.aiCache = state;
 	}
 
 	public void mutateAIState(java.util.function.Consumer<AIState> mutator) {
-		AIState state = AIState.fromNbt(this.entityData.get(AI_STATE));
+		AIState state = AIState.fromNbt(parseAiSnbt(this.entityData.get(AI_STATE)));
 		mutator.accept(state);
 		setAIState(state);
+	}
+
+	private static CompoundTag parseAiSnbt(String snbt) {
+		if (snbt == null || snbt.isEmpty()) return new CompoundTag();
+		try {
+			return net.minecraft.nbt.TagParser.parseCompoundFully(snbt);
+		} catch (Exception e) {
+			return new CompoundTag();
+		}
 	}
 
 	public void sendChat(String message) {

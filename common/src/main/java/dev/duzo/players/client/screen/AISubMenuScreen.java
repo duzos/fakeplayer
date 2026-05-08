@@ -99,7 +99,7 @@ public class AISubMenuScreen extends Screen {
 		FlatButton close = new FlatButton(innerRight - 14, panelTop + 6, 14, 14,
 				Component.literal("✕"),
 				() -> Minecraft.getInstance().setScreen(null))
-				.noBackground()
+				.withBg(COL_TITLE_BAR, 0xFF2A1318)
 				.noBorder()
 				.withText(0xFF8E97A4, 0xFFE76060);
 		this.addRenderableWidget(close);

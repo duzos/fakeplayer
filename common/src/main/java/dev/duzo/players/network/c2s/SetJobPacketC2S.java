@@ -7,10 +7,10 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.Job;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public record SetJobPacketC2S(int id, int jobOrdinal) {
-	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_set_job");
+	public static final Identifier LOCATION = PlayersCommon.id("ai_set_job");
 
 	public static SetJobPacketC2S decode(FriendlyByteBuf buf) {
 		return new SetJobPacketC2S(buf.readInt(), buf.readInt());

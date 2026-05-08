@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.Component;
 
 public class FlatButton extends AbstractButton {
@@ -77,12 +78,12 @@ public class FlatButton extends AbstractButton {
 	}
 
 	@Override
-	public void onPress() {
+	public void onPress(InputWithModifiers input) {
 		handler.onPress();
 	}
 
 	@Override
-	protected void renderWidget(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
+	protected void renderContents(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
 		boolean hovered = this.isHoveredOrFocused();
 		int bg = hovered ? hoverBgColor : bgColor;
 		int border = hovered ? hoverBorderColor : borderColor;
@@ -110,23 +111,16 @@ public class FlatButton extends AbstractButton {
 
 		var font = Minecraft.getInstance().font;
 		Component msg = this.getMessage();
-		MutableComponentForwarder forwarder = MutableComponentForwarder.of(msg, bold);
-		int textW = font.width(forwarder.component());
+		Component drawMsg = bold ? msg.copy().withStyle(s -> s.withBold(true)) : msg;
+		int textW = font.width(drawMsg);
 		int textX = x0 + (this.width - textW) / 2;
 		int textY = y0 + (this.height - 8) / 2 + 1;
 		int colorToDraw = this.active ? text : 0xFF6B7787;
-		ctx.drawString(font, forwarder.component(), textX, textY, colorToDraw, false);
+		ctx.drawString(font, drawMsg, textX, textY, colorToDraw, false);
 	}
 
 	@Override
 	protected void updateWidgetNarration(NarrationElementOutput out) {
 		this.defaultButtonNarrationText(out);
-	}
-
-	private record MutableComponentForwarder(Component component) {
-		static MutableComponentForwarder of(Component msg, boolean bold) {
-			if (!bold) return new MutableComponentForwarder(msg);
-			return new MutableComponentForwarder(msg.copy().withStyle(s -> s.withBold(true)));
-		}
 	}
 }

@@ -5,10 +5,10 @@ import commonnetwork.networking.data.Side;
 import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public record StartStopJobPacketC2S(int id, boolean run) {
-	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_start_stop");
+	public static final Identifier LOCATION = PlayersCommon.id("ai_start_stop");
 
 	public static StartStopJobPacketC2S decode(FriendlyByteBuf buf) {
 		return new StartStopJobPacketC2S(buf.readInt(), buf.readBoolean());

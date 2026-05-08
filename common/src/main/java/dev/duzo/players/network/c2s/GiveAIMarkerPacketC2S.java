@@ -6,12 +6,12 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
 public record GiveAIMarkerPacketC2S(int id, byte mode) {
-	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_give_marker");
+	public static final Identifier LOCATION = PlayersCommon.id("ai_give_marker");
 
 	public static GiveAIMarkerPacketC2S decode(FriendlyByteBuf buf) {
 		return new GiveAIMarkerPacketC2S(buf.readInt(), buf.readByte());
