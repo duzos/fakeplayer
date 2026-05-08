@@ -6,8 +6,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -19,34 +23,90 @@ import net.minecraft.world.level.block.entity.ChestBlockEntity;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.UUID;
 
 public class AIMarkerItem extends Item {
-	public static final byte MODE_WAYPOINT = 0;
-	public static final byte MODE_REGION = 1;
-	public static final byte MODE_DEPOSIT = 2;
+	public static final byte PURPOSE_WAYPOINT = 0;
+	public static final byte PURPOSE_REGION = 1;
+	public static final byte PURPOSE_CHEST_PICKER = 2;
 
-	private static final String TAG_ENTITY = "FpEntityId";
-	private static final String TAG_MODE = "FpMode";
-	private static final String TAG_REGION_A = "FpRegionA";
+	public static final long SESSION_TICKS = 90L * 20L;
+	public static final double SESSION_RANGE = 32.0D;
+	public static final double SESSION_RANGE_SQ = SESSION_RANGE * SESSION_RANGE;
+
+	private static final String TAG_FAKE = "FakePlayerUUID";
+	private static final String TAG_OWNER = "OwnerUUID";
+	private static final String TAG_PURPOSE = "Purpose";
+	private static final String TAG_EXPIRES = "ExpiresAt";
+	private static final String TAG_REGION_A = "RegionA";
 
 	public AIMarkerItem(Properties properties) {
 		super(properties.stacksTo(1));
 	}
 
-	public static ItemStack make(int entityId, byte mode) {
+	public static ItemStack make(FakePlayerEntity entity, Player owner, byte purpose, long now) {
 		ItemStack stack = new ItemStack(FPItems.AI_MARKER.get());
 		CompoundTag tag = stack.getOrCreateTag();
-		tag.putInt(TAG_ENTITY, entityId);
-		tag.putByte(TAG_MODE, mode);
-		stack.setHoverName(Component.literal(modeLabel(mode)).withStyle(ChatFormatting.AQUA));
+		tag.putUUID(TAG_FAKE, entity.getUUID());
+		tag.putUUID(TAG_OWNER, owner.getUUID());
+		tag.putString(TAG_PURPOSE, purposeName(purpose));
+		tag.putLong(TAG_EXPIRES, now + SESSION_TICKS);
+		stack.setHoverName(Component.literal(purposeLabel(purpose)).withStyle(ChatFormatting.AQUA));
 		return stack;
 	}
 
-	private static String modeLabel(byte mode) {
-		return switch (mode) {
-			case MODE_WAYPOINT -> "Waypoint Marker";
-			case MODE_REGION -> "Region Marker";
-			case MODE_DEPOSIT -> "Deposit Marker";
+	public static boolean isSession(ItemStack stack) {
+		return !stack.isEmpty() && stack.getItem() instanceof AIMarkerItem && stack.getTag() != null
+				&& stack.getTag().contains(TAG_FAKE) && stack.getTag().contains(TAG_OWNER);
+	}
+
+	@Nullable
+	public static UUID fakeUUID(ItemStack stack) {
+		CompoundTag tag = stack.getTag();
+		return tag != null && tag.hasUUID(TAG_FAKE) ? tag.getUUID(TAG_FAKE) : null;
+	}
+
+	@Nullable
+	public static UUID ownerUUID(ItemStack stack) {
+		CompoundTag tag = stack.getTag();
+		return tag != null && tag.hasUUID(TAG_OWNER) ? tag.getUUID(TAG_OWNER) : null;
+	}
+
+	public static long expiresAt(ItemStack stack) {
+		CompoundTag tag = stack.getTag();
+		return tag == null ? 0L : tag.getLong(TAG_EXPIRES);
+	}
+
+	public static void bumpExpiry(ItemStack stack, long now) {
+		CompoundTag tag = stack.getTag();
+		if (tag == null) return;
+		tag.putLong(TAG_EXPIRES, now + SESSION_TICKS);
+	}
+
+	private static String purposeName(byte purpose) {
+		return switch (purpose) {
+			case PURPOSE_WAYPOINT -> "WAYPOINT";
+			case PURPOSE_REGION -> "REGION";
+			case PURPOSE_CHEST_PICKER -> "CHEST_PICKER";
+			default -> "UNKNOWN";
+		};
+	}
+
+	private static byte purposeFromTag(@Nullable CompoundTag tag) {
+		if (tag == null) return -1;
+		return switch (tag.getString(TAG_PURPOSE)) {
+			case "WAYPOINT" -> PURPOSE_WAYPOINT;
+			case "REGION" -> PURPOSE_REGION;
+			case "CHEST_PICKER" -> PURPOSE_CHEST_PICKER;
+			default -> -1;
+		};
+	}
+
+	private static String purposeLabel(byte purpose) {
+		return switch (purpose) {
+			case PURPOSE_WAYPOINT -> "Waypoint Marker";
+			case PURPOSE_REGION -> "Region Marker";
+			case PURPOSE_CHEST_PICKER -> "Deposit Marker";
 			default -> "AI Marker";
 		};
 	}
@@ -59,31 +119,31 @@ public class AIMarkerItem extends Item {
 
 		ItemStack stack = ctx.getItemInHand();
 		CompoundTag tag = stack.getTag();
-		if (tag == null || !tag.contains(TAG_ENTITY) || !tag.contains(TAG_MODE)) {
-			player.displayClientMessage(Component.literal("This marker is unbound.").withStyle(ChatFormatting.RED), true);
+		byte purpose = purposeFromTag(tag);
+		if (tag == null || purpose < 0 || !tag.hasUUID(TAG_FAKE)) {
+			silentlyConsume(stack);
 			return InteractionResult.FAIL;
 		}
 
 		ServerLevel level = (ServerLevel) ctx.getLevel();
-		Entity raw = level.getEntity(tag.getInt(TAG_ENTITY));
+		Entity raw = level.getEntity(tag.getUUID(TAG_FAKE));
 		if (!(raw instanceof FakePlayerEntity entity)) {
-			player.displayClientMessage(Component.literal("Target fake player not found.").withStyle(ChatFormatting.RED), true);
-			stack.shrink(1);
+			silentlyConsume(stack);
 			return InteractionResult.FAIL;
 		}
 
-		byte mode = tag.getByte(TAG_MODE);
 		BlockPos pos = ctx.getClickedPos();
 
-		switch (mode) {
-			case MODE_WAYPOINT -> {
+		switch (purpose) {
+			case PURPOSE_WAYPOINT -> {
 				entity.mutateAIState(s -> s.setWaypoint(pos.immutable()));
 				player.displayClientMessage(Component.literal("Waypoint set.").withStyle(ChatFormatting.GREEN), true);
-				stack.shrink(1);
+				silentlyConsume(stack);
 			}
-			case MODE_REGION -> {
+			case PURPOSE_REGION -> {
 				if (!tag.contains(TAG_REGION_A)) {
 					tag.putLong(TAG_REGION_A, pos.asLong());
+					bumpExpiry(stack, level.getGameTime());
 					player.displayClientMessage(Component.literal("Region corner A set, click another block for B.").withStyle(ChatFormatting.YELLOW), true);
 				} else {
 					BlockPos a = BlockPos.of(tag.getLong(TAG_REGION_A));
@@ -93,10 +153,10 @@ public class AIMarkerItem extends Item {
 						s.setRegionB(b);
 					});
 					player.displayClientMessage(Component.literal("Region set.").withStyle(ChatFormatting.GREEN), true);
-					stack.shrink(1);
+					silentlyConsume(stack);
 				}
 			}
-			case MODE_DEPOSIT -> {
+			case PURPOSE_CHEST_PICKER -> {
 				BlockEntity be = ctx.getLevel().getBlockEntity(pos);
 				if (!(be instanceof ChestBlockEntity)) {
 					player.displayClientMessage(Component.literal("Right-click a chest.").withStyle(ChatFormatting.RED), true);
@@ -104,7 +164,7 @@ public class AIMarkerItem extends Item {
 				}
 				entity.mutateAIState(s -> s.setDepositChest(pos.immutable()));
 				player.displayClientMessage(Component.literal("Deposit chest set.").withStyle(ChatFormatting.GREEN), true);
-				stack.shrink(1);
+				silentlyConsume(stack);
 			}
 		}
 
@@ -112,25 +172,48 @@ public class AIMarkerItem extends Item {
 	}
 
 	@Override
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+		ItemStack stack = player.getItemInHand(hand);
+		if (player.isShiftKeyDown() && !level.isClientSide() && player instanceof ServerPlayer) {
+			silentlyConsume(stack);
+			return InteractionResultHolder.consume(stack);
+		}
+		return InteractionResultHolder.pass(stack);
+	}
+
+	private static void silentlyConsume(ItemStack stack) {
+		stack.setCount(0);
+	}
+
+	@Override
 	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
 		CompoundTag tag = stack.getTag();
 		if (tag == null) return;
-		byte mode = tag.getByte(TAG_MODE);
-		String hint = switch (mode) {
-			case MODE_WAYPOINT -> "Right-click a block to mark a waypoint.";
-			case MODE_REGION -> tag.contains(TAG_REGION_A)
+		byte purpose = purposeFromTag(tag);
+		String hint = switch (purpose) {
+			case PURPOSE_WAYPOINT -> "Right-click a block to mark a waypoint.";
+			case PURPOSE_REGION -> tag.contains(TAG_REGION_A)
 					? "Right-click a second block for corner B."
 					: "Right-click a block for corner A.";
-			case MODE_DEPOSIT -> "Right-click a chest to set deposit target.";
+			case PURPOSE_CHEST_PICKER -> "Right-click a chest to set deposit target.";
 			default -> "";
 		};
 		if (!hint.isEmpty()) {
 			tooltip.add(Component.literal(hint).withStyle(ChatFormatting.GRAY));
+			tooltip.add(Component.literal("Sneak + right-click air to cancel.").withStyle(ChatFormatting.DARK_GRAY));
 		}
 	}
 
 	@Override
 	public boolean isFoil(ItemStack stack) {
 		return true;
+	}
+
+	public static void clearAllFor(Player player) {
+		Inventory inv = player.getInventory();
+		for (int i = 0; i < inv.getContainerSize(); i++) {
+			ItemStack s = inv.getItem(i);
+			if (isSession(s)) inv.setItem(i, ItemStack.EMPTY);
+		}
 	}
 }

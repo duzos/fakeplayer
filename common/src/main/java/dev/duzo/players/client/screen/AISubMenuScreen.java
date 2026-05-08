@@ -119,15 +119,15 @@ public class AISubMenuScreen extends Screen {
 		markerSectionY = y;
 		y += 14;
 		waypointButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
-				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.MODE_WAYPOINT));
+				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_WAYPOINT));
 		this.addRenderableWidget(waypointButton);
 		y += ROW_H;
 		regionButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
-				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.MODE_REGION));
+				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_REGION));
 		this.addRenderableWidget(regionButton);
 		y += ROW_H;
 		depositButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
-				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.MODE_DEPOSIT));
+				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER));
 		this.addRenderableWidget(depositButton);
 		y += BTN_H + 10;
 
