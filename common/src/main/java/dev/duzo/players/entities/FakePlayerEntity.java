@@ -5,6 +5,7 @@ import dev.duzo.players.api.SkinGrabber;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
+import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
 import dev.duzo.players.entities.inventory.FakePlayerInventory;
@@ -48,7 +49,9 @@ public class FakePlayerEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Integer> PHYSICAL_STATE = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<CompoundTag> SKIN_DATA = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.COMPOUND_TAG);
 	private static final EntityDataAccessor<Boolean> SLIM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<CompoundTag> AI_STATE = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.COMPOUND_TAG);
 	private SkinData dataCache;
+	private AIState aiCache;
 	private Component nameCache;
 	private final FakePlayerInventory inventory = new FakePlayerInventory(this);
 
@@ -125,6 +128,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		nbt.putInt("State", this.getPhysicalState().ordinal());
 		nbt.put("SkinData", this.entityData.get(SKIN_DATA));
 		nbt.putBoolean("Slim", this.isSlim());
+		nbt.put("AIState", this.entityData.get(AI_STATE));
 		nbt.put("Inventory", this.inventory.createTag(this.registryAccess()));
 	}
 
@@ -133,10 +137,12 @@ public class FakePlayerEntity extends PathfinderMob {
 		super.readAdditionalSaveData(nbt);
 
 		this.dataCache = null;
+		this.aiCache = null;
 		this.nameCache = null;
 		this.entityData.set(PHYSICAL_STATE, nbt.getInt("State"));
 		this.entityData.set(SKIN_DATA, nbt.getCompound("SkinData"));
 		this.entityData.set(SLIM, nbt.getBoolean("Slim"));
+		if (nbt.contains("AIState")) this.entityData.set(AI_STATE, nbt.getCompound("AIState"));
 		if (nbt.contains("Inventory", Tag.TAG_LIST)) {
 			this.inventory.fromTag(nbt.getList("Inventory", Tag.TAG_COMPOUND), this.registryAccess());
 		}
@@ -153,6 +159,8 @@ public class FakePlayerEntity extends PathfinderMob {
 		if (SKIN_DATA.equals(data)) {
 			this.dataCache = null;
 			this.nameCache = null;
+		} else if (AI_STATE.equals(data)) {
+			this.aiCache = null;
 		}
 	}
 
@@ -163,6 +171,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		builder.define(PHYSICAL_STATE, 0);
 		builder.define(SKIN_DATA, new SkinData(PlayersConfig.get().defaultSkin).toNbt());
 		builder.define(SLIM, false);
+		builder.define(AI_STATE, new AIState().toNbt());
 	}
 
 	@Override
@@ -274,6 +283,24 @@ public class FakePlayerEntity extends PathfinderMob {
 
 	public void setSlim(boolean val) {
 		this.entityData.set(SLIM, val);
+	}
+
+	public AIState getAIState() {
+		if (aiCache == null) {
+			aiCache = AIState.fromNbt(this.entityData.get(AI_STATE));
+		}
+		return aiCache;
+	}
+
+	public void setAIState(AIState state) {
+		this.entityData.set(AI_STATE, state.toNbt());
+		this.aiCache = state;
+	}
+
+	public void mutateAIState(java.util.function.Consumer<AIState> mutator) {
+		AIState state = AIState.fromNbt(this.entityData.get(AI_STATE));
+		mutator.accept(state);
+		setAIState(state);
 	}
 
 	public void sendChat(String message) {
