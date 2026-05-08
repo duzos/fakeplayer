@@ -3,6 +3,7 @@ package dev.duzo.players.core;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -12,12 +13,11 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 public class AIMarkerItem extends Item {
@@ -35,10 +35,11 @@ public class AIMarkerItem extends Item {
 
 	public static ItemStack make(int entityId, byte mode) {
 		ItemStack stack = new ItemStack(FPItems.AI_MARKER.get());
-		CompoundTag tag = stack.getOrCreateTag();
+		CompoundTag tag = new CompoundTag();
 		tag.putInt(TAG_ENTITY, entityId);
 		tag.putByte(TAG_MODE, mode);
-		stack.setHoverName(Component.literal(modeLabel(mode)).withStyle(ChatFormatting.AQUA));
+		stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+		stack.set(DataComponents.CUSTOM_NAME, Component.literal(modeLabel(mode)).withStyle(ChatFormatting.AQUA));
 		return stack;
 	}
 
@@ -51,6 +52,15 @@ public class AIMarkerItem extends Item {
 		};
 	}
 
+	private static CompoundTag readTag(ItemStack stack) {
+		CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+		return data == null ? null : data.copyTag();
+	}
+
+	private static void writeTag(ItemStack stack, CompoundTag tag) {
+		stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+	}
+
 	@Override
 	public InteractionResult useOn(UseOnContext ctx) {
 		if (ctx.getLevel().isClientSide()) return InteractionResult.SUCCESS;
@@ -58,7 +68,7 @@ public class AIMarkerItem extends Item {
 		if (player == null) return InteractionResult.PASS;
 
 		ItemStack stack = ctx.getItemInHand();
-		CompoundTag tag = stack.getTag();
+		CompoundTag tag = readTag(stack);
 		if (tag == null || !tag.contains(TAG_ENTITY) || !tag.contains(TAG_MODE)) {
 			player.displayClientMessage(Component.literal("This marker is unbound.").withStyle(ChatFormatting.RED), true);
 			return InteractionResult.FAIL;
@@ -84,6 +94,7 @@ public class AIMarkerItem extends Item {
 			case MODE_REGION -> {
 				if (!tag.contains(TAG_REGION_A)) {
 					tag.putLong(TAG_REGION_A, pos.asLong());
+					writeTag(stack, tag);
 					player.displayClientMessage(Component.literal("Region corner A set, click another block for B.").withStyle(ChatFormatting.YELLOW), true);
 				} else {
 					BlockPos a = BlockPos.of(tag.getLong(TAG_REGION_A));
@@ -112,8 +123,8 @@ public class AIMarkerItem extends Item {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-		CompoundTag tag = stack.getTag();
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+		CompoundTag tag = readTag(stack);
 		if (tag == null) return;
 		byte mode = tag.getByte(TAG_MODE);
 		String hint = switch (mode) {
