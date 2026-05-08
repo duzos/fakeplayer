@@ -114,7 +114,7 @@ public class SkinSelectScreen extends Screen {
 		this.drawBackground(context);
 
 		Component currentText = Component.literal("Downloading skins...");
-		if (SkinGrabber.INSTANCE.hasDownloads()) {
+		if (SkinGrabber.INSTANCE.hasDownloads() || this.getSelectedSkin() == null) {
 			context.drawString(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
 					(int) (top + (bgHeight * 0.5)), 0xFFFFFFFF, true);
 
@@ -161,10 +161,18 @@ public class SkinSelectScreen extends Screen {
 			SkinGrabber.INSTANCE.jeryn.download();
 		}
 
+		java.util.List<String> keys = SkinGrabber.INSTANCE.getAllKeys();
+		if (keys.isEmpty()) {
+			this.selectedSkin = null;
+			return;
+		}
 		if (index < 0) {
 			index = 0;
 		}
-		this.selectedSkin = SkinGrabber.INSTANCE.getAllKeys().get(index);
+		if (index >= keys.size()) {
+			index = keys.size() - 1;
+		}
+		this.selectedSkin = keys.get(index);
 	}
 
 	private void nextSkin() {
@@ -227,7 +235,7 @@ public class SkinSelectScreen extends Screen {
 	}
 
 	private void selectSkin() {
-		if (SkinGrabber.INSTANCE.hasDownloads()) return;
+		if (SkinGrabber.INSTANCE.hasDownloads() || this.getSelectedSkin() == null) return;
 
 		Network.getNetworkHandler().sendToServer(new SetSkinKeyPacketC2S(this.target.getId(), this.getSelectedSkin(), SkinGrabber.INSTANCE.getUrl(this.getSelectedSkin())));
 		this.onClose();
