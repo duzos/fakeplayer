@@ -17,7 +17,7 @@ public record StartStopJobPacketC2S(int id, boolean run) {
 	public static void handle(PacketContext<StartStopJobPacketC2S> ctx) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		if (ctx.sender() == null) return;
-		if (!(ctx.sender().serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		if (!(ctx.sender().level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
 		entity.mutateAIState(s -> s.setRunning(ctx.message().run()));
 	}
 
