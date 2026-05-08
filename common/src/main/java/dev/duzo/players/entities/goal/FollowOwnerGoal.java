@@ -1,49 +1,49 @@
 package dev.duzo.players.entities.goal;
 
-import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.AIState;
+import dev.duzo.players.entities.ai.Job;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.entity.ai.navigation.PathNavigation;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 
 import java.util.EnumSet;
 import java.util.UUID;
 
-public class FollowMarkerHolderGoal extends Goal {
+public class FollowOwnerGoal extends Goal {
+	private static final double FOLLOW_RANGE = 32.0D;
+	private static final double FOLLOW_RANGE_SQ = FOLLOW_RANGE * FOLLOW_RANGE;
 	private static final double STOP_DISTANCE_SQ = 4.0D * 4.0D;
 	private static final double START_DISTANCE_SQ = 6.0D * 6.0D;
 	private static final double TELEPORT_DISTANCE_SQ = 16.0D * 16.0D;
 	private static final double SPEED = 1.0D;
 
 	private final FakePlayerEntity entity;
-	private Player holder;
+	private Player owner;
 	private int recheckCooldown;
 	private float oldWaterCost;
 
-	public FollowMarkerHolderGoal(FakePlayerEntity entity) {
+	public FollowOwnerGoal(FakePlayerEntity entity) {
 		this.entity = entity;
 		this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
 	}
 
 	@Override
 	public boolean canUse() {
-		Player found = findHolder();
+		Player found = findOwner();
 		if (found == null) return false;
-		this.holder = found;
+		this.owner = found;
 		return true;
 	}
 
 	@Override
 	public boolean canContinueToUse() {
-		if (this.holder == null || !this.holder.isAlive()) return false;
-		if (this.holder.level() != this.entity.level()) return false;
-		if (this.entity.distanceToSqr(this.holder) > AIMarkerItem.SESSION_RANGE_SQ) return false;
-		return holdsBoundMarker(this.holder, this.entity.getUUID());
+		if (!isActiveByState()) return false;
+		if (this.owner == null || !this.owner.isAlive()) return false;
+		if (this.owner.level() != this.entity.level()) return false;
+		return this.entity.distanceToSqr(this.owner) <= FOLLOW_RANGE_SQ;
 	}
 
 	@Override
@@ -51,25 +51,23 @@ public class FollowMarkerHolderGoal extends Goal {
 		this.recheckCooldown = 0;
 		this.oldWaterCost = this.entity.getPathfindingMalus(BlockPathTypes.WATER);
 		this.entity.setPathfindingMalus(BlockPathTypes.WATER, 0.0F);
-		this.entity.setJobPaused(true);
 	}
 
 	@Override
 	public void stop() {
-		this.holder = null;
+		this.owner = null;
 		this.entity.getNavigation().stop();
 		this.entity.setPathfindingMalus(BlockPathTypes.WATER, this.oldWaterCost);
-		this.entity.setJobPaused(false);
 	}
 
 	@Override
 	public void tick() {
-		if (this.holder == null) return;
-		this.entity.getLookControl().setLookAt(this.holder, 10.0F, this.entity.getMaxHeadXRot());
+		if (this.owner == null) return;
+		this.entity.getLookControl().setLookAt(this.owner, 10.0F, this.entity.getMaxHeadXRot());
 		if (--this.recheckCooldown > 0) return;
 		this.recheckCooldown = 10;
 
-		double distSq = this.entity.distanceToSqr(this.holder);
+		double distSq = this.entity.distanceToSqr(this.owner);
 		if (distSq <= STOP_DISTANCE_SQ) {
 			this.entity.getNavigation().stop();
 			return;
@@ -81,12 +79,12 @@ public class FollowMarkerHolderGoal extends Goal {
 		}
 
 		if (distSq >= START_DISTANCE_SQ || this.entity.getNavigation().isDone()) {
-			this.entity.getNavigation().moveTo(this.holder, SPEED);
+			this.entity.getNavigation().moveTo(this.owner, SPEED);
 		}
 	}
 
 	private void tryTeleport() {
-		BlockPos target = this.holder.blockPosition();
+		BlockPos target = this.owner.blockPosition();
 		for (int i = 0; i < 10; i++) {
 			int x = target.getX() + randomIntInclusive(-3, 3);
 			int y = target.getY() + randomIntInclusive(-1, 1);
@@ -96,7 +94,7 @@ public class FollowMarkerHolderGoal extends Goal {
 	}
 
 	private boolean tryTeleportTo(int x, int y, int z) {
-		if (Math.abs((double) x - this.holder.getX()) < 2.0D && Math.abs((double) z - this.holder.getZ()) < 2.0D) {
+		if (Math.abs((double) x - this.owner.getX()) < 2.0D && Math.abs((double) z - this.owner.getZ()) < 2.0D) {
 			return false;
 		}
 		if (!isTeleportFriendlyBlock(new BlockPos(x, y, z))) return false;
@@ -116,24 +114,18 @@ public class FollowMarkerHolderGoal extends Goal {
 		return this.entity.getRandom().nextInt(max - min + 1) + min;
 	}
 
-	private Player findHolder() {
-		double range = AIMarkerItem.SESSION_RANGE;
-		UUID self = this.entity.getUUID();
-		for (Player player : this.entity.level().getEntitiesOfClass(Player.class, this.entity.getBoundingBox().inflate(range))) {
-			if (!player.isAlive()) continue;
-			if (holdsBoundMarker(player, self)) return player;
-		}
-		return null;
+	private boolean isActiveByState() {
+		AIState state = this.entity.getAIState();
+		return state.job() == Job.FOLLOW && state.ownerUUID() != null;
 	}
 
-	private static boolean holdsBoundMarker(Player player, UUID self) {
-		return matches(player.getItemInHand(InteractionHand.MAIN_HAND), self)
-				|| matches(player.getItemInHand(InteractionHand.OFF_HAND), self);
-	}
-
-	private static boolean matches(ItemStack stack, UUID self) {
-		if (!AIMarkerItem.isSession(stack)) return false;
-		UUID bound = AIMarkerItem.fakeUUID(stack);
-		return bound != null && bound.equals(self);
+	private Player findOwner() {
+		if (!isActiveByState()) return null;
+		UUID ownerId = this.entity.getAIState().ownerUUID();
+		Player p = this.entity.level().getPlayerByUUID(ownerId);
+		if (p == null || !p.isAlive()) return null;
+		if (p.level() != this.entity.level()) return null;
+		if (this.entity.distanceToSqr(p) > FOLLOW_RANGE_SQ) return null;
+		return p;
 	}
 }
