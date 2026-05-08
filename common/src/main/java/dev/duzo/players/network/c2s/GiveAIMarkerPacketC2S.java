@@ -21,8 +21,13 @@ public record GiveAIMarkerPacketC2S(int id, byte mode) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity)) return;
-		ItemStack stack = AIMarkerItem.make(ctx.message().id, ctx.message().mode());
+		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		AIMarkerItem.clearAllFor(sender);
+		ItemStack stack = AIMarkerItem.make(entity, sender, ctx.message().mode(), sender.level().getGameTime());
+		// Issue #28 asked for offhand-then-hotbar-then-drop placement, but writing to offhand
+		// directly desynced with the client's F-swap prediction (duped a phantom marker the
+		// server didn't have). Falling back to vanilla Inventory#add until the placement is
+		// reliable across loaders.
 		if (!sender.getInventory().add(stack)) {
 			sender.drop(stack, false);
 		}
