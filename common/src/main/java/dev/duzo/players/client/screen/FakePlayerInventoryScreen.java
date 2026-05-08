@@ -38,7 +38,7 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 	private Button applyButton;
 	private Button selectButton;
 	private Button poseButton;
-	private Button aiToggle;
+	private Button aiButton;
 	private Button slimToggle;
 	private Button tagToggle;
 
@@ -79,13 +79,13 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 				.bounds(x0 + 80, y0 + 40, 89, 14).build();
 		this.addRenderableWidget(this.poseButton);
 
-		this.aiToggle = Button.builder(toggleLabel("AI", !entity.isNoAi()), b -> toggleFlag(ToggleFakePlayerFlagPacketC2S.FLAG_NO_AI, !entity.isNoAi()))
+		this.aiButton = Button.builder(Component.literal("AI").withStyle(ChatFormatting.AQUA), b -> openAiMenu())
 				.bounds(x0 + 98, y0 + 56, 22, 14).build();
 		this.slimToggle = Button.builder(toggleLabel("SL", entity.isSlim()), b -> toggleFlag(ToggleFakePlayerFlagPacketC2S.FLAG_SLIM, !entity.isSlim()))
 				.bounds(x0 + 122, y0 + 56, 22, 14).build();
 		this.tagToggle = Button.builder(toggleLabel("TG", entity.isCustomNameVisible()), b -> toggleFlag(ToggleFakePlayerFlagPacketC2S.FLAG_NAMETAG, !entity.isCustomNameVisible()))
 				.bounds(x0 + 146, y0 + 56, 22, 14).build();
-		this.addRenderableWidget(this.aiToggle);
+		this.addRenderableWidget(this.aiButton);
 		this.addRenderableWidget(this.slimToggle);
 		this.addRenderableWidget(this.tagToggle);
 
@@ -99,7 +99,6 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		FakePlayerEntity entity = this.menu.getEntity();
 		if (entity == null) return;
 		if (this.poseButton != null) this.poseButton.setMessage(poseLabel(entity));
-		if (this.aiToggle != null) this.aiToggle.setMessage(toggleLabel("AI", !entity.isNoAi()));
 		if (this.slimToggle != null) this.slimToggle.setMessage(toggleLabel("SL", entity.isSlim()));
 		if (this.tagToggle != null) this.tagToggle.setMessage(toggleLabel("TG", entity.isCustomNameVisible()));
 		refreshTooltipsIfShiftChanged();
@@ -119,7 +118,7 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		setTip(this.applyButton, shift, "Apply skin", "Re-fetches and applies the skin matching the typed name.");
 		setTip(this.selectButton, shift, "Skin gallery", "Opens the skin selector for browsing downloaded skins.");
 		setTip(this.poseButton, shift, "Pose", "Cycles standing → sitting → laying.");
-		setTip(this.aiToggle, shift, "AI", "Toggles AI: movement, looking, attacking. Off = the entity stands still.");
+		setTip(this.aiButton, shift, "AI menu", "Bond, jobs, waypoint/region/deposit markers, no-ai toggle.");
 		setTip(this.slimToggle, shift, "Slim", "Switches between the slim (Alex) and classic (Steve) model.");
 		setTip(this.tagToggle, shift, "Nametag", "Toggles the floating nametag above the entity.");
 	}
@@ -164,6 +163,12 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		FakePlayerEntity entity = this.menu.getEntity();
 		if (entity == null) return;
 		Network.getNetworkHandler().sendToServer(new CyclePosePacketC2S(entity.getId()));
+	}
+
+	private void openAiMenu() {
+		FakePlayerEntity entity = this.menu.getEntity();
+		if (entity == null) return;
+		Minecraft.getInstance().setScreen(new AISubMenuScreen(entity));
 	}
 
 	private void toggleFlag(byte flag, boolean newValue) {
