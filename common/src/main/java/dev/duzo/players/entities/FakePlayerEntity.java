@@ -126,7 +126,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		nbt.putInt("State", this.getPhysicalState().ordinal());
 		nbt.put("SkinData", this.entityData.get(SKIN_DATA));
 		nbt.putBoolean("Slim", this.isSlim());
-		nbt.put("Inventory", this.inventory.createTag());
+		nbt.put("Inventory", this.inventory.createTag(this.registryAccess()));
 	}
 
 	@Override
@@ -139,7 +139,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		this.entityData.set(SKIN_DATA, nbt.getCompoundOrEmpty("SkinData"));
 		this.entityData.set(SLIM, nbt.getBooleanOr("Slim", false));
 		if (nbt.contains("Inventory", Tag.TAG_LIST)) {
-			this.inventory.fromTag(nbt.getList("Inventory", Tag.TAG_COMPOUND));
+			this.inventory.fromTag(nbt.getList("Inventory", Tag.TAG_COMPOUND), this.registryAccess());
 		}
 	}
 
