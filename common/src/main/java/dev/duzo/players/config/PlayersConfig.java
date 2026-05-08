@@ -20,6 +20,7 @@ public class PlayersConfig {
 	public double movementSpeed = 0.2;
 	public double attackDamage = 1.0;
 	public boolean persistFakePlayers = true;
+	public boolean allowLocalSkinUploadOpOnly = true;
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {
