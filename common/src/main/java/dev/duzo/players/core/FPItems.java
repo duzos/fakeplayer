@@ -10,6 +10,7 @@ public class FPItems {
 	public static final Supplier<Item> PLAYER_AI = register("player_ai", () -> new Item(new Item.Properties()));
 	public static final Supplier<Item> PLAYER_SHELL = register("player_shell", () -> new Item(new Item.Properties()));
 	public static final Supplier<Item> PLAYER_EGG = register("player_egg", () -> new PlayerEggItem(new Item.Properties()));
+	public static final Supplier<Item> AI_MARKER = register("ai_marker", () -> new AIMarkerItem(new Item.Properties()));
 
 	public static Supplier<Item> register(String name, Supplier<Item> item) {
 		return Services.COMMON_REGISTRY.registerItem(Constants.MOD_ID, name, item);
