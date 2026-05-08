@@ -173,10 +173,12 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		if (entity != null) {
 			InventoryScreen.renderEntityInInventoryFollowsMouse(
 					ctx,
-					x + 51, y + 75,
+					x + 26, y + 8,
+					x + 75, y + 78,
 					30,
-					(x + 51) - mouseX,
-					(y + 75 - 50) - mouseY,
+					0.0625F,
+					(float) mouseX,
+					(float) mouseY,
 					entity
 			);
 		}
