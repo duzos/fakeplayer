@@ -3,6 +3,7 @@
   "item.players.player_egg_slim": "Slim Player Egg",
   "item.players.player_shell": "Robot Shell",
   "item.players.player_ai": "Robot AI",
+  "item.players.ai_marker": "AI Marker",
   "itemGroup.fp_tab": "Fake Players",
   "screens.players.done": "Done",
   "screens.players.stayPut": "Stay",

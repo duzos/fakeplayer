@@ -1,3 +1,3 @@
-# v2.0.7
+# v2.1.0
 
-- Upload local skin PNGs from disk via the skin select gui (#25). Click `UPLOAD` in the gallery, pick a 64x64 or 64x32 png up to 32 kb; the bytes go to the server, get persisted under `./fakeplayer/local-skins/`, and stream out to other clients on demand. Op-only by default; toggle `allowLocalSkinUploadOpOnly` in `config/players.json` to let everyone upload.
+- AI sub-menu in the management gui (#27). New `...` button on the AI/SL/TG row opens a screen with bond/unbond, a job picker, and waypoint/region/deposit marker buttons. Each marker hands you a single-use AI marker item; right-click a block (or a chest, for deposit) to set the param. Region needs two clicks for corners A and B. State lives in an `aiState` compound on the entity and syncs to tracking clients.
