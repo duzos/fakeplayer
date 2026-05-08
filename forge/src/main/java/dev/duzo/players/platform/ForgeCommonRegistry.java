@@ -96,6 +96,6 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 
 	@Override
 	public void openMenu(ServerPlayer player, MenuProvider provider, Consumer<FriendlyByteBuf> data) {
-		player.openMenu(provider, data);
+		player.openMenu(provider, buf -> data.accept(buf));
 	}
 }
