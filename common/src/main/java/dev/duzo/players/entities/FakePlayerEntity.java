@@ -11,7 +11,6 @@ import dev.duzo.players.entities.inventory.FakePlayerInventory;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
 import dev.duzo.players.platform.Services;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.PlayerChatMessage;
@@ -138,9 +137,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		this.entityData.set(PHYSICAL_STATE, nbt.getIntOr("State", 0));
 		this.entityData.set(SKIN_DATA, nbt.getCompoundOrEmpty("SkinData"));
 		this.entityData.set(SLIM, nbt.getBooleanOr("Slim", false));
-		if (nbt.contains("Inventory", Tag.TAG_LIST)) {
-			this.inventory.fromTag(nbt.getList("Inventory", Tag.TAG_COMPOUND), this.registryAccess());
-		}
+		nbt.getList("Inventory").ifPresent(list -> this.inventory.fromTag(list, this.registryAccess()));
 	}
 
 	public FakePlayerInventory getInventory() {
