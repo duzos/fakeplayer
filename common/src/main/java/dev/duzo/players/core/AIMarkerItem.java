@@ -18,8 +18,6 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 
-import java.util.List;
-
 public class AIMarkerItem extends Item {
 	public static final byte MODE_WAYPOINT = 0;
 	public static final byte MODE_REGION = 1;
@@ -75,14 +73,14 @@ public class AIMarkerItem extends Item {
 		}
 
 		ServerLevel level = (ServerLevel) ctx.getLevel();
-		Entity raw = level.getEntity(tag.getInt(TAG_ENTITY));
+		Entity raw = level.getEntity(tag.getIntOr(TAG_ENTITY, -1));
 		if (!(raw instanceof FakePlayerEntity entity)) {
 			player.displayClientMessage(Component.literal("Target fake player not found.").withStyle(ChatFormatting.RED), true);
 			stack.shrink(1);
 			return InteractionResult.FAIL;
 		}
 
-		byte mode = tag.getByte(TAG_MODE);
+		byte mode = tag.getByteOr(TAG_MODE, (byte) -1);
 		BlockPos pos = ctx.getClickedPos();
 
 		switch (mode) {
@@ -97,7 +95,7 @@ public class AIMarkerItem extends Item {
 					writeTag(stack, tag);
 					player.displayClientMessage(Component.literal("Region corner A set, click another block for B.").withStyle(ChatFormatting.YELLOW), true);
 				} else {
-					BlockPos a = BlockPos.of(tag.getLong(TAG_REGION_A));
+					BlockPos a = BlockPos.of(tag.getLongOr(TAG_REGION_A, 0L));
 					BlockPos b = pos.immutable();
 					entity.mutateAIState(s -> {
 						s.setRegionA(a);
@@ -123,10 +121,10 @@ public class AIMarkerItem extends Item {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, net.minecraft.world.item.component.TooltipDisplay display, java.util.function.Consumer<Component> tooltip, TooltipFlag flag) {
 		CompoundTag tag = readTag(stack);
 		if (tag == null) return;
-		byte mode = tag.getByte(TAG_MODE);
+		byte mode = tag.getByteOr(TAG_MODE, (byte) -1);
 		String hint = switch (mode) {
 			case MODE_WAYPOINT -> "Right-click a block to mark a waypoint.";
 			case MODE_REGION -> tag.contains(TAG_REGION_A)
@@ -136,7 +134,7 @@ public class AIMarkerItem extends Item {
 			default -> "";
 		};
 		if (!hint.isEmpty()) {
-			tooltip.add(Component.literal(hint).withStyle(ChatFormatting.GRAY));
+			tooltip.accept(Component.literal(hint).withStyle(ChatFormatting.GRAY));
 		}
 	}
 

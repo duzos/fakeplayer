@@ -1,8 +1,8 @@
 package dev.duzo.players.entities.ai;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -47,13 +47,13 @@ public final class AIState {
 
 	public CompoundTag toNbt() {
 		CompoundTag tag = new CompoundTag();
-		if (ownerUUID != null) tag.putUUID("Owner", ownerUUID);
+		if (ownerUUID != null) tag.putIntArray("Owner", UUIDUtil.uuidToIntArray(ownerUUID));
 		tag.putInt("Job", job.ordinal());
 		tag.putBoolean("Running", running);
-		if (waypoint != null) tag.put("Waypoint", NbtUtils.writeBlockPos(waypoint));
-		if (regionA != null) tag.put("RegionA", NbtUtils.writeBlockPos(regionA));
-		if (regionB != null) tag.put("RegionB", NbtUtils.writeBlockPos(regionB));
-		if (depositChest != null) tag.put("DepositChest", NbtUtils.writeBlockPos(depositChest));
+		if (waypoint != null) tag.putLong("Waypoint", waypoint.asLong());
+		if (regionA != null) tag.putLong("RegionA", regionA.asLong());
+		if (regionB != null) tag.putLong("RegionB", regionB.asLong());
+		if (depositChest != null) tag.putLong("DepositChest", depositChest.asLong());
 		tag.put("Filter", filter);
 		tag.put("JobParams", jobParams);
 		tag.put("JobState", jobState);
@@ -63,16 +63,18 @@ public final class AIState {
 	public static AIState fromNbt(CompoundTag tag) {
 		AIState s = new AIState();
 		if (tag == null || tag.isEmpty()) return s;
-		if (tag.hasUUID("Owner")) s.ownerUUID = tag.getUUID("Owner");
-		s.job = Job.byOrdinal(tag.getInt("Job"));
-		s.running = tag.getBoolean("Running");
-		NbtUtils.readBlockPos(tag, "Waypoint").ifPresent(p -> s.waypoint = p);
-		NbtUtils.readBlockPos(tag, "RegionA").ifPresent(p -> s.regionA = p);
-		NbtUtils.readBlockPos(tag, "RegionB").ifPresent(p -> s.regionB = p);
-		NbtUtils.readBlockPos(tag, "DepositChest").ifPresent(p -> s.depositChest = p);
-		if (tag.contains("Filter")) s.filter = tag.getCompound("Filter");
-		if (tag.contains("JobParams")) s.jobParams = tag.getCompound("JobParams");
-		if (tag.contains("JobState")) s.jobState = tag.getCompound("JobState");
+		tag.getIntArray("Owner").ifPresent(arr -> {
+			if (arr.length == 4) s.ownerUUID = UUIDUtil.uuidFromIntArray(arr);
+		});
+		s.job = Job.byOrdinal(tag.getIntOr("Job", 0));
+		s.running = tag.getBooleanOr("Running", false);
+		tag.getLong("Waypoint").ifPresent(l -> s.waypoint = BlockPos.of(l));
+		tag.getLong("RegionA").ifPresent(l -> s.regionA = BlockPos.of(l));
+		tag.getLong("RegionB").ifPresent(l -> s.regionB = BlockPos.of(l));
+		tag.getLong("DepositChest").ifPresent(l -> s.depositChest = BlockPos.of(l));
+		s.filter = tag.getCompoundOrEmpty("Filter");
+		s.jobParams = tag.getCompoundOrEmpty("JobParams");
+		s.jobState = tag.getCompoundOrEmpty("JobState");
 		return s;
 	}
 }
