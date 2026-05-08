@@ -19,7 +19,7 @@ public record SetJobPacketC2S(int id, int jobOrdinal) {
 	public static void handle(PacketContext<SetJobPacketC2S> ctx) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		if (ctx.sender() == null) return;
-		if (!(ctx.sender().serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		if (!(ctx.sender().level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
 		Job job = Job.byOrdinal(ctx.message().jobOrdinal());
 		entity.mutateAIState(s -> {
 			s.setJob(job);

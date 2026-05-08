@@ -19,7 +19,7 @@ public record BondPacketC2S(int id, boolean bond) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-		if (!(sender.serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
 		entity.mutateAIState(s -> s.setOwnerUUID(ctx.message().bond() ? sender.getUUID() : null));
 	}
 

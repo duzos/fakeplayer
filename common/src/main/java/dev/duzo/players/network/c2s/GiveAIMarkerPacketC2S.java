@@ -21,7 +21,7 @@ public record GiveAIMarkerPacketC2S(int id, byte mode) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-		if (!(sender.serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity)) return;
+		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity)) return;
 		ItemStack stack = AIMarkerItem.make(ctx.message().id, ctx.message().mode());
 		if (!sender.getInventory().add(stack)) {
 			sender.drop(stack, false);
