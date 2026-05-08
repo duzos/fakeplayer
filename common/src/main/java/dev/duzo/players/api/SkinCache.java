@@ -60,9 +60,9 @@ public class SkinCache {
 			Constants.LOG.error("Failed to load skin cache", e);
 		}
 
-		// enqueue the data
+		// register cached entries directly, bypassing the download queue
 		for (CacheData cache : data) {
-			SkinGrabber.INSTANCE.getSkinOrDownload(cache.key, cache.url);
+			SkinGrabber.INSTANCE.registerCachedSkin(cache.key, cache.url);
 		}
 
 		locked = false;

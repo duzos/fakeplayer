@@ -288,8 +288,17 @@ public class FakePlayerEntity extends PathfinderMob {
 	}
 
 	public record SkinData(String name, String key, String url) {
+		public SkinData {
+			key = normalizeKey(key);
+		}
+
 		public SkinData(String username) {
 			this(username, username, SkinGrabber.SKIN_URL + username);
+		}
+
+		private static String normalizeKey(String key) {
+			if (key == null || key.isEmpty()) return key;
+			return key.toLowerCase().replace(' ', '_');
 		}
 
 		public static SkinData fromNbt(CompoundTag nbt) {

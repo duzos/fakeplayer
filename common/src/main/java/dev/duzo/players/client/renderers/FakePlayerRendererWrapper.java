@@ -9,17 +9,19 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.resources.ResourceLocation;
 
 public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEntity, FakePlayerModel> {
-	private final EntityRendererProvider.Context context;
+	private final FakePlayerRenderer wide;
+	private final FakePlayerRenderer slim;
 
 	public FakePlayerRendererWrapper(EntityRendererProvider.Context context) {
 		super(context, null, 0.5F);
 
-		this.context = context;
+		this.wide = new FakePlayerRenderer(context, false);
+		this.slim = new FakePlayerRenderer(context, true);
 	}
 
 	@Override
 	public void render(FakePlayerEntity entity, float yaw, float partialTicks, PoseStack stack, MultiBufferSource buffer, int packedLight) {
-		FakePlayerRenderer renderer = new FakePlayerRenderer(context, entity.isSlim()); // Create the actual renderer
+		FakePlayerRenderer renderer = entity.isSlim() ? slim : wide;
 		renderer.render(entity, yaw, partialTicks, stack, buffer, packedLight);
 	}
 
