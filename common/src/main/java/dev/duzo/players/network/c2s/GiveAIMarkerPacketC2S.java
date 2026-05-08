@@ -8,7 +8,6 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
 public record GiveAIMarkerPacketC2S(int id, byte mode) {
@@ -25,31 +24,12 @@ public record GiveAIMarkerPacketC2S(int id, byte mode) {
 		if (!(sender.serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
 		AIMarkerItem.clearAllFor(sender);
 		ItemStack stack = AIMarkerItem.make(entity, sender, ctx.message().mode(), sender.serverLevel().getGameTime());
-		giveSessionItem(sender, stack);
-	}
-
-	private static void giveSessionItem(ServerPlayer player, ItemStack stack) {
-		Inventory inv = player.getInventory();
-		boolean placed = false;
-		if (player.getOffhandItem().isEmpty()) {
-			inv.setItem(40, stack);
-			placed = true;
-		} else {
-			for (int i = 0; i < 9; i++) {
-				if (inv.getItem(i).isEmpty()) {
-					inv.setItem(i, stack);
-					placed = true;
-					break;
-				}
-			}
-		}
-		if (!placed) {
-			player.drop(stack, false);
-			return;
-		}
-		player.inventoryMenu.broadcastChanges();
-		if (player.containerMenu != player.inventoryMenu) {
-			player.containerMenu.broadcastChanges();
+		// Issue #28 asked for offhand-then-hotbar-then-drop placement, but writing to offhand
+		// directly desynced with the client's F-swap prediction (duped a phantom marker the
+		// server didn't have). Falling back to vanilla Inventory#add until the placement is
+		// reliable across loaders.
+		if (!sender.getInventory().add(stack)) {
+			sender.drop(stack, false);
 		}
 	}
 
