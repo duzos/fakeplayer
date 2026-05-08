@@ -18,7 +18,7 @@ public record ApplyFakePlayerSkinPacketC2S(int id, String name) {
 	public static void handle(PacketContext<ApplyFakePlayerSkinPacketC2S> ctx) {
 		if (Side.SERVER.equals(ctx.side())) {
 			try {
-				if (!(ctx.sender().serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) {
+				if (!(ctx.sender().level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) {
 					Constants.LOG.error("Invalid entity id: {}", ctx.message().id);
 					return;
 				}

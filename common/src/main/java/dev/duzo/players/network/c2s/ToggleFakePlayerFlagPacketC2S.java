@@ -22,7 +22,7 @@ public record ToggleFakePlayerFlagPacketC2S(int id, byte flag, boolean value) {
 	public static void handle(PacketContext<ToggleFakePlayerFlagPacketC2S> ctx) {
 		if (Side.SERVER.equals(ctx.side())) {
 			try {
-				if (!(ctx.sender().serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) {
+				if (!(ctx.sender().level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) {
 					Constants.LOG.error("Invalid entity id: {}", ctx.message().id);
 					return;
 				}
