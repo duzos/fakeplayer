@@ -19,8 +19,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -94,6 +93,10 @@ public class AIMarkerItem extends Item {
 			case PURPOSE_CHEST_PICKER -> "CHEST_PICKER";
 			default -> "UNKNOWN";
 		};
+	}
+
+	public static byte purposeOf(ItemStack stack) {
+		return purposeFromTag(readTag(stack));
 	}
 
 	private static byte purposeFromTag(@Nullable CompoundTag tag) {
@@ -171,9 +174,8 @@ public class AIMarkerItem extends Item {
 				}
 			}
 			case PURPOSE_CHEST_PICKER -> {
-				BlockEntity be = ctx.getLevel().getBlockEntity(pos);
-				if (!(be instanceof ChestBlockEntity)) {
-					player.displayClientMessage(Component.literal("Right-click a chest.").withStyle(ChatFormatting.RED), true);
+				if (!isValidContainer(level, pos)) {
+					player.displayClientMessage(Component.literal("Right-click a container.").withStyle(ChatFormatting.RED), true);
 					return InteractionResult.FAIL;
 				}
 				entity.mutateAIState(s -> s.setDepositChest(pos.immutable()));
@@ -196,6 +198,10 @@ public class AIMarkerItem extends Item {
 
 	private static void silentlyConsume(ItemStack stack) {
 		stack.setCount(0);
+	}
+
+	public static boolean isValidContainer(Level level, BlockPos pos) {
+		return HopperBlockEntity.getContainerAt(level, pos) != null;
 	}
 
 	@Override
