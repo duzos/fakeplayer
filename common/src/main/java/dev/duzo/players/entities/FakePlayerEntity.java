@@ -6,6 +6,9 @@ import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.ai.AIState;
+import dev.duzo.players.entities.ai.Job;
+import dev.duzo.players.entities.ai.JobExecutor;
+import dev.duzo.players.entities.ai.JobExecutors;
 import net.minecraft.nbt.CompoundTag;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
@@ -57,6 +60,10 @@ public class FakePlayerEntity extends PathfinderMob {
 	private AIState aiCache;
 	private Component nameCache;
 	private final FakePlayerInventory inventory = new FakePlayerInventory(this);
+	private JobExecutor jobExecutor;
+	private Job jobExecutorJob = Job.NONE;
+	private boolean jobPaused;
+	private boolean jobPausedPrev;
 
 	public FakePlayerEntity(EntityType<? extends FakePlayerEntity> type, Level level) {
 		super(type, level);
@@ -70,6 +77,42 @@ public class FakePlayerEntity extends PathfinderMob {
 	public void tick() {
 		super.tick();
 		this.updateSwingTime();
+		if (this.level() instanceof ServerLevel server) {
+			this.tickJobExecutor(server);
+		}
+	}
+
+	private void tickJobExecutor(ServerLevel level) {
+		AIState state = this.getAIState();
+		Job job = state.job();
+		if (jobExecutor == null || job != jobExecutorJob) {
+			jobExecutor = JobExecutors.create(job);
+			jobExecutor.deserialize(state.jobState());
+			jobExecutorJob = job;
+			jobPausedPrev = false;
+		}
+		if (jobPaused != jobPausedPrev) {
+			if (jobPaused) jobExecutor.onPause(this);
+			else jobExecutor.onResume(this);
+			jobPausedPrev = jobPaused;
+		}
+		if (state.running() && !jobPaused) {
+			jobExecutor.tick(level, this);
+		}
+	}
+
+	public void setJobPaused(boolean paused) {
+		this.jobPaused = paused;
+	}
+
+	public boolean isJobPaused() {
+		return this.jobPaused;
+	}
+
+	public boolean isMovementManagedByJob() {
+		AIState state = this.getAIState();
+		if (!state.running() || jobPaused) return false;
+		return state.job() == Job.IDLE;
 	}
 
 	@Override
@@ -136,8 +179,16 @@ public class FakePlayerEntity extends PathfinderMob {
 		skinOut.putString("Key", skin.key());
 		skinOut.putString("Url", skin.url());
 		output.putBoolean("Slim", this.isSlim());
+		this.flushJobState();
 		output.putString("AIState", this.entityData.get(AI_STATE));
 		this.inventory.storeAsItemList(output.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC));
+	}
+
+	private void flushJobState() {
+		if (jobExecutor == null) return;
+		CompoundTag tag = jobExecutor.serialize();
+		final CompoundTag finalTag = tag == null ? new CompoundTag() : tag;
+		this.mutateAIState(s -> s.setJobState(finalTag));
 	}
 
 	@Override
