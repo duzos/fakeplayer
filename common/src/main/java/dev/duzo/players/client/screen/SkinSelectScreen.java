@@ -38,8 +38,6 @@ public class SkinSelectScreen extends Screen {
 	private boolean wasDownloading;
 	private String uploadStatus;
 	private long uploadStatusUntil;
-	private java.util.List<String> keysCache;
-	private String previewSkinKey;
 	private static final Component HINT = Component.literal("shift = info").withStyle(ChatFormatting.WHITE, ChatFormatting.ITALIC);
 	private PlainTextButton prevButton;
 	private PlainTextButton nextButton;
@@ -51,14 +49,10 @@ public class SkinSelectScreen extends Screen {
 		this.target = target;
 		this.render = new FakePlayerEntity(target.level());
 
-		refreshKeysCache();
-		this.index = this.keysCache.indexOf(target.getSkinData().key());
+		this.index = SkinGrabber.INSTANCE.getAllKeys().indexOf(target.getSkinData().key());
 		this.updateSelectedSkin();
-	}
 
-	private void refreshKeysCache() {
-		this.keysCache = SkinGrabber.INSTANCE.getAllKeys();
-		this.sizeCache = this.keysCache.size();
+		sizeCache = SkinGrabber.INSTANCE.getAllKeys().size();
 	}
 
 	@Override
@@ -129,9 +123,8 @@ public class SkinSelectScreen extends Screen {
 
 		if (wasDownloading) {
 			// refresh index and size cache
-			refreshKeysCache();
-			this.index = this.keysCache.indexOf(this.getSelectedSkin());
-			wasDownloading = false;
+			this.index = SkinGrabber.INSTANCE.getAllKeys().indexOf(this.getSelectedSkin());
+			this.sizeCache = SkinGrabber.INSTANCE.getAllKeys().size();
 		}
 
 		super.render(context, mouseX, mouseY, delta);
@@ -164,15 +157,10 @@ public class SkinSelectScreen extends Screen {
 			SkinGrabber.INSTANCE.jeryn.download();
 		}
 
-		if (this.keysCache == null || this.keysCache.isEmpty()) {
-			refreshKeysCache();
-		}
-
 		if (index < 0) {
 			index = 0;
 		}
-		if (index >= this.keysCache.size()) return;
-		this.selectedSkin = this.keysCache.get(index);
+		this.selectedSkin = SkinGrabber.INSTANCE.getAllKeys().get(index);
 	}
 
 	private void nextSkin() {
@@ -180,9 +168,12 @@ public class SkinSelectScreen extends Screen {
 
 		index++;
 
-		if (index > this.sizeCache - 1) {
-			index = this.sizeCache - 1;
+		int size = SkinGrabber.INSTANCE.getAllKeys().size();
+		if (index > size - 1) {
+			index = size - 1;
 		}
+
+		sizeCache = size;
 
 		this.updateSelectedSkin();
 	}
@@ -192,6 +183,7 @@ public class SkinSelectScreen extends Screen {
 
 		index--;
 		if (index < 0) {
+			// index = SkinGrabber.INSTANCE.getAllKeys().size() - 1;
 			index = 0;
 		}
 		this.updateSelectedSkin();
@@ -214,7 +206,7 @@ public class SkinSelectScreen extends Screen {
 			Path path = Paths.get(picked);
 			byte[] bytes = Files.readAllBytes(path);
 			LocalSkinStore.validate(bytes);
-			String key = SkinGrabber.hashBytes(bytes);
+			String key = SkinGrabber.encodeURL(new String(bytes));
 			SkinGrabber.INSTANCE.registerLocalBytes(key, bytes);
 			Network.getNetworkHandler().sendToServer(new UploadSkinPacketC2S(this.target.getId(), key, bytes));
 			this.onClose();
@@ -243,10 +235,7 @@ public class SkinSelectScreen extends Screen {
 	}
 
 	private void renderSkin(GuiGraphics context, int x, int y, int mouseX, int mouseY, String key) {
-		if (!key.equals(this.previewSkinKey)) {
-			render.setSkin(new FakePlayerEntity.SkinData(key, key, SkinGrabber.INSTANCE.getUrl(key)));
-			this.previewSkinKey = key;
-		}
+		render.setSkin(new FakePlayerEntity.SkinData(key, key, SkinGrabber.SKIN_URL + "duzo"));
 
 		InventoryScreen.renderEntityInInventoryFollowsMouse(
 				context,

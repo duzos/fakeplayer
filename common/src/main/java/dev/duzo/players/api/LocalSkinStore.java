@@ -2,11 +2,15 @@ package dev.duzo.players.api;
 
 import dev.duzo.players.Constants;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 
 public final class LocalSkinStore {
 	public static final LocalSkinStore INSTANCE = new LocalSkinStore();
@@ -62,28 +66,24 @@ public final class LocalSkinStore {
 		if (data.length > MAX_BYTES) {
 			throw new ValidationException("size");
 		}
-		// PNG signature (8) + IHDR length (4) + "IHDR" (4) + width (4) + height (4)
-		if (data.length < 24) {
+		if (data.length < PNG_MAGIC.length) {
 			throw new ValidationException("format");
 		}
 		for (int i = 0; i < PNG_MAGIC.length; i++) {
 			if (data[i] != PNG_MAGIC[i]) throw new ValidationException("format");
 		}
-		if (data[12] != 'I' || data[13] != 'H' || data[14] != 'D' || data[15] != 'R') {
+		BufferedImage img;
+		try (InputStream in = new ByteArrayInputStream(data)) {
+			img = ImageIO.read(in);
+		} catch (IOException e) {
 			throw new ValidationException("format");
 		}
-		int w = readBigEndianInt(data, 16);
-		int h = readBigEndianInt(data, 20);
+		if (img == null) throw new ValidationException("format");
+		int w = img.getWidth();
+		int h = img.getHeight();
 		if (w != 64 || (h != 64 && h != 32)) {
 			throw new ValidationException("dimensions");
 		}
-	}
-
-	private static int readBigEndianInt(byte[] data, int off) {
-		return ((data[off] & 0xff) << 24)
-				| ((data[off + 1] & 0xff) << 16)
-				| ((data[off + 2] & 0xff) << 8)
-				| (data[off + 3] & 0xff);
 	}
 
 	private static String sanitize(String key) {

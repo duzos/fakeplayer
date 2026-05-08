@@ -46,15 +46,11 @@ public record UploadSkinPacketC2S(int id, String key, byte[] data) {
 				return;
 			}
 
-			if (sender.distanceToSqr(entity) > 64.0D) {
-				sender.sendSystemMessage(Component.translatable("players.upload.error.permission"));
-				return;
-			}
-
 			byte[] bytes = ctx.message().data();
 			LocalSkinStore.validate(bytes);
 
-			String key = SkinGrabber.hashBytes(bytes);
+			String expectedKey = SkinGrabber.encodeURL(new String(bytes));
+			String key = expectedKey;
 
 			LocalSkinStore.INSTANCE.save(key, bytes);
 

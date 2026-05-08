@@ -18,15 +18,10 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -46,15 +41,10 @@ public class SkinGrabber {
 	private final ConcurrentQueueMap<String, String> downloadQueue;
 	private final java.util.Set<String> requestedLocalKeys = java.util.concurrent.ConcurrentHashMap.newKeySet();
 	private final SkinCache cache;
-	private final ExecutorService downloadExecutor = Executors.newSingleThreadExecutor(r -> {
-		Thread t = new Thread(r, Constants.MOD_ID + "-Download");
-		t.setDaemon(true);
-		return t;
-	});
 	public final JerynSkins jeryn;
 
 	private int ticks;
-	private final AtomicBoolean connection = new AtomicBoolean(false);
+	private boolean connection;
 
 	private SkinGrabber() {
 		downloads = new ConcurrentHashMap<>();
@@ -69,14 +59,10 @@ public class SkinGrabber {
 	}
 
 	public static String encodeURL(String input) {
-		return hashBytes(input.getBytes(StandardCharsets.UTF_8));
-	}
-
-	public static String hashBytes(byte[] data) {
 		try {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
-			byte[] hash = md.digest(data);
-			StringBuilder hexString = new StringBuilder(hash.length * 2);
+			byte[] hash = md.digest(input.getBytes());
+			StringBuilder hexString = new StringBuilder();
 			for (byte b : hash) {
 				String hex = Integer.toHexString(0xff & b);
 				if (hex.length() == 1) hexString.append('0');
@@ -172,6 +158,8 @@ public class SkinGrabber {
 	}
 
 	public Optional<ResourceLocation> getPossibleSkin(String id) {
+		id = id.toLowerCase().replace(" ", "_");
+
 		if (downloads.containsKey(id)) {
 			return Optional.of(downloads.get(id));
 		}
@@ -184,7 +172,9 @@ public class SkinGrabber {
 			return getLocalSkinOrRequest(LocalSkinStore.keyFromUrl(url));
 		}
 
-		ResourceLocation existing = downloads.get(id);
+		id = id.toLowerCase().replace(" ", "_");
+
+		ResourceLocation existing = getPossibleSkin(id).orElse(null);
 		if (existing != null) {
 			return existing;
 		}
@@ -193,6 +183,7 @@ public class SkinGrabber {
 			return missing();
 		}
 
+		url = url.toLowerCase().replace(" ", "_");
 		this.enqueueDownload(id, url);
 		return missing();
 	}
@@ -245,7 +236,7 @@ public class SkinGrabber {
 			NativeImage processed = processLegacySkin(raw);
 			if (processed == null) return;
 			ResourceLocation loc = registerImage(processed);
-			putAndRelease(key, loc);
+			downloads.put(key, loc);
 		} catch (IOException e) {
 			Constants.LOG.error("Failed to register local skin bytes {}", key, e);
 		}
@@ -261,30 +252,22 @@ public class SkinGrabber {
 
 	private ResourceLocation registerSkin(String name) {
 		// register new skin to prepare
-		File file = new File(SKIN_DIR + name + ".png");
+		File file = new File(SKIN_DIR + name.toLowerCase().replace(" ", "_") + ".png");
 		ResourceLocation location = fileToLocation(file);
-		putAndRelease(name, location);
+		downloads.put(name, location);
 		return location;
 	}
 
-	private void putAndRelease(String key, ResourceLocation loc) {
-		ResourceLocation prior = downloads.put(key, loc);
-		if (prior != null && !prior.equals(loc)) {
-			Minecraft.getInstance().getTextureManager().release(prior);
-		}
-	}
-
-	void registerCachedSkin(String key, String url) {
-		if (downloads.containsKey(key)) return;
-		urls.put(key, url);
-		registerSkin(key);
-	}
-
 	public void clearTextures() {
-		TextureManager manager = Minecraft.getInstance().getTextureManager();
-		if (!this.downloads.isEmpty()) {
-			this.downloads.forEach((key, value) -> manager.release(value));
-			this.downloads.clear();
+		Minecraft minecraft = Minecraft.getInstance();
+		if (minecraft.level == null) {
+			TextureManager manager = minecraft.getTextureManager();
+
+			// Release the textures if the cache isnt empty
+			if (!this.downloads.isEmpty()) {
+				this.downloads.forEach((key, value) -> manager.release(value));
+				this.downloads.clear();
+			}
 		}
 	}
 
@@ -304,7 +287,7 @@ public class SkinGrabber {
 
 	private ResourceLocation registerImage(NativeImage image) {
 		TextureManager manager = Minecraft.getInstance().getTextureManager();
-		return manager.register("player_" + System.nanoTime(), new DynamicTexture(image));
+		return manager.register("player_", new DynamicTexture(image));
 	}
 
 	private static boolean isValidUrl(String url) {
@@ -336,7 +319,7 @@ public class SkinGrabber {
 	public void tick() {
 		ticks++;
 
-		if (connection.get()) return;
+		if (/*ticks % 5 != 0 ||*/ connection) return;
 		// called every second
 		this.downloadNext();
 
@@ -367,6 +350,8 @@ public class SkinGrabber {
 			return;
 		}
 
+		connection = true;
+
 		// check cache
 		SkinCache.CacheData data = cache.get(id).orElse(null);
 		if (data != null) {
@@ -374,17 +359,16 @@ public class SkinGrabber {
 				Constants.debug("Using cached skin for {}", id);
 				urls.put(id, data.url());
 				this.registerSkin(id);
+				connection = false;
 				return;
 			} catch (Exception exception) {
 				Constants.LOG.error("Failed to load cached skin for {}", id, exception);
 			}
 		}
 
-		if (!connection.compareAndSet(false, true)) return;
-
 		urls.put(id, url);
 
-		downloadExecutor.execute(() -> {
+		new Thread(() -> {
 			try {
 				this.downloadImageFromURL(id, new File(SKIN_DIR), url);
 				this.registerSkin(id);
@@ -393,9 +377,9 @@ public class SkinGrabber {
 			} catch (Exception exception) {
 				Constants.LOG.error("Failed to download {} for {}", url, id, exception);
 			} finally {
-				connection.set(false);
+				connection = false;
 			}
-		});
+		}, Constants.MOD_ID + "-Download").start();
 	}
 
 	public boolean hasDownloads() {
@@ -407,37 +391,29 @@ public class SkinGrabber {
 	}
 
 	public void onStopping() {
+		// this.clearTextures();
 		cache.save();
-		downloadExecutor.shutdown();
-		try {
-			if (!downloadExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
-				downloadExecutor.shutdownNow();
-			}
-		} catch (InterruptedException e) {
-			downloadExecutor.shutdownNow();
-			Thread.currentThread().interrupt();
-		}
 	}
 
 	public interface IDownloadSource {
 		default void download() {
 			Constants.debug("Downloading {}", getId());
 
-			getTracker().connection.set(true);
+			getTracker().connection = true;
 
 			if (this.isDownloaded()) {
 				Constants.LOG.warn("{} is already downloaded", getId());
 			}
 
-			getTracker().downloadExecutor.execute(() -> {
+			new Thread(() -> {
 				try {
 					this.downloadThreaded();
 				} catch (Exception exception) {
 					Constants.LOG.error("Failed to download {}", getId(), exception);
 				} finally {
-					getTracker().connection.set(false);
+					getTracker().connection = false;
 				}
-			});
+			}, this.getId() + "-Download").start();
 		}
 
 		void downloadThreaded();
