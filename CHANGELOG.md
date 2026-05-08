@@ -1,3 +1,4 @@
 # v2.1.0
 
 - AI sub-menu in the management gui (#27). The AI button on the AI/SL/TG row now opens a sub-screen with bond/unbond, a no-ai toggle, a job picker, and waypoint/region/deposit marker buttons. Each marker hands you a single-use AI marker item; right-click a block (or a chest, for deposit) to set the param. Region needs two clicks for corners A and B. State lives in an `aiState` compound on the entity and syncs to tracking clients.
+- Job executor framework with idle job (#32). Server-tick state machine driving fake player jobs: a `JobExecutor` interface with `tick`/`onPause`/`onResume`/`serialize`, looked up per fake from `aiState.job`, state persisted under `aiState.jobState`. Pause hook (`setJobPaused`) ready for the follow-while-marking goal. Idle job navigates to the waypoint when set, otherwise stands still.
