@@ -10,5 +10,10 @@
   "screens.players.wander": "Wander",
   "screens.players.send": "Send chat",
   "screens.players.sit": "Toggle Sit",
-  "screens.players.nametagShown": "Toggle NameTag"
+  "screens.players.nametagShown": "Toggle NameTag",
+  "players.upload.error.permission": "You do not have permission to upload skins.",
+  "players.upload.error.size": "Skin file too large (32 KB max).",
+  "players.upload.error.dimensions": "Skin must be 64x64 or 64x32 PNG.",
+  "players.upload.error.format": "File is not a valid PNG.",
+  "players.upload.error.empty": "Skin file is empty."
 }

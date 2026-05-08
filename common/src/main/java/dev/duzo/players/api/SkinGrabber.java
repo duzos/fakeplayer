@@ -4,7 +4,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.datafixers.util.Pair;
+import commonnetwork.api.Network;
 import dev.duzo.players.Constants;
+import dev.duzo.players.network.c2s.RequestSkinDataPacketC2S;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
@@ -37,6 +39,7 @@ public class SkinGrabber {
 	private final ConcurrentHashMap<String, Identifier> downloads;
 	private final ConcurrentHashMap<String, String> urls;
 	private final ConcurrentQueueMap<String, String> downloadQueue;
+	private final java.util.Set<String> requestedLocalKeys = java.util.concurrent.ConcurrentHashMap.newKeySet();
 	private final SkinCache cache;
 	public final JerynSkins jeryn;
 
@@ -165,6 +168,10 @@ public class SkinGrabber {
 	}
 
 	public Identifier getSkinOrDownload(String id, String url) {
+		if (LocalSkinStore.isLocalUrl(url)) {
+			return getLocalSkinOrRequest(LocalSkinStore.keyFromUrl(url));
+		}
+
 		id = id.toLowerCase().replace(" ", "_");
 
 		Identifier existing = getPossibleSkin(id).orElse(null);
@@ -179,6 +186,64 @@ public class SkinGrabber {
 		url = url.toLowerCase().replace(" ", "_");
 		this.enqueueDownload(id, url);
 		return missing();
+	}
+
+	private Identifier getLocalSkinOrRequest(String key) {
+		Identifier existing = downloads.get(key);
+		if (existing != null) return existing;
+
+		java.util.Optional<byte[]> bytes = LocalSkinStore.INSTANCE.load(key);
+		if (bytes.isPresent()) {
+			try {
+				registerLocalBytes(key, bytes.get(), false);
+				Identifier loc = downloads.get(key);
+				if (loc != null) return loc;
+			} catch (Exception e) {
+				Constants.LOG.error("Failed to register local skin {}", key, e);
+			}
+		}
+
+		if (requestedLocalKeys.add(key)) {
+			try {
+				Network.getNetworkHandler().sendToServer(new RequestSkinDataPacketC2S(key));
+			} catch (Exception e) {
+				Constants.LOG.error("Failed to request local skin {}", key, e);
+				requestedLocalKeys.remove(key);
+			}
+		}
+		return missing();
+	}
+
+	public void acceptLocalSkin(String key, byte[] data) {
+		try {
+			registerLocalBytes(key, data, true);
+		} finally {
+			requestedLocalKeys.remove(key);
+		}
+	}
+
+	private void registerLocalBytes(String key, byte[] data, boolean persist) {
+		if (persist) {
+			try {
+				LocalSkinStore.INSTANCE.save(key, data);
+			} catch (IOException e) {
+				Constants.LOG.error("Failed to save local skin {}", key, e);
+			}
+		}
+		urls.put(key, LocalSkinStore.urlForKey(key));
+		try {
+			NativeImage raw = NativeImage.read(new java.io.ByteArrayInputStream(data));
+			NativeImage processed = processLegacySkin(raw);
+			if (processed == null) return;
+			Identifier loc = registerImage(processed);
+			downloads.put(key, loc);
+		} catch (IOException e) {
+			Constants.LOG.error("Failed to register local skin bytes {}", key, e);
+		}
+	}
+
+	public void registerLocalBytes(String key, byte[] data) {
+		registerLocalBytes(key, data, true);
 	}
 
 	public String getUrl(String key) {
@@ -292,19 +357,15 @@ public class SkinGrabber {
 		// check cache
 		SkinCache.CacheData data = cache.get(id).orElse(null);
 		if (data != null) {
-			final String cachedId = id;
-			Constants.debug("Using cached skin for {}", cachedId);
-			urls.put(cachedId, data.url());
-			Minecraft.getInstance().execute(() -> {
-				try {
-					this.registerSkin(cachedId);
-				} catch (Exception ex) {
-					Constants.LOG.error("Failed to load cached skin for {}", cachedId, ex);
-				} finally {
-					connection = false;
-				}
-			});
-			return;
+			try {
+				Constants.debug("Using cached skin for {}", id);
+				urls.put(id, data.url());
+				this.registerSkin(id);
+				connection = false;
+				return;
+			} catch (Exception exception) {
+				Constants.LOG.error("Failed to load cached skin for {}", id, exception);
+			}
 		}
 
 		urls.put(id, url);
@@ -312,19 +373,12 @@ public class SkinGrabber {
 		new Thread(() -> {
 			try {
 				this.downloadImageFromURL(id, new File(SKIN_DIR), url);
+				this.registerSkin(id);
 				this.cache.add(id, url);
-				Minecraft.getInstance().execute(() -> {
-					try {
-						this.registerSkin(id);
-						Constants.debug("Downloaded {} for {}!", url, id);
-					} catch (Exception ex) {
-						Constants.LOG.error("Failed to register skin {}", id, ex);
-					} finally {
-						connection = false;
-					}
-				});
+				Constants.debug("Downloaded {} for {}!", url, id);
 			} catch (Exception exception) {
 				Constants.LOG.error("Failed to download {} for {}", url, id, exception);
+			} finally {
 				connection = false;
 			}
 		}, Constants.MOD_ID + "-Download").start();
