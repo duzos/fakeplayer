@@ -11,7 +11,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.TickEvent;
 
 import static dev.duzo.players.platform.ForgeCommonRegistry.COMMANDS;
 
@@ -23,7 +23,8 @@ public class ForgeModEvents {
 	}
 
 	@SubscribeEvent
-	public static void onServerTick(ServerTickEvent.Post e) {
+	public static void onServerTick(TickEvent.ServerTickEvent e) {
+		if (e.phase != TickEvent.Phase.END) return;
 		SessionItemSweeper.tick(e.getServer());
 	}
 
