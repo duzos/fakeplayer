@@ -7,10 +7,10 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.FakePlayerEntity.PhysicalState;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public record CyclePosePacketC2S(int id) {
-	public static final ResourceLocation LOCATION = PlayersCommon.id("cycle_pose");
+	public static final Identifier LOCATION = PlayersCommon.id("cycle_pose");
 
 	public static CyclePosePacketC2S decode(FriendlyByteBuf buf) {
 		return new CyclePosePacketC2S(buf.readInt());

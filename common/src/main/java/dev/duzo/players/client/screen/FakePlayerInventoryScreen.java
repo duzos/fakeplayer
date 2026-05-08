@@ -9,6 +9,7 @@ import dev.duzo.players.network.c2s.SetFakePlayerNamePacketC2S;
 import dev.duzo.players.network.c2s.ToggleFakePlayerFlagPacketC2S;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -18,11 +19,11 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 
 public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlayerMenu> {
-	private static final ResourceLocation INVENTORY_TEXTURE = ResourceLocation.withDefaultNamespace("textures/gui/container/inventory.png");
+	private static final Identifier INVENTORY_TEXTURE = Identifier.withDefaultNamespace("textures/gui/container/inventory.png");
 
 	private static final int FP_PANEL_W = 176;
 	private static final int FP_PANEL_H = 166;
@@ -104,8 +105,14 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		refreshTooltipsIfShiftChanged();
 	}
 
+	private static boolean shiftHeld() {
+		var window = Minecraft.getInstance().getWindow();
+		return InputConstants.isKeyDown(window, InputConstants.KEY_LSHIFT)
+				|| InputConstants.isKeyDown(window, 344);
+	}
+
 	private void refreshTooltipsIfShiftChanged() {
-		boolean shift = hasShiftDown();
+		boolean shift = shiftHeld();
 		if (this.lastShiftDown != null && this.lastShiftDown == shift) return;
 		this.lastShiftDown = shift;
 		setTip(this.nameEdit, shift, "Name", "Live-updates the entity name. Skin only changes when you press Apply.");

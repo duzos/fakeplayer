@@ -265,9 +265,6 @@ public class FakePlayerEntity extends PathfinderMob {
 		this.setSkin(component.getString());
 	}
 
-<<<<<<< HEAD
-	public Identifier getSkin() {
-=======
 	public void setNameWithoutSkin(@Nullable Component component) {
 		super.setCustomName(component);
 		String name = component == null ? PlayersConfig.get().defaultSkin : component.getString();
@@ -275,8 +272,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		this.nameCache = null;
 	}
 
-	public ResourceLocation getSkin() {
->>>>>>> f86782c (feat(gui): add fake player management gui (#22))
+	public Identifier getSkin() {
 		return this.getSkinData().getSkin();
 	}
 

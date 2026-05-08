@@ -6,10 +6,10 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public record ToggleFakePlayerFlagPacketC2S(int id, byte flag, boolean value) {
-	public static final ResourceLocation LOCATION = PlayersCommon.id("toggle_fake_player_flag");
+	public static final Identifier LOCATION = PlayersCommon.id("toggle_fake_player_flag");
 
 	public static final byte FLAG_NO_AI = 0;
 	public static final byte FLAG_SLIM = 1;
