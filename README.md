@@ -60,7 +60,7 @@ The 27 storage slots and 8 extra hotbar slots are saved on the entity and **drop
 |---|---|
 | Name edit box | Live-updates the fake player's display name. Skin is **not** touched until you press Apply Skin. |
 | Apply Skin | Re-fetches and applies the skin matching whatever is currently typed. |
-| Skin Selector | Opens the trending-skins gallery. |
+| Skin Selector | Opens the trending-skins gallery, where you can also upload a local PNG. |
 | Pose | Cycles the fake player's pose: standing → sitting → laying. |
 | AI / SL / TG toggles | Three small toggle buttons. Green = on, red = off. |
 | ↳ AI | When off, the fake player stops moving, looking around, and attacking. |
@@ -93,6 +93,12 @@ To do this, you run the command ```/players url <entity> <url>```
 The mod provides a list of trending skins that you can use for your fake players.
 
 Open the management GUI (chest or shift + right-click) and press the **Skin Selector** button to browse them.
+
+### Upload a Local Skin
+
+You can apply a PNG straight from your computer to the targeted fake player.
+
+Open the **Skin Selector** and press **UPLOAD**. A native file picker opens; pick a 64x64 or 64x32 skin PNG up to 32 KB. The skin is sent to the server, persisted under `./fakeplayer/local-skins/`, and streamed to other clients on demand. By default this is op-only; set `allowLocalSkinUploadOpOnly` to `false` in `config/players.json` to let everyone upload.
 
 ### Slim Skin Support!
 This mod supports both slim skins and regular skins.
