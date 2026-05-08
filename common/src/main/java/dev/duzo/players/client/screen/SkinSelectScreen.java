@@ -1,19 +1,33 @@
 package dev.duzo.players.client.screen;
 
 import commonnetwork.api.Network;
+import dev.duzo.players.Constants;
 import dev.duzo.players.PlayersCommon;
+import dev.duzo.players.api.LocalSkinStore;
 import dev.duzo.players.api.SkinGrabber;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.network.c2s.SetSkinKeyPacketC2S;
+import dev.duzo.players.network.c2s.UploadSkinPacketC2S;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.PlainTextButton;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class SkinSelectScreen extends Screen {
 	private static final ResourceLocation TEXTURE = PlayersCommon.id("textures/gui/select.png");
+	private static final Component HINT = Component.literal("shift = info").withStyle(ChatFormatting.WHITE, ChatFormatting.ITALIC);
 	private final FakePlayerEntity target;
 	int bgHeight = 138;
 	int bgWidth = 216;
@@ -23,6 +37,12 @@ public class SkinSelectScreen extends Screen {
 	private int sizeCache;
 	private String selectedSkin;
 	private boolean wasDownloading;
+	private String uploadStatus;
+	private long uploadStatusUntil;
+	private PlainTextButton prevButton;
+	private PlainTextButton nextButton;
+	private PlainTextButton selectButton;
+	private PlainTextButton uploadButton;
 
 	public SkinSelectScreen(FakePlayerEntity target) {
 		super(Component.literal("Skin Selection"));
@@ -46,17 +66,46 @@ public class SkinSelectScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.top = (this.height - this.bgHeight) / 2; // this means everythings centered and scaling, same for below
+		this.top = (this.height - this.bgHeight) / 2;
 		this.left = (this.width - this.bgWidth) / 2;
 
 		super.init();
 
-		this.addRenderableWidget(new PlainTextButton((width / 2 - 30), (height / 2 + 12),
-				this.font.width("<"), 10, Component.literal("<"), button -> this.previousSkin(), this.font));
-		this.addRenderableWidget(new PlainTextButton((width / 2 + 25), (height / 2 + 12),
-				this.font.width(">"), 10, Component.literal(">"), button -> this.nextSkin(), this.font));
-		this.addRenderableWidget(new PlainTextButton((width / 2 - this.font.width(Component.literal("SELECT")) / 2), (height / 2 + 12),
-				this.font.width(Component.literal("SELECT")), 10, Component.literal("SELECT"), button -> this.selectSkin(), this.font));
+		this.prevButton = new PlainTextButton((width / 2 - 30), (height / 2 + 12),
+				this.font.width("<"), 10, Component.literal("<"), button -> this.previousSkin(), this.font);
+		this.nextButton = new PlainTextButton((width / 2 + 25), (height / 2 + 12),
+				this.font.width(">"), 10, Component.literal(">"), button -> this.nextSkin(), this.font);
+		this.selectButton = new PlainTextButton((width / 2 - this.font.width(Component.literal("SELECT")) / 2), (height / 2 + 12),
+				this.font.width(Component.literal("SELECT")), 10, Component.literal("SELECT"), button -> this.selectSkin(), this.font);
+		this.addRenderableWidget(this.prevButton);
+		this.addRenderableWidget(this.nextButton);
+		this.addRenderableWidget(this.selectButton);
+
+		Component upload = Component.literal("UPLOAD");
+		this.uploadButton = new PlainTextButton((width / 2 - this.font.width(upload) / 2), (top + bgHeight - 26),
+				this.font.width(upload), 10, upload, button -> this.uploadSkin(), this.font);
+		this.addRenderableWidget(this.uploadButton);
+
+		applyTooltips();
+	}
+
+	@Override
+	public void tick() {
+		super.tick();
+		applyTooltips();
+	}
+
+	private void applyTooltips() {
+		boolean shift = hasShiftDown();
+		setTip(this.prevButton, shift, "Cycle back through downloaded trending skins.");
+		setTip(this.nextButton, shift, "Cycle forward through downloaded trending skins.");
+		setTip(this.selectButton, shift, "Apply the highlighted trending skin to the fake player.");
+		setTip(this.uploadButton, shift, "Pick a 64x64 or 64x32 png up to 32 kb from your computer and apply it. Op-only by default.");
+	}
+
+	private static void setTip(AbstractWidget widget, boolean shift, String longText) {
+		if (widget == null) return;
+		widget.setTooltip(shift ? Tooltip.create(Component.literal(longText)) : null);
 	}
 
 	@Override
@@ -77,7 +126,6 @@ public class SkinSelectScreen extends Screen {
 		}
 
 		if (wasDownloading) {
-			// refresh index and size cache
 			this.index = SkinGrabber.INSTANCE.getAllKeys().indexOf(this.getSelectedSkin());
 			this.sizeCache = SkinGrabber.INSTANCE.getAllKeys().size();
 		}
@@ -93,6 +141,14 @@ public class SkinSelectScreen extends Screen {
 		currentText = Component.literal((index + 1) + "/" + sizeCache);
 		context.drawString(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
 				(int) (top + (bgHeight * 0.7)), 0xffffff, true);
+
+		if (uploadStatus != null && System.currentTimeMillis() < uploadStatusUntil) {
+			Component statusText = Component.literal(uploadStatus);
+			context.drawString(this.font, statusText, (int) (left + (bgWidth * 0.5f)) - this.font.width(statusText) / 2,
+					top + 4, 0xff5555, true);
+		}
+
+		context.drawString(this.font, HINT, left + 8, top + 12, 0xffffff, false);
 	}
 
 	private String getSelectedSkin() {
@@ -130,10 +186,43 @@ public class SkinSelectScreen extends Screen {
 
 		index--;
 		if (index < 0) {
-			// index = SkinGrabber.INSTANCE.getAllKeys().size() - 1;
 			index = 0;
 		}
 		this.updateSelectedSkin();
+	}
+
+	private void uploadSkin() {
+		String picked;
+		try (MemoryStack stack = MemoryStack.stackPush()) {
+			PointerBuffer filters = stack.mallocPointer(1);
+			filters.put(stack.UTF8("*.png"));
+			filters.flip();
+			picked = TinyFileDialogs.tinyfd_openFileDialog("Select skin PNG", null, filters, "PNG image", false);
+		} catch (Exception e) {
+			Constants.LOG.error("File picker failed", e);
+			setUploadStatus("error opening file picker");
+			return;
+		}
+		if (picked == null) return;
+		try {
+			Path path = Paths.get(picked);
+			byte[] bytes = Files.readAllBytes(path);
+			LocalSkinStore.validate(bytes);
+			String key = SkinGrabber.encodeURL(new String(bytes));
+			SkinGrabber.INSTANCE.registerLocalBytes(key, bytes);
+			Network.getNetworkHandler().sendToServer(new UploadSkinPacketC2S(this.target.getId(), key, bytes));
+			this.onClose();
+		} catch (LocalSkinStore.ValidationException e) {
+			setUploadStatus("invalid: " + e.reason);
+		} catch (Exception e) {
+			Constants.LOG.error("Failed to upload skin", e);
+			setUploadStatus("upload failed");
+		}
+	}
+
+	private void setUploadStatus(String text) {
+		this.uploadStatus = text;
+		this.uploadStatusUntil = System.currentTimeMillis() + 3000L;
 	}
 
 	private void selectSkin() {

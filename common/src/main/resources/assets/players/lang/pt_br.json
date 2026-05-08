@@ -9,5 +9,10 @@
   "screens.players.follow": "Seguir",
   "screens.players.wander": "Vagar",
   "screens.players.send": "Enviar chat",
-  "screens.players.sit": "Alternar Sentar"
+  "screens.players.sit": "Alternar Sentar",
+  "players.upload.error.permission": "Você não tem permissão para enviar skins.",
+  "players.upload.error.size": "Arquivo de skin muito grande (máx. 32 KB).",
+  "players.upload.error.dimensions": "Skin deve ser PNG 64x64 ou 64x32.",
+  "players.upload.error.format": "Arquivo não é um PNG válido.",
+  "players.upload.error.empty": "Arquivo de skin está vazio."
 }
