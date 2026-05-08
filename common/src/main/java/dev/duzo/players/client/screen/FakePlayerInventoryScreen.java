@@ -16,6 +16,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
@@ -169,10 +170,10 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		int x = this.leftPos;
 		int y = this.topPos;
 
-		ctx.blit(INVENTORY_TEXTURE, x, y, 0, 0, FP_PANEL_W, FP_PANEL_H);
+		ctx.blit(RenderType::guiTextured, INVENTORY_TEXTURE, x, y, 0, 0, FP_PANEL_W, FP_PANEL_H, 256, 256);
 		ctx.fill(x + 86, y + 15, x + 175, y + 60, GUI_BODY_COLOUR);
-		ctx.blit(INVENTORY_TEXTURE, x + 169, y + 15, 169, 15, 7, 45);
-		ctx.blit(INVENTORY_TEXTURE, x, y + PLAYER_PANEL_OFFSET_Y, 0, 82, PLAYER_PANEL_W, PLAYER_PANEL_H);
+		ctx.blit(RenderType::guiTextured, INVENTORY_TEXTURE, x + 169, y + 15, 169, 15, 7, 45, 256, 256);
+		ctx.blit(RenderType::guiTextured, INVENTORY_TEXTURE, x, y + PLAYER_PANEL_OFFSET_Y, 0, 82, PLAYER_PANEL_W, PLAYER_PANEL_H, 256, 256);
 
 		FakePlayerEntity entity = this.menu.getEntity();
 		if (entity != null) {

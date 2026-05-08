@@ -120,8 +120,9 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 		} else {
 			// Player -> try armor by item type, then offhand if it's an offhand-equippable, then storage rows, then hotbar
 			boolean placed = false;
-			if (stack.getItem() instanceof ArmorItem armor) {
-				int armorIdx = ARMOR_START + armor.getEquipmentSlot().getIndex();
+			if (entity != null && stack.getItem() instanceof ArmorItem) {
+				EquipmentSlot eq = entity.getEquipmentSlotForItem(stack);
+				int armorIdx = ARMOR_START + eq.getIndex();
 				if (armorIdx >= ARMOR_START && armorIdx < ARMOR_END) {
 					Slot target = this.slots.get(armorIdx);
 					if (target.mayPlace(stack) && !target.hasItem()) {
