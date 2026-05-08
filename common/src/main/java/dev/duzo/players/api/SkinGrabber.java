@@ -4,7 +4,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.datafixers.util.Pair;
+import commonnetwork.api.Network;
 import dev.duzo.players.Constants;
+import dev.duzo.players.network.c2s.RequestSkinDataPacketC2S;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
@@ -37,6 +39,7 @@ public class SkinGrabber {
 	private final ConcurrentHashMap<String, ResourceLocation> downloads;
 	private final ConcurrentHashMap<String, String> urls;
 	private final ConcurrentQueueMap<String, String> downloadQueue;
+	private final java.util.Set<String> requestedLocalKeys = java.util.concurrent.ConcurrentHashMap.newKeySet();
 	private final SkinCache cache;
 	public final JerynSkins jeryn;
 
@@ -165,6 +168,10 @@ public class SkinGrabber {
 	}
 
 	public ResourceLocation getSkinOrDownload(String id, String url) {
+		if (LocalSkinStore.isLocalUrl(url)) {
+			return getLocalSkinOrRequest(LocalSkinStore.keyFromUrl(url));
+		}
+
 		id = id.toLowerCase().replace(" ", "_");
 
 		ResourceLocation existing = getPossibleSkin(id).orElse(null);
@@ -179,6 +186,64 @@ public class SkinGrabber {
 		url = url.toLowerCase().replace(" ", "_");
 		this.enqueueDownload(id, url);
 		return missing();
+	}
+
+	private ResourceLocation getLocalSkinOrRequest(String key) {
+		ResourceLocation existing = downloads.get(key);
+		if (existing != null) return existing;
+
+		java.util.Optional<byte[]> bytes = LocalSkinStore.INSTANCE.load(key);
+		if (bytes.isPresent()) {
+			try {
+				registerLocalBytes(key, bytes.get(), false);
+				ResourceLocation loc = downloads.get(key);
+				if (loc != null) return loc;
+			} catch (Exception e) {
+				Constants.LOG.error("Failed to register local skin {}", key, e);
+			}
+		}
+
+		if (requestedLocalKeys.add(key)) {
+			try {
+				Network.getNetworkHandler().sendToServer(new RequestSkinDataPacketC2S(key));
+			} catch (Exception e) {
+				Constants.LOG.error("Failed to request local skin {}", key, e);
+				requestedLocalKeys.remove(key);
+			}
+		}
+		return missing();
+	}
+
+	public void acceptLocalSkin(String key, byte[] data) {
+		try {
+			registerLocalBytes(key, data, true);
+		} finally {
+			requestedLocalKeys.remove(key);
+		}
+	}
+
+	private void registerLocalBytes(String key, byte[] data, boolean persist) {
+		if (persist) {
+			try {
+				LocalSkinStore.INSTANCE.save(key, data);
+			} catch (IOException e) {
+				Constants.LOG.error("Failed to save local skin {}", key, e);
+			}
+		}
+		urls.put(key, LocalSkinStore.urlForKey(key));
+		try {
+			NativeImage raw = NativeImage.read(new java.io.ByteArrayInputStream(data));
+			NativeImage processed = processLegacySkin(raw);
+			if (processed == null) return;
+			ResourceLocation loc = registerImage(processed);
+			downloads.put(key, loc);
+		} catch (IOException e) {
+			Constants.LOG.error("Failed to register local skin bytes {}", key, e);
+		}
+	}
+
+	public void registerLocalBytes(String key, byte[] data) {
+		registerLocalBytes(key, data, true);
 	}
 
 	public String getUrl(String key) {
