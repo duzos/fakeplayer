@@ -66,10 +66,10 @@ public final class AIState {
 		if (tag.hasUUID("Owner")) s.ownerUUID = tag.getUUID("Owner");
 		s.job = Job.byOrdinal(tag.getInt("Job"));
 		s.running = tag.getBoolean("Running");
-		if (tag.contains("Waypoint")) s.waypoint = NbtUtils.readBlockPos(tag.getCompound("Waypoint"));
-		if (tag.contains("RegionA")) s.regionA = NbtUtils.readBlockPos(tag.getCompound("RegionA"));
-		if (tag.contains("RegionB")) s.regionB = NbtUtils.readBlockPos(tag.getCompound("RegionB"));
-		if (tag.contains("DepositChest")) s.depositChest = NbtUtils.readBlockPos(tag.getCompound("DepositChest"));
+		NbtUtils.readBlockPos(tag, "Waypoint").ifPresent(p -> s.waypoint = p);
+		NbtUtils.readBlockPos(tag, "RegionA").ifPresent(p -> s.regionA = p);
+		NbtUtils.readBlockPos(tag, "RegionB").ifPresent(p -> s.regionB = p);
+		NbtUtils.readBlockPos(tag, "DepositChest").ifPresent(p -> s.depositChest = p);
 		if (tag.contains("Filter")) s.filter = tag.getCompound("Filter");
 		if (tag.contains("JobParams")) s.jobParams = tag.getCompound("JobParams");
 		if (tag.contains("JobState")) s.jobState = tag.getCompound("JobState");
