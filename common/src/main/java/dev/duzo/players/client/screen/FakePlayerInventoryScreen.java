@@ -21,7 +21,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 
 public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlayerMenu> {
-	private static final ResourceLocation INVENTORY_TEXTURE = new ResourceLocation("textures/gui/container/inventory.png");
+	private static final ResourceLocation INVENTORY_TEXTURE = ResourceLocation.withDefaultNamespace("textures/gui/container/inventory.png");
 
 	private static final int FP_PANEL_W = 176;
 	private static final int FP_PANEL_H = 166;
