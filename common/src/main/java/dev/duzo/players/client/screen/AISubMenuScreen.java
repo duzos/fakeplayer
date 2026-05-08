@@ -30,7 +30,8 @@ public class AISubMenuScreen extends Screen {
 	private static final int BTN_H = 16;
 	private static final int RIGHT_BTN_W = 64;
 
-	private static final int COL_PANEL = 0xEE0E1216;
+	private static final int COL_PANEL = 0xFF11171F;
+	private static final int COL_PANEL_BORDER = 0xFF2A3548;
 	private static final int COL_PANEL_TOP = 0xFF1F262E;
 	private static final int COL_TITLE_BAR = 0xFF161C24;
 	private static final int COL_ACCENT = 0xFF2EC4FF;
@@ -74,6 +75,10 @@ public class AISubMenuScreen extends Screen {
 	@Override
 	public boolean isPauseScreen() {
 		return false;
+	}
+
+	@Override
+	public void renderBackground(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
 	}
 
 	@Override
@@ -172,11 +177,12 @@ public class AISubMenuScreen extends Screen {
 
 	@Override
 	public void render(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
-		this.renderBackground(ctx);
+		ctx.fill(0, 0, this.width, this.height, 0xA0050709);
 		int x = (this.width - PANEL_W) / 2;
 		int y = (this.height - PANEL_H) / 2;
 
-		ctx.fill(x - 1, y - 1, x + PANEL_W + 1, y + PANEL_H + 1, 0x60000000);
+		ctx.fill(x - 2, y - 2, x + PANEL_W + 2, y + PANEL_H + 2, 0xFF000000);
+		ctx.fill(x - 1, y - 1, x + PANEL_W + 1, y + PANEL_H + 1, COL_PANEL_BORDER);
 		ctx.fill(x, y, x + PANEL_W, y + PANEL_H, COL_PANEL);
 		ctx.fill(x, y, x + PANEL_W, y + 1, COL_PANEL_TOP);
 		ctx.fill(x, y, x + PANEL_W, y + TITLE_H, COL_TITLE_BAR);
