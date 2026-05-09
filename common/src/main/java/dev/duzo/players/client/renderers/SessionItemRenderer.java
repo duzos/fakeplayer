@@ -26,6 +26,11 @@ public final class SessionItemRenderer {
 	private static final int COLOR_PENDING = 0xFFFFD933;
 	private static final int COLOR_LIVE = 0xFF66E5FF;
 	private static final int COLOR_COMMITTED = 0x80AAFFAA;
+	private static final int COLOR_WAYPOINT_LIVE = 0xFF55EAFF;
+	private static final int COLOR_WAYPOINT_FAINT = 0x5555EAFF;
+	private static final int COLOR_CHEST_OK = 0xFF54E08C;
+	private static final int COLOR_CHEST_BAD = 0xFFE76060;
+	private static final int COLOR_CHEST_FAINT = 0x5554E08C;
 	private static final float LINE_WIDTH = 2.5F;
 
 	private SessionItemRenderer() {}
@@ -38,13 +43,26 @@ public final class SessionItemRenderer {
 
 		ItemStack stack = sessionStack(player.getMainHandItem(), player.getOffhandItem());
 		if (stack == null) return;
-		if (AIMarkerItem.purpose(stack) != AIMarkerItem.PURPOSE_REGION) return;
+		byte purpose = AIMarkerItem.purpose(stack);
 
 		MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
 		VertexConsumer lines = buffers.getBuffer(RenderTypes.lines());
 		Vec3 cam = mc.gameRenderer.getMainCamera().position();
-
 		FakePlayerEntity bound = findFake(level, AIMarkerItem.fakeUUID(stack));
+		BlockPos crosshair = crosshairBlock(mc);
+
+		switch (purpose) {
+			case AIMarkerItem.PURPOSE_REGION -> renderRegion(pose, lines, cam, stack, bound, crosshair);
+			case AIMarkerItem.PURPOSE_WAYPOINT -> renderWaypoint(pose, lines, cam, bound, crosshair);
+			case AIMarkerItem.PURPOSE_CHEST_PICKER -> renderChestPicker(pose, lines, cam, level, bound, crosshair);
+			default -> {}
+		}
+
+		buffers.endBatch(RenderTypes.lines());
+	}
+
+	private static void renderRegion(PoseStack pose, VertexConsumer lines, Vec3 cam, ItemStack stack,
+	                                 FakePlayerEntity bound, BlockPos crosshair) {
 		BlockPos committedA = null, committedB = null;
 		if (bound != null) {
 			AIState ai = bound.getAIState();
@@ -53,21 +71,34 @@ public final class SessionItemRenderer {
 		}
 
 		BlockPos stackA = AIMarkerItem.regionA(stack);
-		BlockPos crosshair = crosshairBlock(mc);
-
 		if (stackA == null) {
 			if (crosshair != null) drawBlock(pose, lines, cam, crosshair, COLOR_LIVE);
-			drawCommitted(pose, lines, cam, committedA, committedB);
+			drawCommittedRegion(pose, lines, cam, committedA, committedB);
 		} else {
 			drawBlock(pose, lines, cam, stackA, COLOR_PENDING);
 			if (crosshair != null) drawBox(pose, lines, cam, stackA, crosshair, COLOR_LIVE);
-			drawCommitted(pose, lines, cam, committedA, committedB);
+			drawCommittedRegion(pose, lines, cam, committedA, committedB);
 		}
-
-		buffers.endBatch(RenderTypes.lines());
 	}
 
-	private static void drawCommitted(PoseStack pose, VertexConsumer lines, Vec3 cam, BlockPos a, BlockPos b) {
+	private static void renderWaypoint(PoseStack pose, VertexConsumer lines, Vec3 cam,
+	                                   FakePlayerEntity bound, BlockPos crosshair) {
+		BlockPos committed = bound == null ? null : bound.getAIState().waypoint();
+		if (committed != null) drawBlock(pose, lines, cam, committed, COLOR_WAYPOINT_FAINT);
+		if (crosshair != null) drawBlock(pose, lines, cam, crosshair, COLOR_WAYPOINT_LIVE);
+	}
+
+	private static void renderChestPicker(PoseStack pose, VertexConsumer lines, Vec3 cam, ClientLevel level,
+	                                      FakePlayerEntity bound, BlockPos crosshair) {
+		BlockPos committed = bound == null ? null : bound.getAIState().depositChest();
+		if (committed != null) drawBlock(pose, lines, cam, committed, COLOR_CHEST_FAINT);
+		if (crosshair != null) {
+			int color = AIMarkerItem.isValidContainer(level, crosshair) ? COLOR_CHEST_OK : COLOR_CHEST_BAD;
+			drawBlock(pose, lines, cam, crosshair, color);
+		}
+	}
+
+	private static void drawCommittedRegion(PoseStack pose, VertexConsumer lines, Vec3 cam, BlockPos a, BlockPos b) {
 		if (a == null || b == null) return;
 		drawBox(pose, lines, cam, a, b, COLOR_COMMITTED);
 	}
