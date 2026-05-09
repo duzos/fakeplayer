@@ -33,6 +33,9 @@ public class AIMarkerItem extends Item {
 	public static final byte PURPOSE_REGION = 1;
 	public static final byte PURPOSE_CHEST_PICKER = 2;
 
+	public static final byte CHEST_SLOT_DEPOSIT = 0;
+	public static final byte CHEST_SLOT_SOURCE = 1;
+
 	public static final long SESSION_TICKS = 90L * 20L;
 	public static final double SESSION_RANGE = 32.0D;
 	public static final double SESSION_RANGE_SQ = SESSION_RANGE * SESSION_RANGE;
@@ -42,21 +45,32 @@ public class AIMarkerItem extends Item {
 	private static final String TAG_PURPOSE = "Purpose";
 	private static final String TAG_EXPIRES = "ExpiresAt";
 	private static final String TAG_REGION_A = "RegionA";
+	private static final String TAG_CHEST_SLOT = "ChestSlot";
 
 	public AIMarkerItem(Properties properties) {
 		super(properties.stacksTo(1));
 	}
 
 	public static ItemStack make(FakePlayerEntity entity, Player owner, byte purpose, long now) {
+		return make(entity, owner, purpose, CHEST_SLOT_DEPOSIT, now);
+	}
+
+	public static ItemStack make(FakePlayerEntity entity, Player owner, byte purpose, byte chestSlot, long now) {
 		ItemStack stack = new ItemStack(FPItems.AI_MARKER.get());
 		CompoundTag tag = new CompoundTag();
 		tag.putIntArray(TAG_FAKE, UUIDUtil.uuidToIntArray(entity.getUUID()));
 		tag.putIntArray(TAG_OWNER, UUIDUtil.uuidToIntArray(owner.getUUID()));
 		tag.putString(TAG_PURPOSE, purposeName(purpose));
 		tag.putLong(TAG_EXPIRES, now + SESSION_TICKS);
+		if (purpose == PURPOSE_CHEST_PICKER) tag.putByte(TAG_CHEST_SLOT, chestSlot);
 		writeTag(stack, tag);
-		stack.set(DataComponents.CUSTOM_NAME, Component.literal(purposeLabel(purpose)).withStyle(ChatFormatting.AQUA));
+		stack.set(DataComponents.CUSTOM_NAME, Component.literal(purposeLabel(purpose, chestSlot)).withStyle(ChatFormatting.AQUA));
 		return stack;
+	}
+
+	public static byte chestSlotOf(ItemStack stack) {
+		CompoundTag tag = readTag(stack);
+		return tag == null ? CHEST_SLOT_DEPOSIT : tag.getByteOr(TAG_CHEST_SLOT, CHEST_SLOT_DEPOSIT);
 	}
 
 	public static boolean isSession(ItemStack stack) {
@@ -116,11 +130,11 @@ public class AIMarkerItem extends Item {
 		};
 	}
 
-	private static String purposeLabel(byte purpose) {
+	private static String purposeLabel(byte purpose, byte chestSlot) {
 		return switch (purpose) {
 			case PURPOSE_WAYPOINT -> "Waypoint Marker";
 			case PURPOSE_REGION -> "Region Marker";
-			case PURPOSE_CHEST_PICKER -> "Deposit Marker";
+			case PURPOSE_CHEST_PICKER -> chestSlot == CHEST_SLOT_SOURCE ? "Source Marker" : "Deposit Marker";
 			default -> "AI Marker";
 		};
 	}
@@ -187,8 +201,15 @@ public class AIMarkerItem extends Item {
 					player.displayClientMessage(Component.literal("Right-click a chest.").withStyle(ChatFormatting.RED), true);
 					return InteractionResult.FAIL;
 				}
-				entity.mutateAIState(s -> s.setDepositChest(pos.immutable()));
-				player.displayClientMessage(Component.literal("Deposit chest set.").withStyle(ChatFormatting.GREEN), true);
+				byte slot = tag.getByteOr(TAG_CHEST_SLOT, CHEST_SLOT_DEPOSIT);
+				BlockPos commit = pos.immutable();
+				if (slot == CHEST_SLOT_SOURCE) {
+					entity.mutateAIState(s -> s.setSourceChest(commit));
+					player.displayClientMessage(Component.literal("Source chest set.").withStyle(ChatFormatting.GREEN), true);
+				} else {
+					entity.mutateAIState(s -> s.setDepositChest(commit));
+					player.displayClientMessage(Component.literal("Deposit chest set.").withStyle(ChatFormatting.GREEN), true);
+				}
 				silentlyConsume(stack);
 			}
 		}
@@ -219,7 +240,9 @@ public class AIMarkerItem extends Item {
 			case PURPOSE_REGION -> tag.contains(TAG_REGION_A)
 					? "Right-click a second block for corner B."
 					: "Right-click a block for corner A.";
-			case PURPOSE_CHEST_PICKER -> "Right-click a chest to set deposit target.";
+			case PURPOSE_CHEST_PICKER -> tag.getByteOr(TAG_CHEST_SLOT, CHEST_SLOT_DEPOSIT) == CHEST_SLOT_SOURCE
+					? "Right-click a chest to set source target."
+					: "Right-click a chest to set deposit target.";
 			default -> "";
 		};
 		if (!hint.isEmpty()) {
