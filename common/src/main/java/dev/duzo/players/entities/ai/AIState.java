@@ -15,6 +15,7 @@ public final class AIState {
 	@Nullable private BlockPos regionA;
 	@Nullable private BlockPos regionB;
 	@Nullable private BlockPos depositChest;
+	@Nullable private BlockPos sourceChest;
 	private CompoundTag filter = new CompoundTag();
 	private CompoundTag jobParams = new CompoundTag();
 	private CompoundTag jobState = new CompoundTag();
@@ -28,6 +29,7 @@ public final class AIState {
 	@Nullable public BlockPos regionA() { return regionA; }
 	@Nullable public BlockPos regionB() { return regionB; }
 	@Nullable public BlockPos depositChest() { return depositChest; }
+	@Nullable public BlockPos sourceChest() { return sourceChest; }
 	public CompoundTag filter() { return filter; }
 	public CompoundTag jobParams() { return jobParams; }
 	public CompoundTag jobState() { return jobState; }
@@ -39,6 +41,7 @@ public final class AIState {
 	public void setRegionA(@Nullable BlockPos pos) { this.regionA = pos; }
 	public void setRegionB(@Nullable BlockPos pos) { this.regionB = pos; }
 	public void setDepositChest(@Nullable BlockPos pos) { this.depositChest = pos; }
+	public void setSourceChest(@Nullable BlockPos pos) { this.sourceChest = pos; }
 	public void setFilter(CompoundTag filter) { this.filter = filter == null ? new CompoundTag() : filter; }
 	public void setJobParams(CompoundTag params) { this.jobParams = params == null ? new CompoundTag() : params; }
 	public void setJobState(CompoundTag state) { this.jobState = state == null ? new CompoundTag() : state; }
@@ -54,6 +57,7 @@ public final class AIState {
 		if (regionA != null) tag.put("RegionA", NbtUtils.writeBlockPos(regionA));
 		if (regionB != null) tag.put("RegionB", NbtUtils.writeBlockPos(regionB));
 		if (depositChest != null) tag.put("DepositChest", NbtUtils.writeBlockPos(depositChest));
+		if (sourceChest != null) tag.put("SourceChest", NbtUtils.writeBlockPos(sourceChest));
 		tag.put("Filter", filter);
 		tag.put("JobParams", jobParams);
 		tag.put("JobState", jobState);
@@ -70,6 +74,7 @@ public final class AIState {
 		NbtUtils.readBlockPos(tag, "RegionA").ifPresent(p -> s.regionA = p);
 		NbtUtils.readBlockPos(tag, "RegionB").ifPresent(p -> s.regionB = p);
 		NbtUtils.readBlockPos(tag, "DepositChest").ifPresent(p -> s.depositChest = p);
+		NbtUtils.readBlockPos(tag, "SourceChest").ifPresent(p -> s.sourceChest = p);
 		if (tag.contains("Filter")) s.filter = tag.getCompound("Filter");
 		if (tag.contains("JobParams")) s.jobParams = tag.getCompound("JobParams");
 		if (tag.contains("JobState")) s.jobState = tag.getCompound("JobState");
