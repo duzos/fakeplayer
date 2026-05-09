@@ -27,13 +27,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Client-side world renderer for session item markers. Draws debug-line block
- * outlines for the crosshair-target while a session marker is in hand, plus a
- * faint outline of the value already committed on the bound fake.
- *
- * Designed to be extended: each {@link Purpose} owns its tinting and value
- * resolution. Add a new entry to expose another marker purpose to the renderer
- * (REGION lives next to WAYPOINT and CHEST_PICKER once #30 lands).
+ * Client-side world renderer for session item markers. Each {@link Purpose}
+ * owns its own draw logic; the top-level loop just iterates active markers.
  */
 public final class SessionItemMarkerRenderer {
 	private static final double PICK_DISTANCE = 32.0D;
@@ -43,6 +38,9 @@ public final class SessionItemMarkerRenderer {
 	private static final float[] CHEST_LIVE_OK = rgba(0x54, 0xE0, 0x8C, 0xFF);
 	private static final float[] CHEST_LIVE_BAD = rgba(0xE7, 0x60, 0x60, 0xFF);
 	private static final float[] CHEST_FAINT = rgba(0x54, 0xE0, 0x8C, 0x55);
+	private static final float[] REGION_LIVE = rgba(0x66, 0xE5, 0xFF, 0xFF);
+	private static final float[] REGION_PENDING = rgba(0xFF, 0xD9, 0x33, 0xFF);
+	private static final float[] REGION_FAINT = rgba(0xAA, 0xFF, 0xAA, 0x80);
 
 	private SessionItemMarkerRenderer() {}
 
@@ -58,14 +56,7 @@ public final class SessionItemMarkerRenderer {
 		VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
 
 		for (ActiveMarker m : active) {
-			BlockPos committed = m.purpose.committed(m.fake);
-			if (committed != null) {
-				drawOutline(poseStack, lines, committed, cam, m.purpose.faintColor());
-			}
-			if (crosshair != null) {
-				float[] color = m.purpose.crosshairColor(mc, crosshair);
-				drawOutline(poseStack, lines, crosshair, cam, color);
-			}
+			m.purpose.render(poseStack, lines, cam, mc, m.stack, m.fake, crosshair);
 		}
 	}
 
@@ -92,7 +83,7 @@ public final class SessionItemMarkerRenderer {
 			if (fakeId == null) continue;
 			Entity raw = findEntity(level, fakeId);
 			if (!(raw instanceof FakePlayerEntity fake)) continue;
-			out.add(new ActiveMarker(purpose, fake));
+			out.add(new ActiveMarker(purpose, stack, fake));
 		}
 		return out;
 	}
@@ -112,46 +103,74 @@ public final class SessionItemMarkerRenderer {
 				rgba[0], rgba[1], rgba[2], rgba[3]);
 	}
 
+	private static void drawBox(PoseStack pose, VertexConsumer lines, BlockPos a, BlockPos b, Vec3 cam, float[] rgba) {
+		double minX = Math.min(a.getX(), b.getX()) - cam.x;
+		double minY = Math.min(a.getY(), b.getY()) - cam.y;
+		double minZ = Math.min(a.getZ(), b.getZ()) - cam.z;
+		double maxX = Math.max(a.getX(), b.getX()) + 1.0 - cam.x;
+		double maxY = Math.max(a.getY(), b.getY()) + 1.0 - cam.y;
+		double maxZ = Math.max(a.getZ(), b.getZ()) + 1.0 - cam.z;
+		LevelRenderer.renderLineBox(pose, lines, minX, minY, minZ, maxX, maxY, maxZ,
+				rgba[0], rgba[1], rgba[2], rgba[3]);
+	}
+
 	private static float[] rgba(int r, int g, int b, int a) {
 		return new float[]{r / 255.0F, g / 255.0F, b / 255.0F, a / 255.0F};
 	}
 
-	private record ActiveMarker(Purpose purpose, FakePlayerEntity fake) {}
+	private record ActiveMarker(Purpose purpose, ItemStack stack, FakePlayerEntity fake) {}
 
-	/**
-	 * Per-purpose hook so additional session item types (e.g. REGION from #30)
-	 * can plug in by adding an enum entry without touching the renderer body.
-	 */
 	private enum Purpose {
 		WAYPOINT {
-			@Override @Nullable BlockPos committed(FakePlayerEntity fake) {
+			@Override void render(PoseStack pose, VertexConsumer lines, Vec3 cam, Minecraft mc,
+			                     ItemStack stack, FakePlayerEntity fake, @Nullable BlockPos crosshair) {
 				AIState s = fake.getAIState();
-				return s == null ? null : s.waypoint();
+				BlockPos committed = s == null ? null : s.waypoint();
+				if (committed != null) drawOutline(pose, lines, committed, cam, WAYPOINT_FAINT);
+				if (crosshair != null) drawOutline(pose, lines, crosshair, cam, WAYPOINT_LIVE);
 			}
-			@Override float[] faintColor() { return WAYPOINT_FAINT; }
-			@Override float[] crosshairColor(Minecraft mc, BlockPos pos) { return WAYPOINT_LIVE; }
 		},
 		CHEST_PICKER {
-			@Override @Nullable BlockPos committed(FakePlayerEntity fake) {
+			@Override void render(PoseStack pose, VertexConsumer lines, Vec3 cam, Minecraft mc,
+			                     ItemStack stack, FakePlayerEntity fake, @Nullable BlockPos crosshair) {
 				AIState s = fake.getAIState();
-				return s == null ? null : s.depositChest();
+				BlockPos committed = s == null ? null : s.depositChest();
+				if (committed != null) drawOutline(pose, lines, committed, cam, CHEST_FAINT);
+				if (crosshair != null) {
+					float[] color = mc.level != null && AIMarkerItem.isValidContainer(mc.level, crosshair)
+							? CHEST_LIVE_OK : CHEST_LIVE_BAD;
+					drawOutline(pose, lines, crosshair, cam, color);
+				}
 			}
-			@Override float[] faintColor() { return CHEST_FAINT; }
-			@Override float[] crosshairColor(Minecraft mc, BlockPos pos) {
-				if (mc.level == null) return CHEST_LIVE_BAD;
-				return AIMarkerItem.isValidContainer(mc.level, pos) ? CHEST_LIVE_OK : CHEST_LIVE_BAD;
+		},
+		REGION {
+			@Override void render(PoseStack pose, VertexConsumer lines, Vec3 cam, Minecraft mc,
+			                     ItemStack stack, FakePlayerEntity fake, @Nullable BlockPos crosshair) {
+				AIState s = fake.getAIState();
+				BlockPos committedA = s == null ? null : s.regionA();
+				BlockPos committedB = s == null ? null : s.regionB();
+				if (committedA != null && committedB != null) {
+					drawBox(pose, lines, committedA, committedB, cam, REGION_FAINT);
+				}
+				BlockPos stackA = AIMarkerItem.regionA(stack);
+				if (stackA == null) {
+					if (crosshair != null) drawOutline(pose, lines, crosshair, cam, REGION_LIVE);
+				} else {
+					drawOutline(pose, lines, stackA, cam, REGION_PENDING);
+					if (crosshair != null) drawBox(pose, lines, stackA, crosshair, cam, REGION_LIVE);
+				}
 			}
 		};
 
-		abstract @Nullable BlockPos committed(FakePlayerEntity fake);
-		abstract float[] faintColor();
-		abstract float[] crosshairColor(Minecraft mc, BlockPos pos);
+		abstract void render(PoseStack pose, VertexConsumer lines, Vec3 cam, Minecraft mc,
+		                     ItemStack stack, FakePlayerEntity fake, @Nullable BlockPos crosshair);
 
 		@Nullable static Purpose fromStack(ItemStack stack) {
 			byte raw = AIMarkerItem.purposeOf(stack);
 			return switch (raw) {
 				case AIMarkerItem.PURPOSE_WAYPOINT -> WAYPOINT;
 				case AIMarkerItem.PURPOSE_CHEST_PICKER -> CHEST_PICKER;
+				case AIMarkerItem.PURPOSE_REGION -> REGION;
 				default -> null;
 			};
 		}
