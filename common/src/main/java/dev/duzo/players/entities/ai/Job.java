@@ -6,7 +6,8 @@ public enum Job {
 	GUARD("Guard"),
 	FOLLOW("Follow"),
 	PATROL("Patrol"),
-	DEPOSIT("Deposit");
+	DEPOSIT("Deposit"),
+	COURIER("Courier");
 
 	private final String label;
 
