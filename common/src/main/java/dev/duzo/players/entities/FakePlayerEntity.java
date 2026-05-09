@@ -10,6 +10,7 @@ import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.entities.ai.JobExecutor;
 import dev.duzo.players.entities.ai.JobExecutors;
 import net.minecraft.nbt.CompoundTag;
+import dev.duzo.players.entities.goal.FollowOwnerGoal;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
 import dev.duzo.players.entities.inventory.FakePlayerInventory;
@@ -158,6 +159,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		this.goalSelector.addGoal(2, new MoveTowardsItemsGoal(this, 1.0D, true));
 		this.goalSelector.addGoal(1, new TemptGoal(this, 1.0D, Ingredient.of(Items.REDSTONE_BLOCK, Items.REDSTONE_TORCH), false));
 		this.goalSelector.addGoal(0, new FloatGoal(this));
+		this.goalSelector.addGoal(0, new FollowOwnerGoal(this));
 	}
 
 	@Override
