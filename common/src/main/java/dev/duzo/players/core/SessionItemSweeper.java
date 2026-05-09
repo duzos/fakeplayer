@@ -5,7 +5,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.UUID;
@@ -23,15 +22,8 @@ public final class SessionItemSweeper {
 	}
 
 	private static void sweep(ServerPlayer player) {
-		Inventory inv = player.getInventory();
 		long now = player.level().getGameTime();
-		for (int i = 0; i < inv.getContainerSize(); i++) {
-			ItemStack stack = inv.getItem(i);
-			if (!AIMarkerItem.isSession(stack)) continue;
-			if (shouldRemove(player, stack, now)) {
-				inv.setItem(i, ItemStack.EMPTY);
-			}
-		}
+		AIMarkerItem.sweepSessionItems(player, stack -> shouldRemove(player, stack, now));
 	}
 
 	private static boolean shouldRemove(ServerPlayer player, ItemStack stack, long now) {
