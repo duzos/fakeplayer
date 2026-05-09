@@ -109,6 +109,13 @@ public class AIMarkerItem extends Item {
 		return purposeFromTag(readTag(stack));
 	}
 
+	@Nullable
+	public static BlockPos regionA(ItemStack stack) {
+		CompoundTag tag = readTag(stack);
+		if (tag == null || !tag.contains(TAG_REGION_A)) return null;
+		return BlockPos.of(tag.getLongOr(TAG_REGION_A, 0L));
+	}
+
 	private static byte purposeFromTag(@Nullable CompoundTag tag) {
 		if (tag == null) return -1;
 		return switch (tag.getStringOr(TAG_PURPOSE, "")) {
