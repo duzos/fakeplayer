@@ -21,6 +21,10 @@ public class PlayersConfig {
 	public double attackDamage = 1.0;
 	public boolean persistFakePlayers = true;
 	public boolean allowLocalSkinUploadOpOnly = true;
+	public double minerMaxBlocksPerSecond = 2.5;
+	public boolean minerNeverMineBlockUnderFeet = true;
+	public boolean minerLavaCobbleSafety = true;
+	public int minerBailY = -58;
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {
