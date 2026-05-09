@@ -4,8 +4,10 @@ import commonnetwork.api.Network;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.AIState;
+import dev.duzo.players.entities.ai.GuardJobExecutor;
 import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.network.c2s.BondPacketC2S;
+import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
@@ -61,7 +63,9 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton regionButton;
 	private FlatButton depositButton;
 	private FlatButton sourceButton;
+	private FlatButton patrolClearButton;
 	private FlatButton startStopButton;
+	private int patrolRowY;
 
 	private int ownerSectionY;
 	private int behaviourSectionY;
@@ -133,10 +137,14 @@ public class AISubMenuScreen extends Screen {
 		this.addRenderableWidget(depositButton);
 		y += ROW_H;
 		sourceRowY = y;
+		patrolRowY = y;
 		sourceButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
 				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_SOURCE));
 		sourceButton.visible = courierActive();
 		this.addRenderableWidget(sourceButton);
+		patrolClearButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
+				Component.literal("Clear"), this::clearPatrol);
+		this.addRenderableWidget(patrolClearButton);
 		y += BTN_H + 10;
 
 		startStopButton = new FlatButton(innerLeft, y, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
@@ -155,6 +163,11 @@ public class AISubMenuScreen extends Screen {
 		AIState s = entity.getAIState();
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
 		if (sourceButton != null) sourceButton.visible = courierActive();
+		if (patrolClearButton != null) {
+			boolean guard = s.job() == Job.GUARD;
+			patrolClearButton.visible = guard;
+			patrolClearButton.active = guard && GuardJobExecutor.readPatrolPoints(s).length > 0;
+		}
 		if (startStopButton != null) {
 			startStopButton.setMessage(startStopLabel());
 			boolean run = s.running();
@@ -203,12 +216,13 @@ public class AISubMenuScreen extends Screen {
 		drawJobRow(ctx, x, behaviourSectionY + 18 + ROW_H, s);
 
 		drawSectionHeader(ctx, x, markerSectionY, "MARKERS");
-		drawMarkerRow(ctx, x, markerSectionY + 18, "Waypoint", s.waypoint());
+		drawWaypointRow(ctx, x, markerSectionY + 18, s);
 		drawRegionRow(ctx, x, markerSectionY + 18 + ROW_H, s);
 		drawMarkerRow(ctx, x, markerSectionY + 18 + ROW_H * 2, "Deposit", s.depositChest());
 		if (courierActive()) {
 			drawMarkerRow(ctx, x, sourceRowY + 4, "Source", s.sourceChest());
 		}
+		drawPatrolRow(ctx, x, patrolRowY + 1, s);
 
 		super.render(ctx, mouseX, mouseY, partialTick);
 	}
@@ -270,6 +284,26 @@ public class AISubMenuScreen extends Screen {
 		drawChip(ctx, panelX + PADDING, y, dot, text, textColor);
 	}
 
+	private void drawWaypointRow(GuiGraphics ctx, int panelX, int y, AIState s) {
+		if (s.job() == Job.GUARD) {
+			int count = GuardJobExecutor.readPatrolPoints(s).length;
+			int dot = count >= 2 ? COL_GREEN : count == 1 ? COL_YELLOW : COL_MUTED;
+			String text = count == 0 ? "Waypoint  add patrol" : "Waypoint  +1 (" + count + " pts)";
+			drawChip(ctx, panelX + PADDING, y, dot, text, count == 0 ? COL_MUTED : COL_BODY);
+		} else {
+			drawMarkerRow(ctx, panelX, y, "Waypoint", s.waypoint());
+		}
+	}
+
+	private void drawPatrolRow(GuiGraphics ctx, int panelX, int y, AIState s) {
+		if (s.job() != Job.GUARD) return;
+		int count = GuardJobExecutor.readPatrolPoints(s).length;
+		int radius = GuardJobExecutor.readRadius(s);
+		int dot = count >= 2 ? COL_GREEN : count == 1 ? COL_YELLOW : COL_RED;
+		String text = "Patrol    " + count + " pts, r=" + radius;
+		drawChip(ctx, panelX + PADDING, y, dot, text, count == 0 ? COL_MUTED : COL_BODY);
+	}
+
 	private void drawRegionRow(GuiGraphics ctx, int panelX, int y, AIState s) {
 		int dot;
 		String text;
@@ -324,5 +358,9 @@ public class AISubMenuScreen extends Screen {
 
 	private void toggleRun() {
 		Network.getNetworkHandler().sendToServer(new StartStopJobPacketC2S(entity.getId(), !entity.getAIState().running()));
+	}
+
+	private void clearPatrol() {
+		Network.getNetworkHandler().sendToServer(new ClearPatrolPacketC2S(entity.getId()));
 	}
 }
