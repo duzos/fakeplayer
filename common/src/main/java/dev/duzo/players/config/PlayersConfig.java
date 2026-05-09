@@ -21,6 +21,7 @@ public class PlayersConfig {
 	public double attackDamage = 1.0;
 	public boolean persistFakePlayers = true;
 	public boolean allowLocalSkinUploadOpOnly = true;
+	public int guardRadius = 12;
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {
