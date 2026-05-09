@@ -10,7 +10,7 @@ public final class JobExecutors {
 	static {
 		register(Job.NONE, NoopJobExecutor::new);
 		register(Job.IDLE, IdleJobExecutor::new);
-		register(Job.GUARD, NoopJobExecutor::new);
+		register(Job.GUARD, GuardJobExecutor::new);
 		register(Job.FOLLOW, NoopJobExecutor::new);
 		register(Job.PATROL, NoopJobExecutor::new);
 		register(Job.DEPOSIT, NoopJobExecutor::new);
