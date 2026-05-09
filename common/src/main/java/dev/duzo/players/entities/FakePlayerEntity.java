@@ -110,7 +110,8 @@ public class FakePlayerEntity extends PathfinderMob {
 	public boolean isMovementManagedByJob() {
 		AIState state = this.getAIState();
 		if (!state.running() || jobPaused) return false;
-		return state.job() == Job.IDLE;
+		Job job = state.job();
+		return job == Job.IDLE || job == Job.GUARD;
 	}
 
 	@Override
