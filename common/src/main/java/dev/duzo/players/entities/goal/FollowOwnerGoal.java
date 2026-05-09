@@ -116,7 +116,7 @@ public class FollowOwnerGoal extends Goal {
 
 	private boolean isActiveByState() {
 		AIState state = this.entity.getAIState();
-		return state.job() == Job.FOLLOW && state.ownerUUID() != null;
+		return state.running() && state.job() == Job.FOLLOW && state.ownerUUID() != null;
 	}
 
 	private Player findOwner() {
