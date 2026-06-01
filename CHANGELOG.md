@@ -1,4 +1,3 @@
-# v2.0.8
+# v2.0.9
 
-- Fix skin select crash and broken trending downloads (#41, #42). Trending skin downloads no longer assert on the wrong-thread RenderSystem check; the texture register now hops back onto the render thread via `Minecraft.execute`. The skin select screen also bails cleanly when the trending list is still empty instead of indexing out of bounds.
-- Management gui tooltips only refresh on shift-state change, so they no longer flicker every frame.
+- Recipes now load on 1.21.1. The recipe and loot table data moved to the singular `recipe`/`loot_table` directories and the crafting results use `result.id`, matching the format 1.21 switched to. 1.21.1 was missed by the earlier 2.0.8 recipe fix.
