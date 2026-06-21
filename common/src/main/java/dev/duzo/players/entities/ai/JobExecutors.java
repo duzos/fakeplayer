@@ -14,6 +14,7 @@ public final class JobExecutors {
 		register(Job.FOLLOW, NoopJobExecutor::new);
 		register(Job.PATROL, NoopJobExecutor::new);
 		register(Job.DEPOSIT, NoopJobExecutor::new);
+		register(Job.COURIER, CourierJobExecutor::new);
 		register(Job.LUMBERJACK, LumberjackJobExecutor::new);
 	}
 
