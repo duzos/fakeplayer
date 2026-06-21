@@ -23,7 +23,7 @@ import java.util.UUID;
 
 public class AISubMenuScreen extends Screen {
 	private static final int PANEL_W = 240;
-	private static final int PANEL_H = 236;
+	private static final int PANEL_H = 254;
 	private static final int PADDING = 14;
 	private static final int TITLE_H = 26;
 	private static final int ROW_H = 18;
@@ -60,11 +60,13 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton waypointButton;
 	private FlatButton regionButton;
 	private FlatButton depositButton;
+	private FlatButton sourceButton;
 	private FlatButton startStopButton;
 
 	private int ownerSectionY;
 	private int behaviourSectionY;
 	private int markerSectionY;
+	private int sourceRowY;
 
 	public AISubMenuScreen(FakePlayerEntity entity) {
 		super(Component.literal("AI"));
@@ -127,8 +129,14 @@ public class AISubMenuScreen extends Screen {
 		this.addRenderableWidget(regionButton);
 		y += ROW_H;
 		depositButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
-				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER));
+				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_DEPOSIT));
 		this.addRenderableWidget(depositButton);
+		y += ROW_H;
+		sourceRowY = y;
+		sourceButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
+				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_SOURCE));
+		sourceButton.visible = courierActive();
+		this.addRenderableWidget(sourceButton);
 		y += BTN_H + 10;
 
 		startStopButton = new FlatButton(innerLeft, y, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
@@ -146,6 +154,7 @@ public class AISubMenuScreen extends Screen {
 	private void refreshLabels() {
 		AIState s = entity.getAIState();
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
+		if (sourceButton != null) sourceButton.visible = courierActive();
 		if (startStopButton != null) {
 			startStopButton.setMessage(startStopLabel());
 			boolean run = s.running();
@@ -197,6 +206,9 @@ public class AISubMenuScreen extends Screen {
 		drawMarkerRow(ctx, x, markerSectionY + 18, "Waypoint", s.waypoint());
 		drawRegionRow(ctx, x, markerSectionY + 18 + ROW_H, s);
 		drawMarkerRow(ctx, x, markerSectionY + 18 + ROW_H * 2, "Deposit", s.depositChest());
+		if (courierActive()) {
+			drawMarkerRow(ctx, x, sourceRowY + 4, "Source", s.sourceChest());
+		}
 
 		super.render(ctx, mouseX, mouseY, partialTick);
 	}
@@ -298,8 +310,16 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	private void giveMarker(byte mode) {
-		Network.getNetworkHandler().sendToServer(new GiveAIMarkerPacketC2S(entity.getId(), mode));
+		giveMarker(mode, AIMarkerItem.CHEST_SLOT_DEPOSIT);
+	}
+
+	private void giveMarker(byte mode, byte slot) {
+		Network.getNetworkHandler().sendToServer(new GiveAIMarkerPacketC2S(entity.getId(), mode, slot));
 		Minecraft.getInstance().setScreen(null);
+	}
+
+	private boolean courierActive() {
+		return entity.getAIState().job() == Job.COURIER;
 	}
 
 	private void toggleRun() {
