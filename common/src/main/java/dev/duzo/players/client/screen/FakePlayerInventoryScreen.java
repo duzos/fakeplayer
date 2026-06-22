@@ -109,7 +109,7 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		setTip(this.nameEdit, shift, "Name", "Live-updates the entity name. Skin only changes when you press Apply.");
 		setTip(this.applyButton, shift, "Apply skin", "Re-fetches and applies the skin matching the typed name.");
 		setTip(this.selectButton, shift, "Skin gallery", "Opens the skin selector for browsing downloaded skins.");
-		setTip(this.poseButton, shift, "Pose", "Cycles standing → sitting → laying.");
+		setTip(this.poseButton, shift, "Pose", "Cycles standing ? sitting ? laying.");
 		setTip(this.aiButton, shift, "AI menu", "Bond, jobs, waypoint/region/deposit markers, no-ai toggle.");
 		setTip(this.slimToggle, shift, "Slim", "Switches between the slim (Alex) and classic (Steve) model.");
 		setTip(this.tagToggle, shift, "Nametag", "Toggles the floating nametag above the entity.");
