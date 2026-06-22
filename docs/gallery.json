@@ -1,0 +1,13 @@
+{
+  "_comment": "Maps files in docs/img/ to Modrinth gallery metadata. Every image in docs/img/ is uploaded; an entry here is optional and only adds a title/description/featured flag/ordering. Drop in an image, optionally add an entry, then deploy. See .github/workflows/upload_gallery.yml.",
+
+  "skin-example.png":       { "title": "Skin Example",        "description": "A skin grabbed from a username and applied to a fake player.", "featured": true, "ordering": 0 },
+  "recipe-robot-shell.png": { "title": "Robot Shell Recipe",  "ordering": 1 },
+  "recipe-robot-ai.png":    { "title": "Robot AI Recipe",     "ordering": 2 },
+  "recipe-spawn-egg.png":   { "title": "Player Spawn Egg Recipe", "ordering": 3 },
+
+  "ai-submenu.png":    { "title": "AI Sub-menu",     "description": "Bond a fake, pick a job, hand out markers and start work.", "ordering": 10 },
+  "management-gui.png":{ "title": "Management GUI",  "description": "Skin, pose and the AI / SL / TG controls.",                 "ordering": 11 },
+  "miner-quarry.png":  { "title": "Miner Job",       "description": "A fake player clearing a quarry on the Miner job.",         "ordering": 12 },
+  "lumberjack.png":    { "title": "Lumberjack Job",  "description": "A fake player after felling a tree on the Lumberjack job.", "ordering": 13 }
+}
