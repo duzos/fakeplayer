@@ -77,6 +77,9 @@ public class AISubMenuScreen extends Screen {
 	private int sourceRowY;
 	private int filterRowY;
 
+	// Shrinks the whole panel when the screen is too small to fit it (large GUI scale).
+	private float uiScale = 1f;
+
 	public AISubMenuScreen(FakePlayerEntity entity) {
 		super(Component.literal("AI"));
 		this.entity = entity;
@@ -95,8 +98,11 @@ public class AISubMenuScreen extends Screen {
 			return;
 		}
 
-		int panelLeft = (this.width - PANEL_W) / 2;
-		int panelTop = (this.height - PANEL_H) / 2;
+		this.uiScale = Math.min(1.0F, Math.min((float) this.width / (PANEL_W + 16), (float) this.height / (PANEL_H + 16)));
+		int viewW = Math.round(this.width / this.uiScale);
+		int viewH = Math.round(this.height / this.uiScale);
+		int panelLeft = (viewW - PANEL_W) / 2;
+		int panelTop = (viewH - PANEL_H) / 2;
 		int innerLeft = panelLeft + PADDING;
 		int innerRight = panelLeft + PANEL_W - PADDING;
 		int innerWidth = innerRight - innerLeft;
@@ -210,9 +216,17 @@ public class AISubMenuScreen extends Screen {
 
 	@Override
 	public void render(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
-		this.renderBackground(ctx);
-		int x = (this.width - PANEL_W) / 2;
-		int y = (this.height - PANEL_H) / 2;
+		float scale = this.uiScale;
+		int viewW = Math.round(this.width / scale);
+		int viewH = Math.round(this.height / scale);
+		int sMouseX = Math.round(mouseX / scale);
+		int sMouseY = Math.round(mouseY / scale);
+		ctx.pose().pushPose();
+		ctx.pose().scale(scale, scale, 1.0F);
+
+		ctx.fill(0, 0, viewW, viewH, 0xA0050709);
+		int x = (viewW - PANEL_W) / 2;
+		int y = (viewH - PANEL_H) / 2;
 
 		ctx.fill(x - 1, y - 1, x + PANEL_W + 1, y + PANEL_H + 1, 0x60000000);
 		ctx.fill(x, y, x + PANEL_W, y + PANEL_H, COL_PANEL);
@@ -243,7 +257,24 @@ public class AISubMenuScreen extends Screen {
 		}
 		drawPatrolRow(ctx, x, patrolRowY + 1, s);
 
-		super.render(ctx, mouseX, mouseY, partialTick);
+		super.render(ctx, sMouseX, sMouseY, partialTick);
+		ctx.pose().popPose();
+	}
+
+	// Map real cursor coordinates into the scaled panel space so widget hit-testing lines up.
+	@Override
+	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		return super.mouseClicked(mouseX / this.uiScale, mouseY / this.uiScale, button);
+	}
+
+	@Override
+	public boolean mouseReleased(double mouseX, double mouseY, int button) {
+		return super.mouseReleased(mouseX / this.uiScale, mouseY / this.uiScale, button);
+	}
+
+	@Override
+	public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+		return super.mouseDragged(mouseX / this.uiScale, mouseY / this.uiScale, button, dragX / this.uiScale, dragY / this.uiScale);
 	}
 
 	private void drawTitle(GuiGraphics ctx, int x, int y) {
