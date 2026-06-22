@@ -3,6 +3,7 @@ package dev.duzo.players.entities;
 import dev.duzo.players.api.InteractionRegistry;
 import dev.duzo.players.api.SkinGrabber;
 import dev.duzo.players.config.PlayersConfig;
+import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.ai.AIState;
@@ -13,6 +14,7 @@ import dev.duzo.players.entities.goal.FollowOwnerGoal;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
 import dev.duzo.players.entities.inventory.FakePlayerInventory;
+import dev.duzo.players.menu.FakePlayerMenu;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
 import dev.duzo.players.platform.Services;
 import net.minecraft.nbt.CompoundTag;
@@ -76,8 +78,15 @@ public class FakePlayerEntity extends PathfinderMob {
 		super.tick();
 		this.updateSwingTime();
 		if (this.level() instanceof ServerLevel server) {
+			this.updateFollowOverridePause();
 			this.tickJobExecutor(server);
 		}
+	}
+
+	// Pause the running job while the owner is holding a bound marker or has this fake's menu open,
+	// so the follow-override goal can take over movement without losing the job.
+	private void updateFollowOverridePause() {
+		setJobPaused(getFollowOverrideOwner() != null);
 	}
 
 	private void tickJobExecutor(ServerLevel level) {
@@ -105,6 +114,52 @@ public class FakePlayerEntity extends PathfinderMob {
 
 	public boolean isJobPaused() {
 		return this.jobPaused;
+	}
+
+	private static final double FOLLOW_OWNER_RANGE_SQ = 32.0D * 32.0D;
+
+	@Nullable
+	private Player resolveOwnerInRange() {
+		AIState state = this.getAIState();
+		if (state.ownerUUID() == null) return null;
+		Player owner = this.level().getPlayerByUUID(state.ownerUUID());
+		if (owner == null || !owner.isAlive() || owner.level() != this.level()) return null;
+		return this.distanceToSqr(owner) <= FOLLOW_OWNER_RANGE_SQ ? owner : null;
+	}
+
+	// Owner the fake should walk to right now: either the Follow job, or a follow-override
+	// (owner holding a marker bound to this fake, or viewing this fake's menu).
+	@Nullable
+	public Player getFollowTarget() {
+		Player owner = resolveOwnerInRange();
+		if (owner == null) return null;
+		AIState state = this.getAIState();
+		boolean jobFollow = state.running() && state.job() == Job.FOLLOW;
+		return (jobFollow || isFollowOverride(owner)) ? owner : null;
+	}
+
+	@Nullable
+	private Player getFollowOverrideOwner() {
+		Player owner = resolveOwnerInRange();
+		return (owner != null && isFollowOverride(owner)) ? owner : null;
+	}
+
+	// Follow-override: while the owner holds a marker bound to this fake or has its menu open,
+	// the fake follows them without changing its job.
+	private boolean isFollowOverride(Player owner) {
+		return holdsBoundMarker(owner) || hasMenuOpen(owner);
+	}
+
+	private boolean holdsBoundMarker(Player owner) {
+		return isBoundMarker(owner.getMainHandItem()) || isBoundMarker(owner.getOffhandItem());
+	}
+
+	private boolean isBoundMarker(ItemStack stack) {
+		return stack.getItem() instanceof AIMarkerItem && this.getUUID().equals(AIMarkerItem.fakeUUID(stack));
+	}
+
+	private boolean hasMenuOpen(Player owner) {
+		return owner.containerMenu instanceof FakePlayerMenu menu && menu.getEntity() == this;
 	}
 
 	public boolean isMovementManagedByJob() {
