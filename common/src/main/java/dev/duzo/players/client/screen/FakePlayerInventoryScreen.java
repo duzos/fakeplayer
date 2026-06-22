@@ -17,6 +17,8 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -128,6 +130,24 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		widget.setTooltip(Tooltip.create(Component.literal(shift ? longText : shortText)));
 	}
 
+	@Override
+	public boolean keyPressed(KeyEvent event) {
+		if (this.nameEdit != null && this.nameEdit.isFocused()) {
+			this.nameEdit.keyPressed(event);
+			return true;
+		}
+		return super.keyPressed(event);
+	}
+
+	@Override
+	public boolean charTyped(CharacterEvent event) {
+		if (this.nameEdit != null && this.nameEdit.isFocused()) {
+			this.nameEdit.charTyped(event);
+			return true;
+		}
+		return super.charTyped(event);
+	}
+
 	private static Component poseLabel(FakePlayerEntity entity) {
 		String state = switch (entity.getPhysicalState()) {
 			case STANDING -> "Standing";
@@ -168,7 +188,9 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 	private void openAiMenu() {
 		FakePlayerEntity entity = this.menu.getEntity();
 		if (entity == null) return;
-		Minecraft.getInstance().setScreen(new AISubMenuScreen(entity));
+		Minecraft minecraft = Minecraft.getInstance();
+		if (minecraft.player != null) minecraft.player.closeContainer();
+		minecraft.setScreen(new AISubMenuScreen(entity));
 	}
 
 	private void toggleFlag(byte flag, boolean newValue) {

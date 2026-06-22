@@ -6,6 +6,7 @@ import dev.duzo.players.network.c2s.BondPacketC2S;
 import dev.duzo.players.network.c2s.CyclePosePacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
 import dev.duzo.players.network.c2s.RequestSkinDataPacketC2S;
+import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetFakePlayerNamePacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.SetSkinKeyPacketC2S;
@@ -27,6 +28,7 @@ public class PlayersNetwork {
 		Network.registerPacket(RequestSkinDataPacketC2S.LOCATION, RequestSkinDataPacketC2S.class, RequestSkinDataPacketC2S::encode, RequestSkinDataPacketC2S::decode, RequestSkinDataPacketC2S::handle);
 		Network.registerPacket(SkinDataPacketS2C.LOCATION, SkinDataPacketS2C.class, SkinDataPacketS2C::encode, SkinDataPacketS2C::decode, SkinDataPacketS2C::handle);
 		Network.registerPacket(BondPacketC2S.LOCATION, BondPacketC2S.class, BondPacketC2S::encode, BondPacketC2S::decode, BondPacketC2S::handle);
+		Network.registerPacket(SetAIFilterPacketC2S.LOCATION, SetAIFilterPacketC2S.class, SetAIFilterPacketC2S::encode, SetAIFilterPacketC2S::decode, SetAIFilterPacketC2S::handle);
 		Network.registerPacket(SetJobPacketC2S.LOCATION, SetJobPacketC2S.class, SetJobPacketC2S::encode, SetJobPacketC2S::decode, SetJobPacketC2S::handle);
 		Network.registerPacket(StartStopJobPacketC2S.LOCATION, StartStopJobPacketC2S.class, StartStopJobPacketC2S::encode, StartStopJobPacketC2S::decode, StartStopJobPacketC2S::handle);
 		Network.registerPacket(GiveAIMarkerPacketC2S.LOCATION, GiveAIMarkerPacketC2S.class, GiveAIMarkerPacketC2S::encode, GiveAIMarkerPacketC2S::decode, GiveAIMarkerPacketC2S::handle);
