@@ -5,6 +5,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.AIState;
+import dev.duzo.players.entities.ai.GuardJobExecutor;
+import dev.duzo.players.entities.ai.Job;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -28,6 +30,8 @@ public final class SessionItemRenderer {
 	private static final int COLOR_COMMITTED = 0x80AAFFAA;
 	private static final int COLOR_WAYPOINT_LIVE = 0xFF55EAFF;
 	private static final int COLOR_WAYPOINT_FAINT = 0x5555EAFF;
+	private static final int COLOR_PATROL_ADD = 0xFF54E08C;
+	private static final int COLOR_PATROL_REMOVE = 0xFFE76060;
 	private static final int COLOR_CHEST_OK = 0xFF54E08C;
 	private static final int COLOR_CHEST_BAD = 0xFFE76060;
 	private static final int COLOR_CHEST_FAINT = 0x5554E08C;
@@ -82,9 +86,28 @@ public final class SessionItemRenderer {
 
 	private static void renderWaypoint(PoseStack pose, VertexConsumer lines, Vec3 cam,
 	                                   FakePlayerEntity bound, BlockPos crosshair) {
+		if (bound != null && bound.getAIState().job() == Job.GUARD) {
+			renderPatrolEditor(pose, lines, cam, bound, crosshair);
+			return;
+		}
 		BlockPos committed = bound == null ? null : bound.getAIState().waypoint();
 		if (committed != null) drawBlock(pose, lines, cam, committed, COLOR_WAYPOINT_FAINT);
 		if (crosshair != null) drawBlock(pose, lines, cam, crosshair, COLOR_WAYPOINT_LIVE);
+	}
+
+	// While holding the marker on a guard, show every patrol point. The block under the
+	// crosshair turns red if it's an existing point (sneak + right-click removes it) or
+	// green if it's empty (right-click adds it).
+	private static void renderPatrolEditor(PoseStack pose, VertexConsumer lines, Vec3 cam,
+	                                       FakePlayerEntity bound, BlockPos crosshair) {
+		boolean crosshairIsPoint = false;
+		for (long packed : GuardJobExecutor.readPatrolPoints(bound.getAIState())) {
+			BlockPos p = BlockPos.of(packed);
+			boolean hovered = p.equals(crosshair);
+			if (hovered) crosshairIsPoint = true;
+			drawBlock(pose, lines, cam, p, hovered ? COLOR_PATROL_REMOVE : COLOR_WAYPOINT_LIVE);
+		}
+		if (crosshair != null && !crosshairIsPoint) drawBlock(pose, lines, cam, crosshair, COLOR_PATROL_ADD);
 	}
 
 	private static void renderChestPicker(PoseStack pose, VertexConsumer lines, Vec3 cam, ClientLevel level,
