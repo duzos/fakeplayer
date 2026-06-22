@@ -25,6 +25,7 @@ public class PlayersConfig {
 	public boolean minerNeverMineBlockUnderFeet = true;
 	public boolean minerLavaCobbleSafety = true;
 	public int minerBailY = -58;
+	public int guardRadius = 12;
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {

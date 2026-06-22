@@ -3,6 +3,7 @@ package dev.duzo.players.network;
 import commonnetwork.api.Network;
 import dev.duzo.players.network.c2s.ApplyFakePlayerSkinPacketC2S;
 import dev.duzo.players.network.c2s.BondPacketC2S;
+import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.CyclePosePacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
 import dev.duzo.players.network.c2s.RequestSkinDataPacketC2S;
@@ -32,5 +33,6 @@ public class PlayersNetwork {
 		Network.registerPacket(SetJobPacketC2S.LOCATION, SetJobPacketC2S.class, SetJobPacketC2S::encode, SetJobPacketC2S::decode, SetJobPacketC2S::handle);
 		Network.registerPacket(StartStopJobPacketC2S.LOCATION, StartStopJobPacketC2S.class, StartStopJobPacketC2S::encode, StartStopJobPacketC2S::decode, StartStopJobPacketC2S::handle);
 		Network.registerPacket(GiveAIMarkerPacketC2S.LOCATION, GiveAIMarkerPacketC2S.class, GiveAIMarkerPacketC2S::encode, GiveAIMarkerPacketC2S::decode, GiveAIMarkerPacketC2S::handle);
+		Network.registerPacket(ClearPatrolPacketC2S.LOCATION, ClearPatrolPacketC2S.class, ClearPatrolPacketC2S::encode, ClearPatrolPacketC2S::decode, ClearPatrolPacketC2S::handle);
 	}
 }
