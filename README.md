@@ -2,9 +2,7 @@
 
 # Fake Players
 
-### Player-like entities that look, work, and live in your world.
-
-Auto-grabbed skins, full inventories, and a complete AI job system - mining, chopping, guarding and hauling, all run by fakes that look exactly like real players.
+### Player look-alikes that mine, chop, guard, and haul - for you.
 
 ![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1%20%E2%80%93%201.21.11-62B47A?style=for-the-badge)
 
@@ -14,46 +12,32 @@ Auto-grabbed skins, full inventories, and a complete AI job system - mining, cho
 [<img alt="neoforge" height="52" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/neoforge_vector.svg">](https://neoforged.net/)
 [<img alt="forge" height="52" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/forge_vector.svg">](https://files.minecraftforge.net)
 
-<img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/miner-quarry.png" alt="A fake player clearing a quarry" width="680">
-
 </div>
 
 ## 🤖 What is it?
 
-Fake Players adds entities that look **exactly** like real players. They wear armour, hold items, carry an inventory, send chat messages, and - with a name tag - pull the matching skin straight from Mojang. Bond one to yourself, give it a job, and it gets to work.
+Entities that look **exactly** like real players - auto-grabbed skins, armour, full inventories, the lot. Bond one to yourself, give it a job, and it gets to work.
 
 ## 🧍 The Fake Player
 
-| | |
-| --- | --- |
-| **Looks** | Real player model + auto-grabbed skin (by username, URL, or trending list); slim & classic supported |
-| **Acts** | Wanders, sits, sleeps, wears armour, holds items, sends chat, defends itself |
-| **Stores** | A full inventory you can manage through its GUI |
-
-**Interactions** - right-click a fake with:
-
-| Item | Does |
-| --- | --- |
-| Observer | Toggle the fake's AI |
-| Name Tag | Set its name + skin |
-| Stairs / Beds / Slabs | Sit / sleep / toggle slim skin |
-| Eye of Ender | Toggle name-tag visibility |
-| Paper | Send a chat message |
+- **Looks like a player** - real model with a skin grabbed from any username (or URL / the trending list); slim & classic.
+- **Acts like one** - wanders, sits, sleeps, wears armour, holds items, chats, fights back.
+- **Carries an inventory** - managed through its GUI.
 
 ## 🧠 AI Jobs
 
-Shift + right-click a fake to open its management GUI, hit **AI**, then **Bond** to yourself and pick a job. Markers (waypoint, region, deposit/source containers) are handed to you as single-use items - right-click to set them. While you hold a marker (or have the GUI open) the fake follows you, so you can set things up on the move.
+Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI hands you markers (waypoint, region, chests); right-click to place them - the fake follows you while you do.
 
-| Job | Set up | What it does |
+| Job | Needs | Does |
 | --- | --- | --- |
-| **Idle** | (optional) waypoint | Walks to its waypoint, otherwise stands still. |
-| **Follow** | bond to you | Follows you within 32 blocks, teleporting if it falls behind. |
-| **Guard** | patrol points | Patrols the points you mark and attacks hostiles within range. Hold the Waypoint marker to see every point; right-click adds one, sneak + right-click removes one. |
-| **Miner** | region + deposit | Scans the region for ore (item-tag filter, default `c:ores`), mines it, and returns the haul to the deposit container. |
-| **Lumberjack** | region (+ deposit) | Fells whole trees, replants saplings and bonemeals to speed regrowth; drops are collected automatically. |
-| **Courier** | source + deposit | Shuttles matching items from a source container to the deposit container. |
+| **Idle** | waypoint (optional) | Walks to its waypoint, else waits. |
+| **Follow** | bond | Sticks within 32 blocks, teleports if it lags behind. |
+| **Guard** | patrol points | Patrols your points and attacks hostiles in range. Hold the Waypoint marker to edit points - right-click adds, sneak + right-click removes. |
+| **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. |
+| **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
+| **Courier** | source + deposit | Hauls matching items from one chest to another. |
 
-Job tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`, `minerLavaCobbleSafety`, `minerNeverMineBlockUnderFeet`).
+Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`, `minerLavaCobbleSafety`, `minerNeverMineBlockUnderFeet`).
 
 <div align="center">
 <table>
@@ -70,19 +54,19 @@ Job tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `m
 
 ## 🎨 Skins
 
-Name a fake with a player's username and it grabs that player's skin automatically, so it always matches.
+Name a fake after a player and it wears their skin - always matching. Also:
 
-- **From a URL** - `/players url <entity> <url>`
-- **Trending skins** - shift + right-click a fake to browse and apply from the in-game list.
-- **Slim & classic** - both model types are supported.
+- **URL** - `/players url <entity> <url>`
+- **Trending** - browse and apply from the in-game list (shift + right-click).
+- **Slim & classic** both supported.
 
 <div align="center">
 <img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/skin-example.png" height="280" alt="A skin grabbed from a username and applied to a fake player">
 </div>
 
-## 🛠️ How do I get one?
+## 🛠️ Get one
 
-Craft a `Robot Shell` and a `Robot AI`, then combine them in a crafting table (or grab a Player Spawn Egg).
+Craft a `Robot Shell` and a `Robot AI` and combine them in a crafting table (or use a Player Spawn Egg).
 
 <div align="center">
 <img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/recipe-robot-shell.png" height="120" alt="Robot Shell recipe">
@@ -101,4 +85,4 @@ Craft a `Robot Shell` and a `Robot AI`, then combine them in a crafting table (o
 
 ## 🙏 Credits
 
-- [Jeryn](https://modrinth.com/user/Jeryn/) - for the skin API and downloading code.
+- [Jeryn](https://modrinth.com/user/Jeryn/) - skin API and downloading code.
