@@ -112,11 +112,12 @@ jobs:
           curseforge-token: "${{ secrets.CURSEFORGE_TOKEN }}"
 
           version: ${{ steps.versions.outputs.mod_version }}-${{ steps.versions.outputs.mc_version }}-forge
-          name: Fake Players ${{ steps.versions.outputs.mod_version }} (${{ steps.versions.outputs.mc_version }} Forge)
+          name: Fake Players ${{ steps.versions.outputs.mod_version }} (${{ steps.versions.outputs.mc_version }} Forge / NeoForge)
 
           github-generate-changelog: true
           version-type: release
 
-          loaders: forge
+          # NeoForge 1.20.1 is API-compatible with Forge 1.20.1, so the Forge jar runs on both.
+          loaders: forge,neoforge
           java: 17
           files: forge/build/libs/!(*-@(dev|sources|javadoc)).jar
