@@ -30,12 +30,16 @@ public class MoveTowardsItemsGoal extends Goal {
 
 	@Override
 	public boolean canUse() {
-		if (this.mob instanceof FakePlayerEntity fp && fp.isMovementManagedByJob()) return false;
+		if (this.mob instanceof FakePlayerEntity fp && fp.isMovementManagedByJob()) {
+			return false;
+		}
 		return !getNearbyItems(this.mob, 4).isEmpty();
 	}
 
 	public boolean canContinueToUse() {
-		if (this.mob instanceof FakePlayerEntity fp && fp.isMovementManagedByJob()) return false;
+		if (this.mob instanceof FakePlayerEntity fp && fp.isMovementManagedByJob()) {
+			return false;
+		}
 		LivingEntity livingentity = this.mob.getTarget();
 		if (livingentity == null || !livingentity.isAlive() || !this.mob.isWithinHome(livingentity.blockPosition())) {
 			return false;

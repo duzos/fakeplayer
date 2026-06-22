@@ -1,6 +1,8 @@
 package dev.duzo.players.core;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.GuardJobExecutor;
+import dev.duzo.players.entities.ai.Job;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.UUIDUtil;
@@ -187,8 +189,16 @@ public class AIMarkerItem extends Item {
 
 		switch (purpose) {
 			case PURPOSE_WAYPOINT -> {
-				entity.mutateAIState(s -> s.setWaypoint(pos.immutable()));
-				player.displayClientMessage(Component.literal("Waypoint set.").withStyle(ChatFormatting.GREEN), true);
+				boolean guard = entity.getAIState().job() == Job.GUARD;
+				entity.mutateAIState(s -> {
+					if (s.job() == Job.GUARD) {
+						GuardJobExecutor.appendPatrolPoint(s, pos.immutable());
+					} else {
+						s.setWaypoint(pos.immutable());
+					}
+				});
+				String msg = guard ? "Patrol point added." : "Waypoint set.";
+				player.displayClientMessage(Component.literal(msg).withStyle(ChatFormatting.GREEN), true);
 				silentlyConsume(stack);
 			}
 			case PURPOSE_REGION -> {

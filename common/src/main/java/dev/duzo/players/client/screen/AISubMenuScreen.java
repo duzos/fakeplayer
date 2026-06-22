@@ -4,8 +4,10 @@ import commonnetwork.api.Network;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.AIState;
+import dev.duzo.players.entities.ai.GuardJobExecutor;
 import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.network.c2s.BondPacketC2S;
+import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
@@ -27,7 +29,7 @@ import java.util.UUID;
 
 public class AISubMenuScreen extends Screen {
 	private static final int PANEL_W = 240;
-	private static final int PANEL_H = 254;
+	private static final int PANEL_H = 298;
 	private static final int PADDING = 14;
 	private static final int TITLE_H = 26;
 	private static final int ROW_H = 18;
@@ -66,9 +68,11 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton regionButton;
 	private FlatButton depositButton;
 	private FlatButton sourceButton;
+	private FlatButton patrolClearButton;
 	private EditBox filterEdit;
 	private FlatButton filterButton;
 	private FlatButton startStopButton;
+	private int patrolRowY;
 
 	private int ownerSectionY;
 	private int behaviourSectionY;
@@ -106,7 +110,7 @@ public class AISubMenuScreen extends Screen {
 		int rightBtnX = innerRight - RIGHT_BTN_W;
 
 		FlatButton close = new FlatButton(innerRight - 14, panelTop + 6, 14, 14,
-				Component.literal("✕"),
+				Component.literal("x"),
 				() -> Minecraft.getInstance().setScreen(null))
 				.noBackground()
 				.noBorder()
@@ -146,10 +150,14 @@ public class AISubMenuScreen extends Screen {
 		y += ROW_H;
 		sourceRowY = y;
 		filterRowY = y;
+		patrolRowY = y;
 		sourceButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
 				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_SOURCE));
 		sourceButton.visible = courierActive();
 		this.addRenderableWidget(sourceButton);
+		patrolClearButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
+				Component.literal("Clear"), this::clearPatrol);
+		this.addRenderableWidget(patrolClearButton);
 		filterEdit = new EditBox(this.font, innerLeft + 52, y, 88, BTN_H, Component.literal("filter"));
 		filterEdit.setMaxLength(512);
 		filterEdit.setValue(filterText(entity.getAIState()));
@@ -158,7 +166,7 @@ public class AISubMenuScreen extends Screen {
 		filterButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
 		filterButton.visible = minerActive();
 		this.addRenderableWidget(filterButton);
-		y += BTN_H + 10;
+		y += BTN_H + 54;
 
 		startStopButton = new FlatButton(innerLeft, y, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
 		this.addRenderableWidget(startStopButton);
@@ -178,6 +186,11 @@ public class AISubMenuScreen extends Screen {
 		if (sourceButton != null) sourceButton.visible = courierActive();
 		if (filterEdit != null) filterEdit.visible = minerActive();
 		if (filterButton != null) filterButton.visible = minerActive();
+		if (patrolClearButton != null) {
+			boolean guard = s.job() == Job.GUARD;
+			patrolClearButton.visible = guard;
+			patrolClearButton.active = guard && GuardJobExecutor.readPatrolPoints(s).length > 0;
+		}
 		if (startStopButton != null) {
 			startStopButton.setMessage(startStopLabel());
 			boolean run = s.running();
@@ -227,7 +240,7 @@ public class AISubMenuScreen extends Screen {
 		drawJobRow(ctx, x, behaviourSectionY + 18 + ROW_H, s);
 
 		drawSectionHeader(ctx, x, markerSectionY, "MARKERS");
-		drawMarkerRow(ctx, x, markerSectionY + 18, "Waypoint", s.waypoint());
+		drawWaypointRow(ctx, x, markerSectionY + 18, s);
 		drawRegionRow(ctx, x, markerSectionY + 18 + ROW_H, s);
 		drawMarkerRow(ctx, x, markerSectionY + 18 + ROW_H * 2, "Deposit", s.depositChest());
 		if (courierActive()) {
@@ -236,6 +249,7 @@ public class AISubMenuScreen extends Screen {
 		if (minerActive()) {
 			drawChip(ctx, x + PADDING, filterRowY + 4, COL_AQUA, "Filter", COL_BODY);
 		}
+		drawPatrolRow(ctx, x, patrolRowY + 1, s);
 
 		super.render(ctx, mouseX, mouseY, partialTick);
 	}
@@ -243,7 +257,7 @@ public class AISubMenuScreen extends Screen {
 	private void drawTitle(GuiGraphics ctx, int x, int y) {
 		MutableComponent title = Component.literal("AI").withStyle(s -> s.withColor(TextColor.fromRgb(COL_AQUA & 0xFFFFFF)).withBold(true));
 		String name = entity.getSkinData().name();
-		title.append(Component.literal("  ").append(Component.literal("·  " + name).withStyle(s -> s.withColor(TextColor.fromRgb(COL_LABEL & 0xFFFFFF)))));
+		title.append(Component.literal("  ").append(Component.literal("-  " + name).withStyle(s -> s.withColor(TextColor.fromRgb(COL_LABEL & 0xFFFFFF)))));
 		ctx.drawString(this.font, title, x + PADDING, y + 9, 0xFFFFFFFF, false);
 	}
 
@@ -295,6 +309,36 @@ public class AISubMenuScreen extends Screen {
 			textColor = COL_BODY;
 		}
 		drawChip(ctx, panelX + PADDING, y, dot, text, textColor);
+	}
+
+	private void drawWaypointRow(GuiGraphics ctx, int panelX, int y, AIState s) {
+		if (s.job() == Job.GUARD) {
+			int count = GuardJobExecutor.readPatrolPoints(s).length;
+			int dot = count >= 2 ? COL_GREEN : count == 1 ? COL_YELLOW : COL_MUTED;
+			String text = count == 0 ? "Waypoint  add patrol" : "Waypoint  +1 (" + count + " pts)";
+			drawChip(ctx, panelX + PADDING, y, dot, text, count == 0 ? COL_MUTED : COL_BODY);
+		} else {
+			drawMarkerRow(ctx, panelX, y, "Waypoint", s.waypoint());
+		}
+	}
+
+	private void drawPatrolRow(GuiGraphics ctx, int panelX, int y, AIState s) {
+		if (s.job() != Job.GUARD) return;
+		long[] points = GuardJobExecutor.readPatrolPoints(s);
+		int count = points.length;
+		int radius = GuardJobExecutor.readRadius(s);
+		int dot = count >= 2 ? COL_GREEN : count == 1 ? COL_YELLOW : COL_RED;
+		String text = "Patrol    " + count + " pts, r=" + radius;
+		drawChip(ctx, panelX + PADDING, y, dot, text, count == 0 ? COL_MUTED : COL_BODY);
+		int shown = Math.min(count, 4);
+		for (int i = 0; i < shown; i++) {
+			BlockPos p = BlockPos.of(points[i]);
+			String point = (i + 1) + ". " + p.getX() + ", " + p.getY() + ", " + p.getZ();
+			drawChip(ctx, panelX + PADDING + 10, y + 11 + i * 10, COL_AQUA, point, COL_MUTED);
+		}
+		if (count > shown) {
+			drawChip(ctx, panelX + PADDING + 10, y + 11 + shown * 10, COL_AQUA, "+" + (count - shown) + " more", COL_MUTED);
+		}
 	}
 
 	private void drawRegionRow(GuiGraphics ctx, int panelX, int y, AIState s) {
@@ -350,8 +394,16 @@ public class AISubMenuScreen extends Screen {
 
 	private void cycleJob() {
 		Job[] all = Job.values();
-		int next = (entity.getAIState().job().ordinal() + 1) % all.length;
-		Network.getNetworkHandler().sendToServer(new SetJobPacketC2S(entity.getId(), next));
+		int current = entity.getAIState().job().ordinal();
+		Job next = Job.NONE;
+		for (int i = 1; i <= all.length; i++) {
+			Job candidate = all[(current + i) % all.length];
+			if (candidate != Job.PATROL && candidate != Job.DEPOSIT) {
+				next = candidate;
+				break;
+			}
+		}
+		Network.getNetworkHandler().sendToServer(new SetJobPacketC2S(entity.getId(), next.ordinal()));
 	}
 
 	private void giveMarker(byte mode) {
@@ -383,5 +435,9 @@ public class AISubMenuScreen extends Screen {
 
 	private void toggleRun() {
 		Network.getNetworkHandler().sendToServer(new StartStopJobPacketC2S(entity.getId(), !entity.getAIState().running()));
+	}
+
+	private void clearPatrol() {
+		Network.getNetworkHandler().sendToServer(new ClearPatrolPacketC2S(entity.getId()));
 	}
 }
