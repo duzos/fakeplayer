@@ -7,11 +7,13 @@ import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.network.c2s.BondPacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
+import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
 import dev.duzo.players.network.c2s.ToggleFakePlayerFlagPacketC2S;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -23,7 +25,7 @@ import java.util.UUID;
 
 public class AISubMenuScreen extends Screen {
 	private static final int PANEL_W = 240;
-	private static final int PANEL_H = 236;
+	private static final int PANEL_H = 264;
 	private static final int PADDING = 14;
 	private static final int TITLE_H = 26;
 	private static final int ROW_H = 18;
@@ -61,11 +63,14 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton waypointButton;
 	private FlatButton regionButton;
 	private FlatButton depositButton;
+	private EditBox filterEdit;
+	private FlatButton filterButton;
 	private FlatButton startStopButton;
 
 	private int ownerSectionY;
 	private int behaviourSectionY;
 	private int markerSectionY;
+	private int filterRowY;
 
 	public AISubMenuScreen(FakePlayerEntity entity) {
 		super(Component.literal("AI"));
@@ -134,6 +139,15 @@ public class AISubMenuScreen extends Screen {
 		depositButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
 				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER));
 		this.addRenderableWidget(depositButton);
+		y += ROW_H;
+
+		filterRowY = y;
+		filterEdit = new EditBox(this.font, innerLeft + 52, y, 88, BTN_H, Component.literal("filter"));
+		filterEdit.setMaxLength(128);
+		filterEdit.setValue(filterText(entity.getAIState()));
+		this.addRenderableWidget(filterEdit);
+		filterButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
+		this.addRenderableWidget(filterButton);
 		y += BTN_H + 10;
 
 		startStopButton = new FlatButton(innerLeft, y, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
@@ -203,6 +217,7 @@ public class AISubMenuScreen extends Screen {
 		drawMarkerRow(ctx, x, markerSectionY + 18, "Waypoint", s.waypoint());
 		drawRegionRow(ctx, x, markerSectionY + 18 + ROW_H, s);
 		drawMarkerRow(ctx, x, markerSectionY + 18 + ROW_H * 2, "Deposit", s.depositChest());
+		drawChip(ctx, x + PADDING, filterRowY + 4, COL_AQUA, "Filter", COL_BODY);
 
 		super.render(ctx, mouseX, mouseY, partialTick);
 	}
@@ -306,6 +321,15 @@ public class AISubMenuScreen extends Screen {
 	private void giveMarker(byte mode) {
 		Network.getNetworkHandler().sendToServer(new GiveAIMarkerPacketC2S(entity.getId(), mode));
 		Minecraft.getInstance().setScreen(null);
+	}
+
+	private void applyFilter() {
+		Network.getNetworkHandler().sendToServer(new SetAIFilterPacketC2S(entity.getId(), filterEdit.getValue()));
+	}
+
+	private String filterText(AIState state) {
+		String tag = state.filter().getStringOr("Tag", "c:ores");
+		return tag.isEmpty() ? "c:ores" : "#" + tag;
 	}
 
 	private void toggleRun() {

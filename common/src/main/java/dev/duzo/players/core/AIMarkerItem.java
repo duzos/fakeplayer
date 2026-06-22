@@ -11,7 +11,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.core.NonNullList;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -26,6 +28,7 @@ import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import javax.annotation.Nullable;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 public class AIMarkerItem extends Item {
 	public static final byte PURPOSE_WAYPOINT = 0;
@@ -197,7 +200,7 @@ public class AIMarkerItem extends Item {
 					return InteractionResult.FAIL;
 				}
 				entity.mutateAIState(s -> s.setDepositChest(pos.immutable()));
-				player.displayClientMessage(Component.literal("Deposit chest set.").withStyle(ChatFormatting.GREEN), true);
+				player.displayClientMessage(Component.literal("Deposit container set.").withStyle(ChatFormatting.GREEN), true);
 				silentlyConsume(stack);
 			}
 		}
@@ -232,7 +235,7 @@ public class AIMarkerItem extends Item {
 			case PURPOSE_REGION -> tag.contains(TAG_REGION_A)
 					? "Right-click a second block for corner B."
 					: "Right-click a block for corner A.";
-			case PURPOSE_CHEST_PICKER -> "Right-click a chest to set deposit target.";
+			case PURPOSE_CHEST_PICKER -> "Right-click a container to set deposit target.";
 			default -> "";
 		};
 		if (!hint.isEmpty()) {
@@ -247,10 +250,26 @@ public class AIMarkerItem extends Item {
 	}
 
 	public static void clearAllFor(Player player) {
+		sweepSessionItems(player, s -> true);
+	}
+
+	// 1.21.5+ Inventory.getContainerSize() includes sparse equipment-map indices
+	// (mainhand alias, body, saddle) past the menu-visible 41 slots; broadcasting
+	// setItem on those crashes the client. Iterate only menu-visible positions.
+	private static final EquipmentSlot[] MENU_EQUIPMENT_SLOTS = {
+			EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD, EquipmentSlot.OFFHAND
+	};
+
+	public static void sweepSessionItems(Player player, Predicate<ItemStack> shouldRemove) {
 		Inventory inv = player.getInventory();
-		for (int i = 0; i < inv.getContainerSize(); i++) {
-			ItemStack s = inv.getItem(i);
-			if (isSession(s)) inv.setItem(i, ItemStack.EMPTY);
+		NonNullList<ItemStack> items = inv.getNonEquipmentItems();
+		for (int i = 0; i < items.size(); i++) {
+			ItemStack s = items.get(i);
+			if (isSession(s) && shouldRemove.test(s)) inv.setItem(i, ItemStack.EMPTY);
+		}
+		for (EquipmentSlot slot : MENU_EQUIPMENT_SLOTS) {
+			ItemStack s = player.getItemBySlot(slot);
+			if (isSession(s) && shouldRemove.test(s)) player.setItemSlot(slot, ItemStack.EMPTY);
 		}
 	}
 }
