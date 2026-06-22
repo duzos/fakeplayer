@@ -151,7 +151,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		this.goalSelector.addGoal(7, new HumanoidWaterAvoidingRandomStrollGoal(this, 1.0D));
 		this.goalSelector.addGoal(6, new RandomLookAroundGoal(this));
 		this.goalSelector.addGoal(5, new OpenDoorGoal(this, true));
-		this.goalSelector.addGoal(4, new HurtByTargetGoal(this));
+		this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
 		this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.5D, true));
 		this.goalSelector.addGoal(2, new MoveTowardsItemsGoal(this, 1.0D, true));
 		this.goalSelector.addGoal(1, new TemptGoal(this, 1.0D, Ingredient.of(Items.REDSTONE_BLOCK, Items.REDSTONE_TORCH), false));
