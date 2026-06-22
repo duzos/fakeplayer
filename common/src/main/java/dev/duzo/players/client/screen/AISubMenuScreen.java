@@ -19,6 +19,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -80,6 +81,9 @@ public class AISubMenuScreen extends Screen {
 	private int sourceRowY;
 	private int filterRowY;
 
+	// Shrinks the whole panel when the screen is too small to fit it (large GUI scale).
+	private float uiScale = 1f;
+
 	public AISubMenuScreen(FakePlayerEntity entity) {
 		super(Component.literal("AI"));
 		this.entity = entity;
@@ -102,8 +106,11 @@ public class AISubMenuScreen extends Screen {
 			return;
 		}
 
-		int panelLeft = (this.width - PANEL_W) / 2;
-		int panelTop = (this.height - PANEL_H) / 2;
+		this.uiScale = Math.min(1.0F, Math.min((float) this.width / (PANEL_W + 16), (float) this.height / (PANEL_H + 16)));
+		int viewW = Math.round(this.width / this.uiScale);
+		int viewH = Math.round(this.height / this.uiScale);
+		int panelLeft = (viewW - PANEL_W) / 2;
+		int panelTop = (viewH - PANEL_H) / 2;
 		int innerLeft = panelLeft + PADDING;
 		int innerRight = panelLeft + PANEL_W - PADDING;
 		int innerWidth = innerRight - innerLeft;
@@ -217,9 +224,17 @@ public class AISubMenuScreen extends Screen {
 
 	@Override
 	public void render(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
-		ctx.fill(0, 0, this.width, this.height, 0xA0050709);
-		int x = (this.width - PANEL_W) / 2;
-		int y = (this.height - PANEL_H) / 2;
+		float scale = this.uiScale;
+		int viewW = Math.round(this.width / scale);
+		int viewH = Math.round(this.height / scale);
+		int sMouseX = Math.round(mouseX / scale);
+		int sMouseY = Math.round(mouseY / scale);
+		ctx.pose().pushMatrix();
+		ctx.pose().scale(scale, scale);
+
+		ctx.fill(0, 0, viewW, viewH, 0xA0050709);
+		int x = (viewW - PANEL_W) / 2;
+		int y = (viewH - PANEL_H) / 2;
 
 		ctx.fill(x - 2, y - 2, x + PANEL_W + 2, y + PANEL_H + 2, 0xFF000000);
 		ctx.fill(x - 1, y - 1, x + PANEL_W + 1, y + PANEL_H + 1, COL_PANEL_BORDER);
@@ -251,7 +266,28 @@ public class AISubMenuScreen extends Screen {
 		}
 		drawPatrolRow(ctx, x, patrolRowY + 1, s);
 
-		super.render(ctx, mouseX, mouseY, partialTick);
+		super.render(ctx, sMouseX, sMouseY, partialTick);
+		ctx.pose().popMatrix();
+	}
+
+	// Map real cursor coordinates into the scaled panel space so widget hit-testing lines up.
+	private MouseButtonEvent scaled(MouseButtonEvent event) {
+		return new MouseButtonEvent(event.x() / this.uiScale, event.y() / this.uiScale, event.buttonInfo());
+	}
+
+	@Override
+	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+		return super.mouseClicked(scaled(event), doubleClick);
+	}
+
+	@Override
+	public boolean mouseReleased(MouseButtonEvent event) {
+		return super.mouseReleased(scaled(event));
+	}
+
+	@Override
+	public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+		return super.mouseDragged(scaled(event), dragX / this.uiScale, dragY / this.uiScale);
 	}
 
 	private void drawTitle(GuiGraphics ctx, int x, int y) {
