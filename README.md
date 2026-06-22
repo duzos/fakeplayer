@@ -70,22 +70,8 @@ While you are holding any marker for a fake (or have its GUI open) the fake foll
 Job tuning lives in `players.json` - `guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`, `minerLavaCobbleSafety` and `minerNeverMineBlockUnderFeet`.
 
 #### Screenshots
-> Drop the images/clips into `docs/img/` to fill these in.
-
 ![AI sub-menu](docs/img/ai-submenu.png)
 <!-- Screenshot: AI sub-menu open on a bonded fake - show the OWNER/BEHAVIOUR/MARKERS sections, the job picker, and the START JOB button. -->
-
-![Miner](docs/img/miner.gif)
-<!-- GIF: a fake on the Miner job clearing ores inside a marked region and walking back to its deposit chest. -->
-
-![Lumberjack](docs/img/lumberjack.gif)
-<!-- GIF: a fake felling a tree in its region and replanting a sapling on the cleared dirt. -->
-
-![Guard](docs/img/guard.gif)
-<!-- GIF: hold the Waypoint marker to show patrol points (cyan), add one (green crosshair) / remove one (red crosshair), then the fake patrolling and engaging a mob. -->
-
-![Courier](docs/img/courier.gif)
-<!-- GIF: a fake carrying items from the source chest to the deposit chest and back. -->
 
 ### Skin Grabbing!
 This mod is able to get the skin of a player.
