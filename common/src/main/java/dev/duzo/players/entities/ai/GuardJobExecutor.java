@@ -6,7 +6,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.phys.AABB;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public class GuardJobExecutor implements JobExecutor {
 	private static final double ARRIVAL_DIST_SQR = 4.0;
 	private static final int WAIT_TICKS = 40;
 	private static final int RESCAN_INTERVAL = 10;
+	private static final int PATROL_REPATH_INTERVAL = 20;
 
 	private static final String TAG_PATROL = "Patrol";
 	private static final String TAG_RADIUS = "Radius";
@@ -25,22 +27,30 @@ public class GuardJobExecutor implements JobExecutor {
 	private int idx = 0;
 	private int waitCounter = 0;
 	private int scanCooldown = 0;
+	private int patrolRepathCooldown = 0;
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
 		long[] points = readPatrolPoints(entity.getAIState());
-		if (points.length == 0) return;
+		if (points.length < 2) {
+			entity.getNavigation().stop();
+			return;
+		}
 		if (idx >= points.length) idx = 0;
 
 		BlockPos center = BlockPos.of(points[idx]);
 		int radius = readRadius(entity.getAIState());
 
 		LivingEntity target = entity.getTarget();
-		if (target == null || !target.isAlive() || outOfRadius(target, center, radius)) {
+		BlockPos guardPos = entity.blockPosition();
+		if (target == null || !target.isAlive() || outOfRadius(target, guardPos, radius)) {
 			if (scanCooldown <= 0) {
-				LivingEntity nearest = findHostile(level, entity, center, radius);
+				LivingEntity nearest = findHostile(level, entity, guardPos, radius);
 				if (nearest != null) entity.setTarget(nearest);
-				else if (target != null && !target.isAlive()) entity.setTarget(null);
+				else if (target != null) {
+					entity.setTarget(null);
+					entity.getNavigation().stop();
+				}
 				scanCooldown = RESCAN_INTERVAL;
 			} else {
 				scanCooldown--;
@@ -50,11 +60,13 @@ public class GuardJobExecutor implements JobExecutor {
 		}
 
 		LivingEntity active = entity.getTarget();
-		if (active != null && active.isAlive() && !outOfRadius(active, center, radius)) {
+		if (active != null && active.isAlive() && !outOfRadius(active, entity.blockPosition(), radius)) {
 			return;
 		}
 
 		if (entity.blockPosition().distSqr(center) <= ARRIVAL_DIST_SQR) {
+			entity.getNavigation().stop();
+			patrolRepathCooldown = 0;
 			if (waitCounter < WAIT_TICKS) {
 				waitCounter++;
 				return;
@@ -64,14 +76,17 @@ public class GuardJobExecutor implements JobExecutor {
 			return;
 		}
 
-		if (entity.getNavigation().isDone()) {
+		if (patrolRepathCooldown > 0) patrolRepathCooldown--;
+		if (patrolRepathCooldown <= 0 || entity.getNavigation().isDone()) {
 			entity.getNavigation().moveTo(center.getX() + 0.5, center.getY(), center.getZ() + 0.5, SPEED);
+			patrolRepathCooldown = PATROL_REPATH_INTERVAL;
 		}
 	}
 
 	@Override
 	public void onPause(FakePlayerEntity entity) {
 		entity.getNavigation().stop();
+		entity.setTarget(null);
 	}
 
 	@Override
@@ -104,10 +119,10 @@ public class GuardJobExecutor implements JobExecutor {
 
 	private static LivingEntity findHostile(ServerLevel level, FakePlayerEntity entity, BlockPos center, int r) {
 		AABB box = new AABB(center).inflate(r);
-		List<Monster> mobs = level.getEntitiesOfClass(Monster.class, box, m -> m.isAlive() && entity.hasLineOfSight(m));
+		List<Mob> mobs = level.getEntitiesOfClass(Mob.class, box, m -> m instanceof Enemy && m.isAlive() && entity.hasLineOfSight(m));
 		LivingEntity nearest = null;
 		double best = Double.MAX_VALUE;
-		for (Monster m : mobs) {
+		for (Mob m : mobs) {
 			double d = m.distanceToSqr(entity);
 			if (d < best) {
 				best = d;
