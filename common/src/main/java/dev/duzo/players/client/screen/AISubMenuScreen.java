@@ -25,7 +25,7 @@ import java.util.UUID;
 
 public class AISubMenuScreen extends Screen {
 	private static final int PANEL_W = 240;
-	private static final int PANEL_H = 254;
+	private static final int PANEL_H = 298;
 	private static final int PADDING = 14;
 	private static final int TITLE_H = 26;
 	private static final int ROW_H = 18;
@@ -101,7 +101,7 @@ public class AISubMenuScreen extends Screen {
 		int rightBtnX = innerRight - RIGHT_BTN_W;
 
 		FlatButton close = new FlatButton(innerRight - 14, panelTop + 6, 14, 14,
-				Component.literal("✕"),
+				Component.literal("x"),
 				() -> Minecraft.getInstance().setScreen(null))
 				.withBg(COL_TITLE_BAR, 0xFF2A1318)
 				.noBorder()
@@ -143,7 +143,7 @@ public class AISubMenuScreen extends Screen {
 		patrolClearButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
 				Component.literal("Clear"), this::clearPatrol);
 		this.addRenderableWidget(patrolClearButton);
-		y += BTN_H + 10;
+		y += BTN_H + 54;
 
 		startStopButton = new FlatButton(innerLeft, y, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
 		this.addRenderableWidget(startStopButton);
@@ -225,7 +225,7 @@ public class AISubMenuScreen extends Screen {
 	private void drawTitle(GuiGraphics ctx, int x, int y) {
 		MutableComponent title = Component.literal("AI").withStyle(s -> s.withColor(TextColor.fromRgb(COL_AQUA & 0xFFFFFF)).withBold(true));
 		String name = entity.getSkinData().name();
-		title.append(Component.literal("  ").append(Component.literal("·  " + name).withStyle(s -> s.withColor(TextColor.fromRgb(COL_LABEL & 0xFFFFFF)))));
+		title.append(Component.literal("  ").append(Component.literal("-  " + name).withStyle(s -> s.withColor(TextColor.fromRgb(COL_LABEL & 0xFFFFFF)))));
 		ctx.drawString(this.font, title, x + PADDING, y + 9, 0xFFFFFFFF, false);
 	}
 
@@ -292,11 +292,21 @@ public class AISubMenuScreen extends Screen {
 
 	private void drawPatrolRow(GuiGraphics ctx, int panelX, int y, AIState s) {
 		if (s.job() != Job.GUARD) return;
-		int count = GuardJobExecutor.readPatrolPoints(s).length;
+		long[] points = GuardJobExecutor.readPatrolPoints(s);
+		int count = points.length;
 		int radius = GuardJobExecutor.readRadius(s);
 		int dot = count >= 2 ? COL_GREEN : count == 1 ? COL_YELLOW : COL_RED;
 		String text = "Patrol    " + count + " pts, r=" + radius;
 		drawChip(ctx, panelX + PADDING, y, dot, text, count == 0 ? COL_MUTED : COL_BODY);
+		int shown = Math.min(count, 4);
+		for (int i = 0; i < shown; i++) {
+			BlockPos p = BlockPos.of(points[i]);
+			String point = (i + 1) + ". " + p.getX() + ", " + p.getY() + ", " + p.getZ();
+			drawChip(ctx, panelX + PADDING + 10, y + 11 + i * 10, COL_AQUA, point, COL_MUTED);
+		}
+		if (count > shown) {
+			drawChip(ctx, panelX + PADDING + 10, y + 11 + shown * 10, COL_AQUA, "+" + (count - shown) + " more", COL_MUTED);
+		}
 	}
 
 	private void drawRegionRow(GuiGraphics ctx, int panelX, int y, AIState s) {
@@ -334,8 +344,16 @@ public class AISubMenuScreen extends Screen {
 
 	private void cycleJob() {
 		Job[] all = Job.values();
-		int next = (entity.getAIState().job().ordinal() + 1) % all.length;
-		Network.getNetworkHandler().sendToServer(new SetJobPacketC2S(entity.getId(), next));
+		int current = entity.getAIState().job().ordinal();
+		Job next = Job.NONE;
+		for (int i = 1; i <= all.length; i++) {
+			Job candidate = all[(current + i) % all.length];
+			if (candidate != Job.PATROL && candidate != Job.DEPOSIT) {
+				next = candidate;
+				break;
+			}
+		}
+		Network.getNetworkHandler().sendToServer(new SetJobPacketC2S(entity.getId(), next.ordinal()));
 	}
 
 	private void giveMarker(byte mode) {
