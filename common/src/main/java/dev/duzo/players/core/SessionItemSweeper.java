@@ -5,6 +5,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
@@ -19,6 +20,15 @@ public final class SessionItemSweeper {
 		if (server.getTickCount() % INTERVAL_TICKS != 0) return;
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
 			sweep(player);
+		}
+		// A session marker only exists as a dropped item once it has left the owner's hand,
+		// which is one of the conditions that should destroy it.
+		for (ServerLevel level : server.getAllLevels()) {
+			for (Entity e : level.getAllEntities()) {
+				if (e instanceof ItemEntity item && AIMarkerItem.isSession(item.getItem())) {
+					item.discard();
+				}
+			}
 		}
 	}
 

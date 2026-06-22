@@ -5,6 +5,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.AIState;
+import dev.duzo.players.entities.ai.GuardJobExecutor;
+import dev.duzo.players.entities.ai.Job;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -41,6 +43,8 @@ public final class SessionItemMarkerRenderer {
 	private static final float[] REGION_LIVE = rgba(0x66, 0xE5, 0xFF, 0xFF);
 	private static final float[] REGION_PENDING = rgba(0xFF, 0xD9, 0x33, 0xFF);
 	private static final float[] REGION_FAINT = rgba(0xAA, 0xFF, 0xAA, 0x80);
+	private static final float[] PATROL_ADD = rgba(0x54, 0xE0, 0x8C, 0xFF);
+	private static final float[] PATROL_REMOVE = rgba(0xE7, 0x60, 0x60, 0xFF);
 
 	private SessionItemMarkerRenderer() {}
 
@@ -125,6 +129,17 @@ public final class SessionItemMarkerRenderer {
 			@Override void render(PoseStack pose, VertexConsumer lines, Vec3 cam, Minecraft mc,
 			                     ItemStack stack, FakePlayerEntity fake, @Nullable BlockPos crosshair) {
 				AIState s = fake.getAIState();
+				if (s != null && s.job() == Job.GUARD) {
+					boolean crosshairIsPoint = false;
+					for (long packed : GuardJobExecutor.readPatrolPoints(s)) {
+						BlockPos p = BlockPos.of(packed);
+						boolean hovered = p.equals(crosshair);
+						if (hovered) crosshairIsPoint = true;
+						drawOutline(pose, lines, p, cam, hovered ? PATROL_REMOVE : WAYPOINT_LIVE);
+					}
+					if (crosshair != null && !crosshairIsPoint) drawOutline(pose, lines, crosshair, cam, PATROL_ADD);
+					return;
+				}
 				BlockPos committed = s == null ? null : s.waypoint();
 				if (committed != null) drawOutline(pose, lines, committed, cam, WAYPOINT_FAINT);
 				if (crosshair != null) drawOutline(pose, lines, crosshair, cam, WAYPOINT_LIVE);
