@@ -10,11 +10,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
-public record GiveAIMarkerPacketC2S(int id, byte mode) {
+public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) {
 	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_give_marker");
 
+	public GiveAIMarkerPacketC2S(int id, byte mode) {
+		this(id, mode, AIMarkerItem.CHEST_SLOT_DEPOSIT);
+	}
+
 	public static GiveAIMarkerPacketC2S decode(FriendlyByteBuf buf) {
-		return new GiveAIMarkerPacketC2S(buf.readInt(), buf.readByte());
+		return new GiveAIMarkerPacketC2S(buf.readInt(), buf.readByte(), buf.readByte());
 	}
 
 	public static void handle(PacketContext<GiveAIMarkerPacketC2S> ctx) {
@@ -23,7 +27,7 @@ public record GiveAIMarkerPacketC2S(int id, byte mode) {
 		if (sender == null) return;
 		if (!(sender.serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
 		AIMarkerItem.clearAllFor(sender);
-		ItemStack stack = AIMarkerItem.make(entity, sender, ctx.message().mode(), sender.serverLevel().getGameTime());
+		ItemStack stack = AIMarkerItem.make(entity, sender, ctx.message().mode(), ctx.message().slot(), sender.serverLevel().getGameTime());
 		// Issue #28 asked for offhand-then-hotbar-then-drop placement, but writing to offhand
 		// directly desynced with the client's F-swap prediction (duped a phantom marker the
 		// server didn't have). Falling back to vanilla Inventory#add until the placement is
@@ -36,5 +40,6 @@ public record GiveAIMarkerPacketC2S(int id, byte mode) {
 	public void encode(FriendlyByteBuf buf) {
 		buf.writeInt(id);
 		buf.writeByte(mode);
+		buf.writeByte(slot);
 	}
 }
