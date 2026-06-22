@@ -1,0 +1,38 @@
+name: Sync README_nohtml.md
+
+# Regenerates README_nohtml.md (pure markdown for CurseForge) from README.md.
+# CurseForge's editor takes markdown only, so this lowers the HTML in README.md
+# to plain markdown and commits the result back to master.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - README.md
+      - .github/scripts/readme_to_markdown.py
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate README_nohtml.md
+        run: python3 .github/scripts/readme_to_markdown.py README.md README_nohtml.md
+
+      - name: Commit if changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- README_nohtml.md; then
+            echo "README_nohtml.md already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README_nohtml.md
+          git commit -m "docs: regenerate README_nohtml.md"
+          git push
