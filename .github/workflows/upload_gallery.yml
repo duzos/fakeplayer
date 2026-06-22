@@ -1,50 +1,99 @@
-name: Upload gallery images (Modrinth)
+name: Sync gallery (Modrinth)
 
-# Manually uploads the AI-job screenshots in docs/img/ to the Modrinth gallery.
-# Run from the Actions tab (Run workflow). Re-running creates duplicate gallery
-# entries, so only run once per new image set.
+# Syncs the Modrinth gallery to match docs/img/ + docs/gallery.json.
+# Every image in docs/img/ is uploaded; docs/gallery.json optionally adds a
+# title / description / featured flag / ordering per filename. After a fully
+# successful upload the previously-existing gallery entries are deleted, so the
+# gallery always ends up matching docs/img/ exactly - adding, replacing and
+# removing images all just work, and re-running is safe (no duplicates).
+#
+# Runs manually, or on a push to master whose commit message contains [deploy].
 on:
   workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - docs/gallery.json
+      - docs/img/**
 
 jobs:
-  upload:
+  sync:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy]')
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Upload screenshots to the Modrinth gallery
+      - name: Sync docs/img to the Modrinth gallery
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
           set -euo pipefail
           PID=1RSY6DQH
+          API=https://api.modrinth.com/v2
+          MANIFEST=docs/gallery.json
+          [ -f "$MANIFEST" ] || MANIFEST=
 
-          # file | title | description | ordering
-          items=(
-            "docs/img/ai-submenu.png|AI Sub-menu|Bond a fake, pick a job, hand out markers and start work from the AI sub-menu.|10"
-            "docs/img/management-gui.png|Management GUI|Skin, pose and the AI / SL / TG controls.|11"
-            "docs/img/miner-quarry.png|Miner Job|A fake player clearing a quarry on the Miner job.|12"
-            "docs/img/lumberjack.png|Lumberjack Job|A fake player after felling a tree on the Lumberjack job.|13"
-          )
+          content_type() {
+            case "$1" in
+              png) echo image/png ;;
+              jpg|jpeg) echo image/jpeg ;;
+              webp) echo image/webp ;;
+              gif) echo image/gif ;;
+              *) echo application/octet-stream ;;
+            esac
+          }
 
-          fail=0
-          for it in "${items[@]}"; do
-            IFS='|' read -r file title desc ordering <<< "$it"
+          meta() { # meta <filename> <jq-filter> <default>
+            local v=""
+            if [ -n "$MANIFEST" ]; then
+              v=$(jq -r --arg n "$1" "(.[\$n] // {}) | $2 // empty" "$MANIFEST" 2>/dev/null || true)
+            fi
+            [ -n "$v" ] && echo "$v" || echo "$3"
+          }
+
+          # 1. Remember the current gallery so we can clear it after a clean re-upload.
+          existing=$(curl -fsSL "$API/project/$PID" | jq -r '.gallery[]?.url')
+
+          # 2. Upload every image in docs/img/, ordered by the manifest's "ordering".
+          shopt -s nullglob
+          files=(docs/img/*.png docs/img/*.jpg docs/img/*.jpeg docs/img/*.webp docs/img/*.gif)
+          if [ ${#files[@]} -eq 0 ]; then echo "::error::no images in docs/img/"; exit 1; fi
+
+          # sort files by ordering (manifest) then name
+          sorted=$(for f in "${files[@]}"; do
+            n=$(basename "$f"); echo "$(meta "$n" '.ordering' 9999)|$f"
+          done | sort -t'|' -k1,1n -k2 | cut -d'|' -f2-)
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            name=$(basename "$file")
+            ext="${name##*.}"; ext="${ext,,}"
+            title=$(meta "$name" '.title' "${name%.*}")
+            desc=$(meta "$name" '.description' "")
+            featured=$(meta "$name" '.featured' "false")
+            ordering=$(meta "$name" '.ordering' "0")
             etitle=$(jq -rn --arg v "$title" '$v|@uri')
             edesc=$(jq -rn --arg v "$desc" '$v|@uri')
-            url="https://api.modrinth.com/v2/project/${PID}/gallery?ext=png&featured=false&title=${etitle}&description=${edesc}&ordering=${ordering}"
-            echo "Uploading ${file} (${title}) ..."
-            code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST "$url" \
-              -H "Authorization: ${MODRINTH_TOKEN}" \
-              -H "Content-Type: image/png" \
-              --data-binary "@${file}")
-            echo "  HTTP ${code}"
-            if [ "${code}" != "204" ] && [ "${code}" != "200" ] && [ "${code}" != "201" ]; then
-              echo "  response: $(cat resp.txt)"
-              echo "::error::Gallery upload failed for ${file} (HTTP ${code})"
-              fail=1
-            fi
-          done
-          exit $fail
+            qurl="$API/project/$PID/gallery?ext=$ext&featured=$featured&title=$etitle&description=$edesc&ordering=$ordering"
+            echo "Uploading $name (title=\"$title\", featured=$featured, ordering=$ordering)"
+            code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST "$qurl" \
+              -H "Authorization: $MODRINTH_TOKEN" \
+              -H "Content-Type: $(content_type "$ext")" \
+              --data-binary "@$file")
+            echo "  HTTP $code"
+            if [ "$code" != "204" ]; then echo "  $(cat resp.txt)"; echo "::error::upload failed for $name"; exit 1; fi
+          done <<< "$sorted"
+
+          # 3. Uploads succeeded - delete the entries that existed beforehand.
+          if [ -n "$existing" ]; then
+            while IFS= read -r u; do
+              [ -z "$u" ] && continue
+              eu=$(jq -rn --arg v "$u" '$v|@uri')
+              code=$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE "$API/project/$PID/gallery?url=$eu" \
+                -H "Authorization: $MODRINTH_TOKEN")
+              echo "Removed old entry (HTTP $code)"
+            done <<< "$existing"
+          fi
+          echo "Gallery sync complete."
