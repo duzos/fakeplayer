@@ -1,11 +1,13 @@
 # Fake Players Mod
 
-## A Forge/Fabric mod aimed at adding fake players to the game.
+## A Fabric and NeoForge mod aimed at adding fake players to the game.
+
+![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1%20%E2%80%93%201.21.11-62B47A)
 
 [<img alt="curseforge" height="56" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/curseforge_vector.svg">](https://www.curseforge.com/minecraft/mc-mods/fake-player) <!-- SVG version -->
 [<img alt="modrinth" height="56" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/modrinth_vector.svg">](https://modrinth.com/mod/fake-players) <!-- SVG version -->
 [<img alt="fabric" height="56" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/fabric_vector.svg">](https://fabricmc.net/) <!-- SVG version -->
-[<img alt="forge" height="56" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/forge_vector.svg">](https://files.minecraftforge.net) <!-- SVG version -->
+[<img alt="neoforge" height="56" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/neoforge_vector.svg">](https://neoforged.net/) <!-- SVG version -->
 
 ## Features
 ### Fake Player Mob
@@ -51,17 +53,39 @@ From there you can:
 - Hand out single-use **marker items** for waypoint, region (two clicks for corners A and B) and deposit/source containers. Hold a marker and right-click the block (or container) to set it; sneak right-click air to cancel.
 - Hit **START JOB** to set it running.
 
+While you are holding any marker for a fake (or have its GUI open) the fake follows you, so you can set things up on the move without changing its job.
+
 #### Jobs
 
-- **Idle** - walks to its waypoint if one is set, otherwise stands still.
-- **Follow** - follows the owner around (within 32 blocks), teleporting if it falls too far behind.
-- **Guard** - patrols between the waypoints you mark (the Waypoint marker is additive in this mode) and attacks hostile mobs that come within `guardRadius` (default 12). The sub-menu shows a Patrol row with a Clear button.
-- **Miner** - scans the marked region for ore (filtered by an item tag, default `c:ores`), mines it, and dumps the haul in the deposit container. The sub-menu shows a **Filter** box where you can change the tag. Set a region and a deposit container first.
-- **Lumberjack** - finds logs in the marked region, fells whole trees, and the drops are picked up automatically. Set a region (and a deposit container if you want it to stash the wood).
-- **Courier** - shuttles items from a source container to the deposit container. The sub-menu shows an extra **Source** marker button while this job is selected; mark both containers.
+| Job | Set up | What it does |
+| --- | --- | --- |
+| **Idle** | (optional) waypoint | Walks to its waypoint if one is set, otherwise stands still. |
+| **Follow** | bond to you | Follows you within 32 blocks, teleporting if it falls too far behind. |
+| **Guard** | patrol points | Patrols the points you mark and attacks hostiles within `guardRadius` (default 12). Hold the Waypoint marker to see all points; right-click adds one, sneak + right-click removes one. |
+| **Miner** | region + deposit | Scans the region for ore (item-tag filter, default `c:ores`), mines it, and returns the haul to the deposit container. A **Filter** box in the sub-menu changes the tag. |
+| **Lumberjack** | region (+ deposit) | Fells whole trees in the region, replants saplings and bonemeals to speed regrowth; drops are collected automatically. |
+| **Courier** | source + deposit | Shuttles matching items from the source container to the deposit container. A **Source** marker button appears for this job. |
 
 #### Config
 Job tuning lives in `players.json` - `guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`, `minerLavaCobbleSafety` and `minerNeverMineBlockUnderFeet`.
+
+#### Screenshots
+> Drop the images/clips into `docs/img/` to fill these in.
+
+![AI sub-menu](docs/img/ai-submenu.png)
+<!-- Screenshot: AI sub-menu open on a bonded fake - show the OWNER/BEHAVIOUR/MARKERS sections, the job picker, and the START JOB button. -->
+
+![Miner](docs/img/miner.gif)
+<!-- GIF: a fake on the Miner job clearing ores inside a marked region and walking back to its deposit chest. -->
+
+![Lumberjack](docs/img/lumberjack.gif)
+<!-- GIF: a fake felling a tree in its region and replanting a sapling on the cleared dirt. -->
+
+![Guard](docs/img/guard.gif)
+<!-- GIF: hold the Waypoint marker to show patrol points (cyan), add one (green crosshair) / remove one (red crosshair), then the fake patrolling and engaging a mob. -->
+
+![Courier](docs/img/courier.gif)
+<!-- GIF: a fake carrying items from the source chest to the deposit chest and back. -->
 
 ### Skin Grabbing!
 This mod is able to get the skin of a player.
@@ -97,9 +121,3 @@ This is a known issue and is being worked on.
 It's because forge *( nightmare modloader of doom and despair )* by default tries to load client-only code in server.
 
 Try setting advertiseDedicatedServerToLan to false in your server config.
-
-# Handy Dandy Links
-### [Showcase](https://www.youtube.com/watch?v=O5BO6fA41n0)
-### [Curseforge](https://www.curseforge.com/minecraft/mc-mods/fake-player)
-### [Modrinth](https://modrinth.com/mod/fake-players)
-### [Discord](https://discord.gg/ZgssqpUMHS)
