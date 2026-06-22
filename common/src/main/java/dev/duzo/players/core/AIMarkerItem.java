@@ -186,7 +186,7 @@ public class AIMarkerItem extends Item {
 					return InteractionResult.FAIL;
 				}
 				entity.mutateAIState(s -> s.setDepositChest(pos.immutable()));
-				player.displayClientMessage(Component.literal("Deposit chest set.").withStyle(ChatFormatting.GREEN), true);
+				player.displayClientMessage(Component.literal("Deposit container set.").withStyle(ChatFormatting.GREEN), true);
 				silentlyConsume(stack);
 			}
 		}
@@ -221,7 +221,7 @@ public class AIMarkerItem extends Item {
 			case PURPOSE_REGION -> tag.contains(TAG_REGION_A)
 					? "Right-click a second block for corner B."
 					: "Right-click a block for corner A.";
-			case PURPOSE_CHEST_PICKER -> "Right-click a chest to set deposit target.";
+			case PURPOSE_CHEST_PICKER -> "Right-click a container to set deposit target.";
 			default -> "";
 		};
 		if (!hint.isEmpty()) {
