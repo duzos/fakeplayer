@@ -27,7 +27,7 @@ import java.util.UUID;
 
 public class AISubMenuScreen extends Screen {
 	private static final int PANEL_W = 240;
-	private static final int PANEL_H = 264;
+	private static final int PANEL_H = 254;
 	private static final int PADDING = 14;
 	private static final int TITLE_H = 26;
 	private static final int ROW_H = 18;
@@ -65,6 +65,7 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton waypointButton;
 	private FlatButton regionButton;
 	private FlatButton depositButton;
+	private FlatButton sourceButton;
 	private EditBox filterEdit;
 	private FlatButton filterButton;
 	private FlatButton startStopButton;
@@ -72,6 +73,7 @@ public class AISubMenuScreen extends Screen {
 	private int ownerSectionY;
 	private int behaviourSectionY;
 	private int markerSectionY;
+	private int sourceRowY;
 	private int filterRowY;
 
 	public AISubMenuScreen(FakePlayerEntity entity) {
@@ -139,25 +141,24 @@ public class AISubMenuScreen extends Screen {
 		this.addRenderableWidget(regionButton);
 		y += ROW_H;
 		depositButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
-				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER));
+				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_DEPOSIT));
 		this.addRenderableWidget(depositButton);
 		y += ROW_H;
-
-		boolean showFilter = true;
-		filterRowY = showFilter ? y : -1;
-		if (showFilter) {
-			filterEdit = new EditBox(this.font, innerLeft + 52, y, 88, BTN_H, Component.literal("filter"));
-			filterEdit.setMaxLength(512);
-			filterEdit.setValue(filterText(entity.getAIState()));
-			this.addRenderableWidget(filterEdit);
-			filterButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
-			this.addRenderableWidget(filterButton);
-			y += BTN_H + 10;
-		} else {
-			filterEdit = null;
-			filterButton = null;
-			y += 4;
-		}
+		sourceRowY = y;
+		filterRowY = y;
+		sourceButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
+				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_SOURCE));
+		sourceButton.visible = courierActive();
+		this.addRenderableWidget(sourceButton);
+		filterEdit = new EditBox(this.font, innerLeft + 52, y, 88, BTN_H, Component.literal("filter"));
+		filterEdit.setMaxLength(512);
+		filterEdit.setValue(filterText(entity.getAIState()));
+		filterEdit.visible = minerActive();
+		this.addRenderableWidget(filterEdit);
+		filterButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
+		filterButton.visible = minerActive();
+		this.addRenderableWidget(filterButton);
+		y += BTN_H + 10;
 
 		startStopButton = new FlatButton(innerLeft, y, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
 		this.addRenderableWidget(startStopButton);
@@ -174,6 +175,9 @@ public class AISubMenuScreen extends Screen {
 	private void refreshLabels() {
 		AIState s = entity.getAIState();
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
+		if (sourceButton != null) sourceButton.visible = courierActive();
+		if (filterEdit != null) filterEdit.visible = minerActive();
+		if (filterButton != null) filterButton.visible = minerActive();
 		if (startStopButton != null) {
 			startStopButton.setMessage(startStopLabel());
 			boolean run = s.running();
@@ -226,7 +230,12 @@ public class AISubMenuScreen extends Screen {
 		drawMarkerRow(ctx, x, markerSectionY + 18, "Waypoint", s.waypoint());
 		drawRegionRow(ctx, x, markerSectionY + 18 + ROW_H, s);
 		drawMarkerRow(ctx, x, markerSectionY + 18 + ROW_H * 2, "Deposit", s.depositChest());
-		if (filterRowY >= 0) drawChip(ctx, x + PADDING, filterRowY + 4, COL_AQUA, "Filter", COL_BODY);
+		if (courierActive()) {
+			drawMarkerRow(ctx, x, sourceRowY + 4, "Source", s.sourceChest());
+		}
+		if (minerActive()) {
+			drawChip(ctx, x + PADDING, filterRowY + 4, COL_AQUA, "Filter", COL_BODY);
+		}
 
 		super.render(ctx, mouseX, mouseY, partialTick);
 	}
@@ -346,8 +355,20 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	private void giveMarker(byte mode) {
-		Network.getNetworkHandler().sendToServer(new GiveAIMarkerPacketC2S(entity.getId(), mode));
+		giveMarker(mode, AIMarkerItem.CHEST_SLOT_DEPOSIT);
+	}
+
+	private void giveMarker(byte mode, byte slot) {
+		Network.getNetworkHandler().sendToServer(new GiveAIMarkerPacketC2S(entity.getId(), mode, slot));
 		Minecraft.getInstance().setScreen(null);
+	}
+
+	private boolean courierActive() {
+		return entity.getAIState().job() == Job.COURIER;
+	}
+
+	private boolean minerActive() {
+		return entity.getAIState().job() == Job.MINER;
 	}
 
 	private void applyFilter() {

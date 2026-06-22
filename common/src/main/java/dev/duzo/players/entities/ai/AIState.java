@@ -15,6 +15,7 @@ public final class AIState {
 	@Nullable private BlockPos regionA;
 	@Nullable private BlockPos regionB;
 	@Nullable private BlockPos depositChest;
+	@Nullable private BlockPos sourceChest;
 	private CompoundTag filter = new CompoundTag();
 	private CompoundTag jobParams = new CompoundTag();
 	private CompoundTag jobState = new CompoundTag();
@@ -28,6 +29,7 @@ public final class AIState {
 	@Nullable public BlockPos regionA() { return regionA; }
 	@Nullable public BlockPos regionB() { return regionB; }
 	@Nullable public BlockPos depositChest() { return depositChest; }
+	@Nullable public BlockPos sourceChest() { return sourceChest; }
 	public CompoundTag filter() { return filter; }
 	public CompoundTag jobParams() { return jobParams; }
 	public CompoundTag jobState() { return jobState; }
@@ -39,6 +41,7 @@ public final class AIState {
 	public void setRegionA(@Nullable BlockPos pos) { this.regionA = pos; }
 	public void setRegionB(@Nullable BlockPos pos) { this.regionB = pos; }
 	public void setDepositChest(@Nullable BlockPos pos) { this.depositChest = pos; }
+	public void setSourceChest(@Nullable BlockPos pos) { this.sourceChest = pos; }
 	public void setFilter(CompoundTag filter) { this.filter = filter == null ? new CompoundTag() : filter; }
 	public void setJobParams(CompoundTag params) { this.jobParams = params == null ? new CompoundTag() : params; }
 	public void setJobState(CompoundTag state) { this.jobState = state == null ? new CompoundTag() : state; }
@@ -54,6 +57,7 @@ public final class AIState {
 		if (regionA != null) tag.putLong("RegionA", regionA.asLong());
 		if (regionB != null) tag.putLong("RegionB", regionB.asLong());
 		if (depositChest != null) tag.putLong("DepositChest", depositChest.asLong());
+		if (sourceChest != null) tag.putLong("SourceChest", sourceChest.asLong());
 		tag.put("Filter", filter);
 		tag.put("JobParams", jobParams);
 		tag.put("JobState", jobState);
@@ -72,6 +76,7 @@ public final class AIState {
 		tag.getLong("RegionA").ifPresent(l -> s.regionA = BlockPos.of(l));
 		tag.getLong("RegionB").ifPresent(l -> s.regionB = BlockPos.of(l));
 		tag.getLong("DepositChest").ifPresent(l -> s.depositChest = BlockPos.of(l));
+		tag.getLong("SourceChest").ifPresent(l -> s.sourceChest = BlockPos.of(l));
 		s.filter = tag.getCompoundOrEmpty("Filter");
 		s.jobParams = tag.getCompoundOrEmpty("JobParams");
 		s.jobState = tag.getCompoundOrEmpty("JobState");

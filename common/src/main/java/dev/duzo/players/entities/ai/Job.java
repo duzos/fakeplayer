@@ -7,6 +7,7 @@ public enum Job {
 	FOLLOW("Follow"),
 	PATROL("Patrol"),
 	DEPOSIT("Deposit"),
+	COURIER("Courier"),
 	MINER("Miner"),
 	LUMBERJACK("Lumberjack");
 
