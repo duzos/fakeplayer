@@ -1,8 +1,6 @@
 package dev.duzo.players.entities.goal;
 
 import dev.duzo.players.entities.FakePlayerEntity;
-import dev.duzo.players.entities.ai.AIState;
-import dev.duzo.players.entities.ai.Job;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.player.Player;
@@ -10,11 +8,8 @@ import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 
 import java.util.EnumSet;
-import java.util.UUID;
 
 public class FollowOwnerGoal extends Goal {
-	private static final double FOLLOW_RANGE = 32.0D;
-	private static final double FOLLOW_RANGE_SQ = FOLLOW_RANGE * FOLLOW_RANGE;
 	private static final double STOP_DISTANCE_SQ = 4.0D * 4.0D;
 	private static final double START_DISTANCE_SQ = 6.0D * 6.0D;
 	private static final double TELEPORT_DISTANCE_SQ = 16.0D * 16.0D;
@@ -32,7 +27,7 @@ public class FollowOwnerGoal extends Goal {
 
 	@Override
 	public boolean canUse() {
-		Player found = findOwner();
+		Player found = this.entity.getFollowTarget();
 		if (found == null) return false;
 		this.owner = found;
 		return true;
@@ -40,10 +35,10 @@ public class FollowOwnerGoal extends Goal {
 
 	@Override
 	public boolean canContinueToUse() {
-		if (!isActiveByState()) return false;
-		if (this.owner == null || !this.owner.isAlive()) return false;
-		if (this.owner.level() != this.entity.level()) return false;
-		return this.entity.distanceToSqr(this.owner) <= FOLLOW_RANGE_SQ;
+		Player found = this.entity.getFollowTarget();
+		if (found == null) return false;
+		this.owner = found;
+		return true;
 	}
 
 	@Override
@@ -112,20 +107,5 @@ public class FollowOwnerGoal extends Goal {
 
 	private int randomIntInclusive(int min, int max) {
 		return this.entity.getRandom().nextInt(max - min + 1) + min;
-	}
-
-	private boolean isActiveByState() {
-		AIState state = this.entity.getAIState();
-		return state.running() && state.job() == Job.FOLLOW && state.ownerUUID() != null;
-	}
-
-	private Player findOwner() {
-		if (!isActiveByState()) return null;
-		UUID ownerId = this.entity.getAIState().ownerUUID();
-		Player p = this.entity.level().getPlayerByUUID(ownerId);
-		if (p == null || !p.isAlive()) return null;
-		if (p.level() != this.entity.level()) return null;
-		if (this.entity.distanceToSqr(p) > FOLLOW_RANGE_SQ) return null;
-		return p;
 	}
 }
