@@ -109,7 +109,7 @@ public class FakePlayerEntity extends PathfinderMob {
 	public boolean isMovementManagedByJob() {
 		AIState state = this.getAIState();
 		if (!state.running() || jobPaused) return false;
-		return state.job() == Job.IDLE;
+		return state.job() != Job.NONE;
 	}
 
 	@Override
@@ -177,13 +177,18 @@ public class FakePlayerEntity extends PathfinderMob {
 		nbt.put("Inventory", this.inventory.createTag());
 	}
 
-	private void flushJobState() {
+	public void flushJobState() {
 		if (jobExecutor == null) return;
 		CompoundTag tag = jobExecutor.serialize();
 		final CompoundTag finalTag = tag == null ? new CompoundTag() : tag;
 		this.mutateAIState(s -> s.setJobState(finalTag));
 	}
 
+	public void resetJobExecutor() {
+		this.jobExecutor = null;
+		this.jobExecutorJob = Job.NONE;
+		this.jobPausedPrev = false;
+	}
 	@Override
 	public void readAdditionalSaveData(CompoundTag nbt) {
 		super.readAdditionalSaveData(nbt);

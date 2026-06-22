@@ -1,5 +1,6 @@
 package dev.duzo.players.entities.goal;
 
+import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
@@ -29,10 +30,12 @@ public class MoveTowardsItemsGoal extends Goal {
 
 	@Override
 	public boolean canUse() {
+		if (this.mob instanceof FakePlayerEntity fp && fp.isMovementManagedByJob()) return false;
 		return !getNearbyItems(this.mob, 4).isEmpty();
 	}
 
 	public boolean canContinueToUse() {
+		if (this.mob instanceof FakePlayerEntity fp && fp.isMovementManagedByJob()) return false;
 		LivingEntity livingentity = this.mob.getTarget();
 		if (livingentity == null || !livingentity.isAlive() || !this.mob.isWithinRestriction(livingentity.blockPosition())) {
 			return false;
