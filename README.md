@@ -39,9 +39,13 @@ And much more!
 - **Paper**: Send a chat message
 
 #### How do I get one?
-You need to craft a ```Robot Shell``` and a ```Robot AI``` and combine them in a crafting table
+Craft a `Robot Shell` and a `Robot AI`, then combine them in a crafting table (or grab a Player Spawn Egg).
 
-Recipes are on the gallery
+<p>
+  <img src="docs/img/recipe-robot-shell.png" height="120" alt="Robot Shell recipe">
+  <img src="docs/img/recipe-robot-ai.png" height="120" alt="Robot AI recipe">
+  <img src="docs/img/recipe-spawn-egg.png" height="120" alt="Player Spawn Egg recipe">
+</p>
 
 ### AI Jobs
 Fake players can be given a job and put to work. Open the management GUI (shift + right-click the fake player), then hit the **AI** button to open the AI sub-menu.
@@ -88,7 +92,7 @@ This means that the fake player will always have the correct and matching skin t
 
 To do this you name the fake player with the username of the player.
 
-Image of this in gallery!
+<img src="docs/img/skin-example.png" height="260" alt="Skin grabbed from a username and applied to the fake player">
 
 ### Skin from URL
 
