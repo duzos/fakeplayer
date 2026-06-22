@@ -37,7 +37,7 @@ Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI han
 | **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
 | **Courier** | source + deposit | Hauls matching items from one chest to another. |
 
-Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`, `minerLavaCobbleSafety`, `minerNeverMineBlockUnderFeet`).
+Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`).
 
 <div align="center">
 <table>
