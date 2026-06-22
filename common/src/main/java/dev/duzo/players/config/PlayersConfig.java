@@ -22,8 +22,6 @@ public class PlayersConfig {
 	public boolean persistFakePlayers = true;
 	public boolean allowLocalSkinUploadOpOnly = true;
 	public double minerMaxBlocksPerSecond = 2.5;
-	public boolean minerNeverMineBlockUnderFeet = true;
-	public boolean minerLavaCobbleSafety = true;
 	public int minerBailY = -58;
 	public int guardRadius = 12;
 
