@@ -100,6 +100,13 @@ public class AIMarkerItem extends Item {
 		return purposeFromTag(readTag(stack));
 	}
 
+	@Nullable
+	public static BlockPos regionA(ItemStack stack) {
+		CompoundTag tag = readTag(stack);
+		if (tag == null || !tag.contains(TAG_REGION_A)) return null;
+		return BlockPos.of(tag.getLong(TAG_REGION_A));
+	}
+
 	private static byte purposeFromTag(@Nullable CompoundTag tag) {
 		if (tag == null) return -1;
 		return switch (tag.getString(TAG_PURPOSE)) {
@@ -180,7 +187,7 @@ public class AIMarkerItem extends Item {
 					return InteractionResult.FAIL;
 				}
 				entity.mutateAIState(s -> s.setDepositChest(pos.immutable()));
-				player.displayClientMessage(Component.literal("Deposit chest set.").withStyle(ChatFormatting.GREEN), true);
+				player.displayClientMessage(Component.literal("Deposit container set.").withStyle(ChatFormatting.GREEN), true);
 				silentlyConsume(stack);
 			}
 		}
@@ -216,7 +223,7 @@ public class AIMarkerItem extends Item {
 			case PURPOSE_REGION -> tag.contains(TAG_REGION_A)
 					? "Right-click a second block for corner B."
 					: "Right-click a block for corner A.";
-			case PURPOSE_CHEST_PICKER -> "Right-click a chest to set deposit target.";
+			case PURPOSE_CHEST_PICKER -> "Right-click a container to set deposit target.";
 			default -> "";
 		};
 		if (!hint.isEmpty()) {
