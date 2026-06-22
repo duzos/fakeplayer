@@ -1,0 +1,50 @@
+name: Upload gallery images (Modrinth)
+
+# Manually uploads the AI-job screenshots in docs/img/ to the Modrinth gallery.
+# Run from the Actions tab (Run workflow). Re-running creates duplicate gallery
+# entries, so only run once per new image set.
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload screenshots to the Modrinth gallery
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          PID=1RSY6DQH
+
+          # file | title | description | ordering
+          items=(
+            "docs/img/ai-submenu.png|AI Sub-menu|Bond a fake, pick a job, hand out markers and start work from the AI sub-menu.|10"
+            "docs/img/management-gui.png|Management GUI|Skin, pose and the AI / SL / TG controls.|11"
+            "docs/img/miner-quarry.png|Miner Job|A fake player clearing a quarry on the Miner job.|12"
+            "docs/img/lumberjack.png|Lumberjack Job|A fake player after felling a tree on the Lumberjack job.|13"
+          )
+
+          fail=0
+          for it in "${items[@]}"; do
+            IFS='|' read -r file title desc ordering <<< "$it"
+            etitle=$(jq -rn --arg v "$title" '$v|@uri')
+            edesc=$(jq -rn --arg v "$desc" '$v|@uri')
+            url="https://api.modrinth.com/v2/project/${PID}/gallery?ext=png&featured=false&title=${etitle}&description=${edesc}&ordering=${ordering}"
+            echo "Uploading ${file} (${title}) ..."
+            code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST "$url" \
+              -H "Authorization: ${MODRINTH_TOKEN}" \
+              -H "Content-Type: image/png" \
+              --data-binary "@${file}")
+            echo "  HTTP ${code}"
+            if [ "${code}" != "204" ] && [ "${code}" != "200" ] && [ "${code}" != "201" ]; then
+              echo "  response: $(cat resp.txt)"
+              echo "::error::Gallery upload failed for ${file} (HTTP ${code})"
+              fail=1
+            fi
+          done
+          exit $fail
