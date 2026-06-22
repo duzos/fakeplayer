@@ -7,11 +7,13 @@ import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.network.c2s.BondPacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
+import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
 import dev.duzo.players.network.c2s.ToggleFakePlayerFlagPacketC2S;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -23,14 +25,15 @@ import java.util.UUID;
 
 public class AISubMenuScreen extends Screen {
 	private static final int PANEL_W = 240;
-	private static final int PANEL_H = 254;
+	private static final int PANEL_H = 264;
 	private static final int PADDING = 14;
 	private static final int TITLE_H = 26;
 	private static final int ROW_H = 18;
 	private static final int BTN_H = 16;
 	private static final int RIGHT_BTN_W = 64;
 
-	private static final int COL_PANEL = 0xEE0E1216;
+	private static final int COL_PANEL = 0xFF11171F;
+	private static final int COL_PANEL_BORDER = 0xFF2A3548;
 	private static final int COL_PANEL_TOP = 0xFF1F262E;
 	private static final int COL_TITLE_BAR = 0xFF161C24;
 	private static final int COL_ACCENT = 0xFF2EC4FF;
@@ -60,13 +63,14 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton waypointButton;
 	private FlatButton regionButton;
 	private FlatButton depositButton;
-	private FlatButton sourceButton;
+	private EditBox filterEdit;
+	private FlatButton filterButton;
 	private FlatButton startStopButton;
 
 	private int ownerSectionY;
 	private int behaviourSectionY;
 	private int markerSectionY;
-	private int sourceRowY;
+	private int filterRowY;
 
 	public AISubMenuScreen(FakePlayerEntity entity) {
 		super(Component.literal("AI"));
@@ -76,6 +80,9 @@ public class AISubMenuScreen extends Screen {
 	@Override
 	public boolean isPauseScreen() {
 		return false;
+	}
+
+	public void renderBackground(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
 	}
 
 	@Override
@@ -129,14 +136,17 @@ public class AISubMenuScreen extends Screen {
 		this.addRenderableWidget(regionButton);
 		y += ROW_H;
 		depositButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
-				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_DEPOSIT));
+				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER));
 		this.addRenderableWidget(depositButton);
 		y += ROW_H;
-		sourceRowY = y;
-		sourceButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
-				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_SOURCE));
-		sourceButton.visible = courierActive();
-		this.addRenderableWidget(sourceButton);
+
+		filterRowY = y;
+		filterEdit = new EditBox(this.font, innerLeft + 52, y, 88, BTN_H, Component.literal("filter"));
+		filterEdit.setMaxLength(512);
+		filterEdit.setValue(filterText(entity.getAIState()));
+		this.addRenderableWidget(filterEdit);
+		filterButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
+		this.addRenderableWidget(filterButton);
 		y += BTN_H + 10;
 
 		startStopButton = new FlatButton(innerLeft, y, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
@@ -154,7 +164,6 @@ public class AISubMenuScreen extends Screen {
 	private void refreshLabels() {
 		AIState s = entity.getAIState();
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
-		if (sourceButton != null) sourceButton.visible = courierActive();
 		if (startStopButton != null) {
 			startStopButton.setMessage(startStopLabel());
 			boolean run = s.running();
@@ -181,11 +190,12 @@ public class AISubMenuScreen extends Screen {
 
 	@Override
 	public void render(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
-		this.renderBackground(ctx);
+		ctx.fill(0, 0, this.width, this.height, 0xA0050709);
 		int x = (this.width - PANEL_W) / 2;
 		int y = (this.height - PANEL_H) / 2;
 
-		ctx.fill(x - 1, y - 1, x + PANEL_W + 1, y + PANEL_H + 1, 0x60000000);
+		ctx.fill(x - 2, y - 2, x + PANEL_W + 2, y + PANEL_H + 2, 0xFF000000);
+		ctx.fill(x - 1, y - 1, x + PANEL_W + 1, y + PANEL_H + 1, COL_PANEL_BORDER);
 		ctx.fill(x, y, x + PANEL_W, y + PANEL_H, COL_PANEL);
 		ctx.fill(x, y, x + PANEL_W, y + 1, COL_PANEL_TOP);
 		ctx.fill(x, y, x + PANEL_W, y + TITLE_H, COL_TITLE_BAR);
@@ -206,9 +216,7 @@ public class AISubMenuScreen extends Screen {
 		drawMarkerRow(ctx, x, markerSectionY + 18, "Waypoint", s.waypoint());
 		drawRegionRow(ctx, x, markerSectionY + 18 + ROW_H, s);
 		drawMarkerRow(ctx, x, markerSectionY + 18 + ROW_H * 2, "Deposit", s.depositChest());
-		if (courierActive()) {
-			drawMarkerRow(ctx, x, sourceRowY + 4, "Source", s.sourceChest());
-		}
+		drawChip(ctx, x + PADDING, filterRowY + 4, COL_AQUA, "Filter", COL_BODY);
 
 		super.render(ctx, mouseX, mouseY, partialTick);
 	}
@@ -310,16 +318,17 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	private void giveMarker(byte mode) {
-		giveMarker(mode, AIMarkerItem.CHEST_SLOT_DEPOSIT);
-	}
-
-	private void giveMarker(byte mode, byte slot) {
-		Network.getNetworkHandler().sendToServer(new GiveAIMarkerPacketC2S(entity.getId(), mode, slot));
+		Network.getNetworkHandler().sendToServer(new GiveAIMarkerPacketC2S(entity.getId(), mode));
 		Minecraft.getInstance().setScreen(null);
 	}
 
-	private boolean courierActive() {
-		return entity.getAIState().job() == Job.COURIER;
+	private void applyFilter() {
+		Network.getNetworkHandler().sendToServer(new SetAIFilterPacketC2S(entity.getId(), filterEdit.getValue()));
+	}
+
+	private String filterText(AIState state) {
+		String tag = state.filter().contains("Tag") ? state.filter().getString("Tag") : "c:ores";
+		return tag.isEmpty() ? "c:ores" : tag;
 	}
 
 	private void toggleRun() {
