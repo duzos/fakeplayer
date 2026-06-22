@@ -70,8 +70,17 @@ While you are holding any marker for a fake (or have its GUI open) the fake foll
 Job tuning lives in `players.json` - `guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`, `minerLavaCobbleSafety` and `minerNeverMineBlockUnderFeet`.
 
 #### Screenshots
-![AI sub-menu](docs/img/ai-submenu.png)
-<!-- Screenshot: AI sub-menu open on a bonded fake - show the OWNER/BEHAVIOUR/MARKERS sections, the job picker, and the START JOB button. -->
+
+<table>
+  <tr>
+    <td align="center" valign="top"><img src="docs/img/ai-submenu.png" height="260" alt="AI sub-menu"><br><sub><b>AI sub-menu</b> - jobs, markers, run</sub></td>
+    <td align="center" valign="top"><img src="docs/img/management-gui.png" height="260" alt="Management GUI"><br><sub><b>Management GUI</b> - skin, pose, AI/SL/TG</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="docs/img/miner-quarry.png" width="340" alt="Miner quarry"><br><sub><b>Miner</b> clearing a quarry</sub></td>
+    <td align="center" valign="top"><img src="docs/img/lumberjack.png" width="340" alt="Lumberjack"><br><sub><b>Lumberjack</b> after felling a tree</sub></td>
+  </tr>
+</table>
 
 ### Skin Grabbing!
 This mod is able to get the skin of a player.
