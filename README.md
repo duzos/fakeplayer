@@ -41,6 +41,28 @@ You need to craft a ```Robot Shell``` and a ```Robot AI``` and combine them in a
 
 Recipes are on the gallery
 
+### AI Jobs
+Fake players can be given a job and put to work. Open the management GUI (shift + right-click the fake player), then hit the **AI** button to open the AI sub-menu.
+
+From there you can:
+- **Bond/unbond** the fake player to yourself (only the owner can change its job or hand out markers).
+- Toggle **No AI** to freeze it completely.
+- **Cycle** through jobs with the job picker.
+- Hand out single-use **marker items** for waypoint, region (two clicks for corners A and B) and deposit/source containers. Hold a marker and right-click the block (or container) to set it; sneak right-click air to cancel.
+- Hit **START JOB** to set it running.
+
+#### Jobs
+
+- **Idle** - walks to its waypoint if one is set, otherwise stands still.
+- **Follow** - follows the owner around (within 32 blocks), teleporting if it falls too far behind.
+- **Guard** - patrols between the waypoints you mark (the Waypoint marker is additive in this mode) and attacks hostile mobs that come within `guardRadius` (default 12). The sub-menu shows a Patrol row with a Clear button.
+- **Miner** - scans the marked region for ore (filtered by an item tag, default `c:ores`), mines it, and dumps the haul in the deposit container. The sub-menu shows a **Filter** box where you can change the tag. Set a region and a deposit container first.
+- **Lumberjack** - finds logs in the marked region, fells whole trees, and the drops are picked up automatically. Set a region (and a deposit container if you want it to stash the wood).
+- **Courier** - shuttles items from a source container to the deposit container. The sub-menu shows an extra **Source** marker button while this job is selected; mark both containers.
+
+#### Config
+Job tuning lives in `players.json` - `guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`, `minerLavaCobbleSafety` and `minerNeverMineBlockUnderFeet`.
+
 ### Skin Grabbing!
 This mod is able to get the skin of a player.
 This means that the fake player will always have the correct and matching skin to its given username.
