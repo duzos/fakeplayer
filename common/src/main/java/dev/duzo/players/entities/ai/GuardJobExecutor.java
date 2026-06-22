@@ -151,6 +151,19 @@ public class GuardJobExecutor implements JobExecutor {
 		state.setJobParams(params);
 	}
 
+	// Removes every patrol point at the given block; returns true if any were removed.
+	public static boolean removePatrolPoint(AIState state, BlockPos pos) {
+		long[] cur = readPatrolPoints(state);
+		long key = pos.asLong();
+		long[] next = java.util.Arrays.stream(cur).filter(l -> l != key).toArray();
+		if (next.length == cur.length) return false;
+		CompoundTag params = state.jobParams();
+		if (next.length == 0) params.remove(TAG_PATROL);
+		else params.putLongArray(TAG_PATROL, next);
+		state.setJobParams(params);
+		return true;
+	}
+
 	public static void clearPatrol(AIState state) {
 		CompoundTag params = state.jobParams();
 		params.remove(TAG_PATROL);

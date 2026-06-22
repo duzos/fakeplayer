@@ -44,6 +44,7 @@ public class AIMarkerItem extends Item {
 	private static final String TAG_EXPIRES = "ExpiresAt";
 	private static final String TAG_REGION_A = "RegionA";
 	private static final String TAG_CHEST_SLOT = "ChestSlot";
+	private static final String TAG_GUARD = "GuardWaypoint";
 
 	public AIMarkerItem(Properties properties) {
 		super(properties.stacksTo(1));
@@ -61,6 +62,7 @@ public class AIMarkerItem extends Item {
 		tag.putString(TAG_PURPOSE, purposeName(purpose));
 		tag.putLong(TAG_EXPIRES, now + SESSION_TICKS);
 		if (purpose == PURPOSE_CHEST_PICKER) tag.putByte(TAG_CHEST_SLOT, chestSlot);
+		if (purpose == PURPOSE_WAYPOINT && entity.getAIState().job() == Job.GUARD) tag.putBoolean(TAG_GUARD, true);
 		stack.setHoverName(Component.literal(purposeLabel(purpose, chestSlot)).withStyle(ChatFormatting.AQUA));
 		return stack;
 	}
@@ -162,17 +164,24 @@ public class AIMarkerItem extends Item {
 
 		switch (purpose) {
 			case PURPOSE_WAYPOINT -> {
-				boolean guard = entity.getAIState().job() == Job.GUARD;
-				entity.mutateAIState(s -> {
-					if (s.job() == Job.GUARD) {
-						GuardJobExecutor.appendPatrolPoint(s, pos.immutable());
+				if (entity.getAIState().job() == Job.GUARD) {
+					// Reusable patrol editor: right-click adds a point, shift-right-click removes one.
+					BlockPos point = pos.immutable();
+					if (player.isShiftKeyDown()) {
+						boolean[] removed = {false};
+						entity.mutateAIState(s -> removed[0] = GuardJobExecutor.removePatrolPoint(s, point));
+						player.displayClientMessage(Component.literal(removed[0] ? "Patrol point removed." : "No patrol point here.")
+								.withStyle(removed[0] ? ChatFormatting.GREEN : ChatFormatting.RED), true);
 					} else {
-						s.setWaypoint(pos.immutable());
+						entity.mutateAIState(s -> GuardJobExecutor.appendPatrolPoint(s, point));
+						player.displayClientMessage(Component.literal("Patrol point added.").withStyle(ChatFormatting.GREEN), true);
 					}
-				});
-				String msg = guard ? "Patrol point added." : "Waypoint set.";
-				player.displayClientMessage(Component.literal(msg).withStyle(ChatFormatting.GREEN), true);
-				silentlyConsume(stack);
+					bumpExpiry(stack, level.getGameTime());
+				} else {
+					entity.mutateAIState(s -> s.setWaypoint(pos.immutable()));
+					player.displayClientMessage(Component.literal("Waypoint set.").withStyle(ChatFormatting.GREEN), true);
+					silentlyConsume(stack);
+				}
 			}
 			case PURPOSE_REGION -> {
 				if (!tag.contains(TAG_REGION_A)) {
@@ -235,7 +244,9 @@ public class AIMarkerItem extends Item {
 		if (tag == null) return;
 		byte purpose = purposeFromTag(tag);
 		String hint = switch (purpose) {
-			case PURPOSE_WAYPOINT -> "Right-click a block to mark a waypoint.";
+			case PURPOSE_WAYPOINT -> tag.getBoolean(TAG_GUARD)
+					? "Right-click adds a patrol point, sneak + right-click removes one."
+					: "Right-click a block to mark a waypoint.";
 			case PURPOSE_REGION -> tag.contains(TAG_REGION_A)
 					? "Right-click a second block for corner B."
 					: "Right-click a block for corner A.";
