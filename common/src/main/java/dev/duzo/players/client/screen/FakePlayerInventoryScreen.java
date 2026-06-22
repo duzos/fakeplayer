@@ -168,7 +168,9 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 	private void openAiMenu() {
 		FakePlayerEntity entity = this.menu.getEntity();
 		if (entity == null) return;
-		Minecraft.getInstance().setScreen(new AISubMenuScreen(entity));
+		Minecraft minecraft = Minecraft.getInstance();
+		if (minecraft.player != null) minecraft.player.closeContainer();
+		minecraft.setScreen(new AISubMenuScreen(entity));
 	}
 
 	private void toggleFlag(byte flag, boolean newValue) {

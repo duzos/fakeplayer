@@ -21,8 +21,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -196,19 +195,18 @@ public class AIMarkerItem extends Item {
 				}
 			}
 			case PURPOSE_CHEST_PICKER -> {
-				BlockEntity be = ctx.getLevel().getBlockEntity(pos);
-				if (!(be instanceof ChestBlockEntity)) {
-					player.displayClientMessage(Component.literal("Right-click a chest.").withStyle(ChatFormatting.RED), true);
+				if (!isValidContainer(level, pos)) {
+					player.displayClientMessage(Component.literal("Right-click a container.").withStyle(ChatFormatting.RED), true);
 					return InteractionResult.FAIL;
 				}
 				byte slot = tag.getByteOr(TAG_CHEST_SLOT, CHEST_SLOT_DEPOSIT);
 				BlockPos commit = pos.immutable();
 				if (slot == CHEST_SLOT_SOURCE) {
 					entity.mutateAIState(s -> s.setSourceChest(commit));
-					player.displayClientMessage(Component.literal("Source chest set.").withStyle(ChatFormatting.GREEN), true);
+					player.displayClientMessage(Component.literal("Source container set.").withStyle(ChatFormatting.GREEN), true);
 				} else {
 					entity.mutateAIState(s -> s.setDepositChest(commit));
-					player.displayClientMessage(Component.literal("Deposit chest set.").withStyle(ChatFormatting.GREEN), true);
+					player.displayClientMessage(Component.literal("Deposit container set.").withStyle(ChatFormatting.GREEN), true);
 				}
 				silentlyConsume(stack);
 			}
@@ -230,6 +228,10 @@ public class AIMarkerItem extends Item {
 		stack.setCount(0);
 	}
 
+	public static boolean isValidContainer(Level level, BlockPos pos) {
+		return HopperBlockEntity.getContainerAt(level, pos) != null;
+	}
+
 	@Override
 	public void appendHoverText(ItemStack stack, Item.TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag flag) {
 		CompoundTag tag = readTag(stack);
@@ -241,8 +243,8 @@ public class AIMarkerItem extends Item {
 					? "Right-click a second block for corner B."
 					: "Right-click a block for corner A.";
 			case PURPOSE_CHEST_PICKER -> tag.getByteOr(TAG_CHEST_SLOT, CHEST_SLOT_DEPOSIT) == CHEST_SLOT_SOURCE
-					? "Right-click a chest to set source target."
-					: "Right-click a chest to set deposit target.";
+					? "Right-click a container to set source target."
+					: "Right-click a container to set deposit target.";
 			default -> "";
 		};
 		if (!hint.isEmpty()) {
