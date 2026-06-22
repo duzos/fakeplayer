@@ -189,10 +189,10 @@ public class AIMarkerItem extends Item {
 				BlockPos commit = pos.immutable();
 				if (slot == CHEST_SLOT_SOURCE) {
 					entity.mutateAIState(s -> s.setSourceChest(commit));
-					player.displayClientMessage(Component.literal("Source chest set.").withStyle(ChatFormatting.GREEN), true);
+					player.displayClientMessage(Component.literal("Source container set.").withStyle(ChatFormatting.GREEN), true);
 				} else {
 					entity.mutateAIState(s -> s.setDepositChest(commit));
-					player.displayClientMessage(Component.literal("Deposit chest set.").withStyle(ChatFormatting.GREEN), true);
+					player.displayClientMessage(Component.literal("Deposit container set.").withStyle(ChatFormatting.GREEN), true);
 				}
 				silentlyConsume(stack);
 			}
@@ -230,8 +230,8 @@ public class AIMarkerItem extends Item {
 					? "Right-click a second block for corner B."
 					: "Right-click a block for corner A.";
 			case PURPOSE_CHEST_PICKER -> tag.getByte(TAG_CHEST_SLOT) == CHEST_SLOT_SOURCE
-					? "Right-click a chest to set source target."
-					: "Right-click a chest to set deposit target.";
+					? "Right-click a container to set source target."
+					: "Right-click a container to set deposit target.";
 			default -> "";
 		};
 		if (!hint.isEmpty()) {
