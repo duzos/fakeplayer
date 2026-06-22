@@ -27,7 +27,7 @@ import java.util.UUID;
 
 public class AISubMenuScreen extends Screen {
 	private static final int PANEL_W = 240;
-	private static final int PANEL_H = 324;
+	private static final int PANEL_H = 298;
 	private static final int PADDING = 14;
 	private static final int TITLE_H = 26;
 	private static final int ROW_H = 18;
@@ -147,6 +147,7 @@ public class AISubMenuScreen extends Screen {
 		this.addRenderableWidget(depositButton);
 		y += ROW_H;
 		sourceRowY = y;
+		filterRowY = y;
 		patrolRowY = y;
 		sourceButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
 				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_SOURCE));
@@ -155,16 +156,15 @@ public class AISubMenuScreen extends Screen {
 		patrolClearButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
 				Component.literal("Clear"), this::clearPatrol);
 		this.addRenderableWidget(patrolClearButton);
-		y += BTN_H + 54;
-
-		filterRowY = y;
 		filterEdit = new EditBox(this.font, innerLeft + 52, y, 88, BTN_H, Component.literal("filter"));
 		filterEdit.setMaxLength(512);
 		filterEdit.setValue(filterText(entity.getAIState()));
+		filterEdit.visible = minerActive();
 		this.addRenderableWidget(filterEdit);
 		filterButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
+		filterButton.visible = minerActive();
 		this.addRenderableWidget(filterButton);
-		y += BTN_H + 10;
+		y += BTN_H + 54;
 
 		startStopButton = new FlatButton(innerLeft, y, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
 		this.addRenderableWidget(startStopButton);
@@ -182,6 +182,8 @@ public class AISubMenuScreen extends Screen {
 		AIState s = entity.getAIState();
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
 		if (sourceButton != null) sourceButton.visible = courierActive();
+		if (filterEdit != null) filterEdit.visible = minerActive();
+		if (filterButton != null) filterButton.visible = minerActive();
 		if (patrolClearButton != null) {
 			boolean guard = s.job() == Job.GUARD;
 			patrolClearButton.visible = guard;
@@ -242,8 +244,10 @@ public class AISubMenuScreen extends Screen {
 		if (courierActive()) {
 			drawMarkerRow(ctx, x, sourceRowY + 4, "Source", s.sourceChest());
 		}
+		if (minerActive()) {
+			drawChip(ctx, x + PADDING, filterRowY + 4, COL_AQUA, "Filter", COL_BODY);
+		}
 		drawPatrolRow(ctx, x, patrolRowY + 1, s);
-		drawChip(ctx, x + PADDING, filterRowY + 4, COL_AQUA, "Filter", COL_BODY);
 
 		super.render(ctx, mouseX, mouseY, partialTick);
 	}
@@ -393,6 +397,10 @@ public class AISubMenuScreen extends Screen {
 
 	private boolean courierActive() {
 		return entity.getAIState().job() == Job.COURIER;
+	}
+
+	private boolean minerActive() {
+		return entity.getAIState().job() == Job.MINER;
 	}
 
 	private void applyFilter() {
