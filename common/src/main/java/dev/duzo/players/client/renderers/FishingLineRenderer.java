@@ -24,7 +24,8 @@ public final class FishingLineRenderer {
 	private static final int BOBBER_COLOR = 0xFFE24A4A;
 	private static final float LINE_WIDTH = 2.0F;
 	private static final float BOBBER_SIZE = 0.14F;
-	private static final int SEGMENTS = 14;
+	private static final float LINE_BEAD = 0.04F;
+	private static final int SEGMENTS = 24;
 
 	private FishingLineRenderer() {}
 
@@ -70,35 +71,27 @@ public final class FishingLineRenderer {
 		return owner.getEyePosition(partial).add(right.scale(0.35)).add(forward.scale(0.3)).add(0, -0.2, 0);
 	}
 
+	// Drawn as a string of small boxes via the proven ShapeRenderer path (RenderTypes.lines()
+	// has a per-vertex LineWidth element that hand-rolled vertices can't satisfy here).
 	private static void drawLine(PoseStack pose, VertexConsumer lines, Vec3 cam, Vec3 from, Vec3 to) {
-		PoseStack.Pose entry = pose.last();
 		double sag = Math.min(0.6, from.distanceTo(to) * 0.12);
-		Vec3 prev = null;
-		for (int i = 0; i <= SEGMENTS; i++) {
+		for (int i = 1; i < SEGMENTS; i++) {
 			float f = i / (float) SEGMENTS;
-			double x = Mth.lerp(f, from.x, to.x) - cam.x;
-			double y = Mth.lerp(f, from.y, to.y) - cam.y - sag * (4 * f * (1 - f));
-			double z = Mth.lerp(f, from.z, to.z) - cam.z;
-			Vec3 cur = new Vec3(x, y, z);
-			if (prev != null) segment(lines, entry, prev, cur);
-			prev = cur;
+			double x = Mth.lerp(f, from.x, to.x);
+			double y = Mth.lerp(f, from.y, to.y) - sag * (4 * f * (1 - f));
+			double z = Mth.lerp(f, from.z, to.z);
+			box(pose, lines, cam, new Vec3(x, y, z), LINE_BEAD, LINE_COLOR);
 		}
 	}
 
-	private static void segment(VertexConsumer lines, PoseStack.Pose entry, Vec3 a, Vec3 b) {
-		Vec3 d = b.subtract(a);
-		double len = d.length();
-		if (len < 1.0E-4) return;
-		float nx = (float) (d.x / len), ny = (float) (d.y / len), nz = (float) (d.z / len);
-		int r = (LINE_COLOR >> 16) & 0xFF, g = (LINE_COLOR >> 8) & 0xFF, bl = LINE_COLOR & 0xFF, al = (LINE_COLOR >> 24) & 0xFF;
-		lines.addVertex(entry.pose(), (float) a.x, (float) a.y, (float) a.z).setColor(r, g, bl, al).setNormal(entry, nx, ny, nz);
-		lines.addVertex(entry.pose(), (float) b.x, (float) b.y, (float) b.z).setColor(r, g, bl, al).setNormal(entry, nx, ny, nz);
+	private static void drawBobber(PoseStack pose, VertexConsumer lines, Vec3 cam, Vec3 bobber) {
+		box(pose, lines, cam, bobber, BOBBER_SIZE, BOBBER_COLOR);
 	}
 
-	private static void drawBobber(PoseStack pose, VertexConsumer lines, Vec3 cam, Vec3 bobber) {
-		VoxelShape shape = Shapes.box(0, 0, 0, BOBBER_SIZE, BOBBER_SIZE, BOBBER_SIZE);
-		double h = BOBBER_SIZE / 2.0;
+	private static void box(PoseStack pose, VertexConsumer lines, Vec3 cam, Vec3 center, float size, int color) {
+		VoxelShape shape = Shapes.box(0, 0, 0, size, size, size);
+		double h = size / 2.0;
 		ShapeRenderer.renderShape(pose, lines, shape,
-			bobber.x - cam.x - h, bobber.y - cam.y - h, bobber.z - cam.z - h, BOBBER_COLOR, LINE_WIDTH);
+			center.x - cam.x - h, center.y - cam.y - h, center.z - cam.z - h, color, LINE_WIDTH);
 	}
 }
