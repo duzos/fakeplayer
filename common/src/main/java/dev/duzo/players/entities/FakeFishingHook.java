@@ -8,6 +8,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.projectile.Projectile;
+import dev.duzo.players.entities.ai.AIState;
+import dev.duzo.players.entities.ai.Job;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.storage.ValueInput;
@@ -72,8 +74,18 @@ public class FakeFishingHook extends Projectile {
 		if (this.level().isClientSide()) return;
 
 		if (++life > MAX_LIFE) { discard(); return; }
-		Entity owner = this.getOwner();
-		if (owner == null || !owner.isAlive()) { discard(); return; }
+		// auto-kill: no resolvable owner, or owner not actively running the fisherman job
+		if (!(this.getOwner() instanceof FakePlayerEntity fake) || !fake.isAlive()) { discard(); return; }
+		AIState ai = fake.getAIState();
+		if (ai.job() != Job.FISHERMAN || !ai.running()) { discard(); return; }
+		// re-sync the owner id for the client (synced data isn't persisted; entity ids change on reload)
+		if (this.entityData.get(DATA_OWNER_ID) != fake.getId()) this.entityData.set(DATA_OWNER_ID, fake.getId());
+		// singleton: match on the owner ENTITY (the persisted UUID), not the synced id; keep the newest
+		if (!this.level().getEntitiesOfClass(FakeFishingHook.class, this.getBoundingBox().inflate(64.0),
+				h -> h != this && h.getOwner() == fake && h.getId() > this.getId()).isEmpty()) {
+			discard();
+			return;
+		}
 
 		Vec3 dm = this.getDeltaMovement();
 		FluidState fluid = this.level().getFluidState(this.blockPosition());

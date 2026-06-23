@@ -58,7 +58,7 @@ public class FishermanJobExecutor implements JobExecutor {
 			}
 			case CAST -> {
 				if (rod(entity).isEmpty()) return; // no rod anywhere: idle
-				BlockPos water = findWaterSurface(level, spot);
+				BlockPos water = findCastTarget(level, spot, entity);
 				if (water == null) return; // no water near the waypoint: idle
 				double surfaceY = water.getY() + 0.9;
 				Vec3 target = new Vec3(water.getX() + 0.5, surfaceY, water.getZ() + 0.5);
@@ -109,6 +109,11 @@ public class FishermanJobExecutor implements JobExecutor {
 
 	private void castHook(ServerLevel level, FakePlayerEntity entity, Vec3 target, double surfaceY) {
 		clearHook();
+		// sweep any stray bobbers this fake owns (reload orphans, double-casts) before spawning a new one
+		for (FakeFishingHook old : level.getEntitiesOfClass(FakeFishingHook.class,
+				entity.getBoundingBox().inflate(64.0), h -> h.getOwner() == entity)) {
+			old.discard();
+		}
 		FakeFishingHook hook = new FakeFishingHook(level, entity);
 		double sx = entity.getX(), sy = entity.getEyeY(), sz = entity.getZ();
 		hook.setPos(sx, sy, sz);
@@ -119,8 +124,27 @@ public class FishermanJobExecutor implements JobExecutor {
 		activeHook = hook;
 	}
 
+	private static final int PUSH_INTO_WATER = 3; // cast this many blocks past the shore, into open water
+
+	/** Find water near the waypoint, then push the target a few blocks further in (away from the fake). */
+	private BlockPos findCastTarget(ServerLevel level, BlockPos near, FakePlayerEntity e) {
+		BlockPos shore = nearestWaterSurface(level, near);
+		if (shore == null) return null;
+		double dx = (shore.getX() + 0.5) - e.getX();
+		double dz = (shore.getZ() + 0.5) - e.getZ();
+		int ux = Math.abs(dx) < 0.3 ? 0 : (int) Math.signum(dx);
+		int uz = Math.abs(dz) < 0.3 ? 0 : (int) Math.signum(dz);
+		if (ux == 0 && uz == 0) return shore;
+		BlockPos best = shore;
+		for (int i = 1; i <= PUSH_INTO_WATER; i++) {
+			BlockPos cand = shore.offset(ux * i, 0, uz * i);
+			if (isWaterSurface(level, cand)) best = cand; else break;
+		}
+		return best;
+	}
+
 	/** Nearest water surface (water with air above) within a small radius of the waypoint, or null. */
-	private BlockPos findWaterSurface(ServerLevel level, BlockPos near) {
+	private BlockPos nearestWaterSurface(ServerLevel level, BlockPos near) {
 		BlockPos.MutableBlockPos c = new BlockPos.MutableBlockPos();
 		for (int r = 0; r <= 4; r++) {
 			for (int dx = -r; dx <= r; dx++) {
@@ -128,13 +152,16 @@ public class FishermanJobExecutor implements JobExecutor {
 					if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue; // expanding ring
 					for (int dy = 3; dy >= -3; dy--) {
 						c.set(near.getX() + dx, near.getY() + dy, near.getZ() + dz);
-						if (level.getFluidState(c).is(FluidTags.WATER) && level.getBlockState(c.above()).isAir())
-							return c.immutable();
+						if (isWaterSurface(level, c)) return c.immutable();
 					}
 				}
 			}
 		}
 		return null;
+	}
+
+	private boolean isWaterSurface(ServerLevel level, BlockPos pos) {
+		return level.getFluidState(pos).is(FluidTags.WATER) && level.getBlockState(pos.above()).isAir();
 	}
 
 	private void ensureRod(FakePlayerEntity e) {

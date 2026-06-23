@@ -3,6 +3,7 @@ package dev.duzo.players.client.renderers;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.duzo.players.entities.FakeFishingHook;
+import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -11,6 +12,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -46,8 +48,8 @@ public final class FishingLineRenderer {
 			Vec3 bobber = bobberPos(hook, partial).subtract(cam);
 
 			Entity owner = level.getEntity(hook.ownerId());
-			if (owner != null) {
-				Vec3 hand = handPos(owner, partial).subtract(cam);
+			if (owner instanceof LivingEntity living) {
+				Vec3 hand = handPos(living, partial).subtract(cam);
 				drawLine(pose, buffers.getBuffer(RenderTypes.lines()), hand, bobber);
 			}
 			drawBobber(pose, buffers.getBuffer(RenderTypes.entityCutoutNoCull(BOBBER_TEXTURE)), camRot, bobber);
@@ -65,11 +67,18 @@ public final class FishingLineRenderer {
 		return base.add(0, bob, 0);
 	}
 
-	private static Vec3 handPos(Entity owner, float partial) {
-		double yaw = Math.toRadians(owner.getViewYRot(partial));
-		Vec3 forward = new Vec3(-Math.sin(yaw), 0, Math.cos(yaw));
-		Vec3 right = new Vec3(Math.cos(yaw), 0, Math.sin(yaw));
-		return owner.getEyePosition(partial).add(right.scale(0.35)).add(forward.scale(0.3)).add(0, -0.2, 0);
+	// Mirrors vanilla FishingHookRenderer's third-person line origin: body yaw, main-hand lateral 0.35,
+	// forward 0.8, vertical (eyeHeight - 0.45). The fake holds the rod in its right (main) hand -> i=+1.
+	private static Vec3 handPos(LivingEntity owner, float partial) {
+		double bodyYaw = Mth.lerp(partial, owner.yBodyRotO, owner.yBodyRot) * (Math.PI / 180.0);
+		double sin = Math.sin(bodyYaw);
+		double cos = Math.cos(bodyYaw);
+		double lateral = 0.35; // main arm = RIGHT
+		double x = Mth.lerp(partial, owner.xo, owner.getX()) - cos * lateral - sin * 0.8;
+		double y = Mth.lerp(partial, owner.yo, owner.getY()) + owner.getEyeHeight() - 0.45;
+		double z = Mth.lerp(partial, owner.zo, owner.getZ()) - sin * lateral + cos * 0.8;
+		if (owner instanceof FakePlayerEntity fp && fp.isSitting()) y -= 0.3; // seated: drop a little (raised per feedback)
+		return new Vec3(x, y, z);
 	}
 
 	private static void drawLine(PoseStack pose, VertexConsumer lines, Vec3 from, Vec3 to) {
