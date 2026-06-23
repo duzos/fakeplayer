@@ -1,7 +1,9 @@
 package dev.duzo.players.entities.ai;
 
+import dev.duzo.players.entities.FakeFishingHook;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
@@ -10,6 +12,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -26,20 +29,26 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 public class FishermanJobExecutor implements JobExecutor {
-	private enum Phase { TO_SPOT, CAST, WAIT, REEL, TO_DEPOSIT, DUMP }
+	private enum Phase { TO_SPOT, CAST, WAIT, BITE, REEL, TO_DEPOSIT, DUMP }
 	private static final int DEPOSIT_EVERY = 16;     // "every X fishes"
 	private static final int BASE_WAIT_TICKS = 20 * 12;
+	private static final int BITE_TICKS = 15;        // bobber dips for ~0.75s before reeling
 	private static final double SPEED = 1.0;
+	private static final double VACUUM_RADIUS = 2.5;
 
 	private Phase phase = Phase.TO_SPOT;
 	private int caught = 0;
 	private long waitUntil = 0L;
+	private long biteUntil = 0L;
+	private FakeFishingHook activeHook;
 
 	@Override public void tick(ServerLevel level, FakePlayerEntity entity) {
 		AIState s = entity.getAIState();
 		BlockPos spot = s.waypoint();
 		BlockPos deposit = s.depositChest();
 		if (spot == null) return; // no spot set: idle (GUI shows "Waypoint unset")
+
+		JobHelpers.vacuum(level, entity, VACUUM_RADIUS); // catch flying back from the bobber lands here
 
 		switch (phase) {
 			case TO_SPOT -> {
@@ -49,17 +58,28 @@ public class FishermanJobExecutor implements JobExecutor {
 				if (rod(entity).isEmpty()) return; // wait for a rod in inventory
 				entity.getLookControl().setLookAt(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
 				entity.swing(InteractionHand.MAIN_HAND);
+				castHook(level, entity, spot);
 				int lure = enchant(entity, Enchantments.LURE);
 				waitUntil = level.getGameTime() + Math.max(20, BASE_WAIT_TICKS - lure * 20 * 5L);
 				phase = Phase.WAIT;
 			}
-			case WAIT -> { if (level.getGameTime() >= waitUntil) phase = Phase.REEL; }
+			case WAIT -> {
+				if (activeHook == null || !activeHook.isAlive()) { phase = Phase.CAST; return; }
+				if (level.getGameTime() >= waitUntil) {
+					activeHook.setBiting(true);
+					Vec3 b = activeHook.position();
+					level.sendParticles(ParticleTypes.FISHING, b.x, b.y + 0.1, b.z, 8, 0.1, 0.0, 0.1, 0.0);
+					level.sendParticles(ParticleTypes.BUBBLE, b.x, b.y, b.z, 6, 0.1, 0.0, 0.1, 0.1);
+					biteUntil = level.getGameTime() + BITE_TICKS;
+					phase = Phase.BITE;
+				}
+			}
+			case BITE -> { if (level.getGameTime() >= biteUntil) phase = Phase.REEL; }
 			case REEL -> {
 				entity.swing(InteractionHand.MAIN_HAND);
-				for (ItemStack drop : rollCatch(level, entity, spot)) {
-					ItemStack rem = entity.getInventory().addItem(drop);
-					if (!rem.isEmpty()) entity.spawnAtLocation(level, rem);
-				}
+				Vec3 from = activeHook != null ? activeHook.position() : Vec3.atCenterOf(spot);
+				for (ItemStack drop : rollCatch(level, entity, spot)) flingCatch(level, entity, from, drop);
+				clearHook();
 				damageRod(entity);
 				caught++;
 				boolean rodBroken = rod(entity).isEmpty();
@@ -79,6 +99,30 @@ public class FishermanJobExecutor implements JobExecutor {
 				phase = Phase.TO_SPOT;
 			}
 		}
+	}
+
+	private void castHook(ServerLevel level, FakePlayerEntity entity, BlockPos spot) {
+		clearHook();
+		FakeFishingHook hook = new FakeFishingHook(level, entity);
+		double sx = entity.getX(), sy = entity.getEyeY(), sz = entity.getZ();
+		hook.setPos(sx, sy, sz);
+		Vec3 dir = Vec3.atCenterOf(spot).subtract(sx, sy, sz);
+		hook.shoot(dir.x, dir.y + 0.3, dir.z, 0.5F, 0.4F);
+		level.addFreshEntity(hook);
+		activeHook = hook;
+	}
+
+	private void flingCatch(ServerLevel level, FakePlayerEntity entity, Vec3 from, ItemStack drop) {
+		ItemEntity item = new ItemEntity(level, from.x, from.y, from.z, drop);
+		double dx = entity.getX() - from.x, dy = entity.getEyeY() - from.y, dz = entity.getZ() - from.z;
+		double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+		item.setDeltaMovement(dx * 0.1, dy * 0.1 + Math.max(0.1, dist * 0.08), dz * 0.1);
+		item.setPickUpDelay(10);
+		level.addFreshEntity(item);
+	}
+
+	private void clearHook() {
+		if (activeHook != null) { activeHook.discard(); activeHook = null; }
 	}
 
 	private List<ItemStack> rollCatch(ServerLevel level, FakePlayerEntity e, BlockPos spot) {
@@ -125,7 +169,7 @@ public class FishermanJobExecutor implements JobExecutor {
 		dst.setChanged();
 	}
 
-	@Override public void onPause(FakePlayerEntity e) { e.getNavigation().stop(); }
+	@Override public void onPause(FakePlayerEntity e) { e.getNavigation().stop(); clearHook(); }
 	@Override public void onResume(FakePlayerEntity e) {}
 	@Override public CompoundTag serialize() {
 		CompoundTag t = new CompoundTag(); t.putString("Phase", phase.name()); t.putInt("Caught", caught); t.putLong("WaitUntil", waitUntil); return t;
@@ -133,6 +177,7 @@ public class FishermanJobExecutor implements JobExecutor {
 	@Override public void deserialize(CompoundTag t) {
 		if (t == null || t.isEmpty()) return;
 		try { phase = Phase.valueOf(t.getStringOr("Phase", "TO_SPOT")); } catch (IllegalArgumentException ignored) {}
+		if (phase == Phase.WAIT || phase == Phase.BITE || phase == Phase.REEL) phase = Phase.CAST; // re-cast cleanly; stale hook self-discards
 		caught = t.getIntOr("Caught", 0); waitUntil = t.getLongOr("WaitUntil", 0L);
 	}
 }
