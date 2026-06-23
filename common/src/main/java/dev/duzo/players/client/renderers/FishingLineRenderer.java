@@ -71,7 +71,7 @@ public final class FishingLineRenderer {
 		double cos = Math.cos(bodyYaw);
 		double lateral = 0.35;
 		double x = Mth.lerp(partial, owner.xo, owner.getX()) - cos * lateral - sin * 0.8;
-		double y = Mth.lerp(partial, owner.yo, owner.getY()) + owner.getEyeHeight() + 0.05; // vanilla eyeHeight-0.45, raised 0.5
+		double y = Mth.lerp(partial, owner.yo, owner.getY()) + owner.getEyeHeight() - 0.45; // vanilla eyeHeight-0.45
 		double z = Mth.lerp(partial, owner.zo, owner.getZ()) - sin * lateral + cos * 0.8;
 		if (owner instanceof FakePlayerEntity fp && fp.isSitting()) y -= 0.3;
 		return new Vec3(x, y, z);
