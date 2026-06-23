@@ -1,7 +1,10 @@
 package dev.duzo.players.client;
 
 import dev.duzo.players.client.render.SessionItemMarkerRenderer;
+import dev.duzo.players.client.renderers.FakeFishingHookRenderer;
 import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
+import dev.duzo.players.client.renderers.FishingLineRenderer;
+import dev.duzo.players.client.renderers.LegacyRodCast;
 import dev.duzo.players.client.screen.FakePlayerInventoryScreen;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPMenus;
@@ -19,6 +22,8 @@ public class PlayersFabricClient implements ClientModInitializer {
 		PlayersCommonClient.init();
 
 		EntityRendererRegistry.register(FPEntities.FAKE_PLAYER.get(), FakePlayerRendererWrapper::new);
+		EntityRendererRegistry.register(FPEntities.FISHING_HOOK.get(), FakeFishingHookRenderer::new);
+		LegacyRodCast.register();
 		MenuScreens.register(FPMenus.FAKE_PLAYER.get(), FakePlayerInventoryScreen::new);
 		ClientTickEvents.END_CLIENT_TICK.register(PlayersCommonClient::tick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> PlayersCommonClient.onClientStopping());
@@ -27,6 +32,7 @@ public class PlayersFabricClient implements ClientModInitializer {
 					Minecraft.getInstance().renderBuffers().bufferSource(),
 					ctx.camera().getPosition());
 			Minecraft.getInstance().renderBuffers().bufferSource().endBatch(net.minecraft.client.renderer.RenderType.lines());
+			FishingLineRenderer.render(ctx.matrixStack());
 		});
 	}
 }

@@ -2,6 +2,7 @@ package dev.duzo.players.client;
 
 import dev.duzo.players.Constants;
 import dev.duzo.players.client.render.SessionItemMarkerRenderer;
+import dev.duzo.players.client.renderers.FishingLineRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraftforge.api.distmarker.Dist;
@@ -31,5 +32,6 @@ public class ClientBusEvents {
 				mc.renderBuffers().bufferSource(),
 				e.getCamera().getPosition());
 		mc.renderBuffers().bufferSource().endBatch(RenderType.lines());
+		FishingLineRenderer.render(e.getPoseStack());
 	}
 }
