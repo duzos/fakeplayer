@@ -112,6 +112,7 @@ public class FishermanJobExecutor implements JobExecutor {
 				Container dst = JobHelpers.containerAt(level, deposit);
 				if (dst == null) { phase = Phase.TO_SPOT; return; }
 				dumpFish(entity, dst);
+				restockRod(entity, dst); // grab a fresh rod from the deposit container if ours broke
 				phase = Phase.TO_SPOT;
 			}
 		}
@@ -255,6 +256,21 @@ public class FishermanJobExecutor implements JobExecutor {
 			inv.setItem(i, rem.isEmpty() ? ItemStack.EMPTY : rem);
 		}
 		dst.setChanged();
+	}
+
+	/** If the fake has no rod (ours broke), pull one from the deposit container. */
+	private void restockRod(FakePlayerEntity e, Container chest) {
+		if (!rod(e).isEmpty()) return;
+		for (int i = 0; i < chest.getContainerSize(); i++) {
+			ItemStack stack = chest.getItem(i);
+			if (stack.getItem() != Items.FISHING_ROD) continue;
+			ItemStack one = stack.split(1);
+			ItemStack leftover = e.getInventory().addItem(one);
+			if (!leftover.isEmpty()) stack.grow(leftover.getCount());
+			if (stack.isEmpty()) chest.setItem(i, ItemStack.EMPTY);
+			chest.setChanged();
+			return;
+		}
 	}
 
 	@Override public void onPause(FakePlayerEntity e) { e.getNavigation().stop(); clearHook(); }
