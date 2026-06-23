@@ -35,6 +35,7 @@ Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI han
 | **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. |
 | **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
 | **Courier** | source + deposit | Hauls matching items from one chest to another. |
+| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. |
 
 Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`).
 
