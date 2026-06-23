@@ -29,6 +29,8 @@ public class FakeFishingHook extends Projectile {
 
 	private State state = State.FLYING;
 	private int life = 0;
+	private Vec3 target;           // server-only: water surface the executor aimed at
+	private double targetSurfaceY;
 
 	public FakeFishingHook(EntityType<? extends FakeFishingHook> type, Level level) {
 		super(type, level);
@@ -44,6 +46,12 @@ public class FakeFishingHook extends Projectile {
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
 		builder.define(DATA_OWNER_ID, 0);
 		builder.define(DATA_BITING, false);
+	}
+
+	/** Server-side: the water surface the bobber should settle on. */
+	public void aimAt(Vec3 target, double surfaceY) {
+		this.target = target;
+		this.targetSurfaceY = surfaceY;
 	}
 
 	public int ownerId() {
@@ -74,16 +82,23 @@ public class FakeFishingHook extends Projectile {
 
 		switch (state) {
 			case FLYING -> {
+				if (target != null) {
+					double ddx = target.x - this.getX(), ddz = target.z - this.getZ();
+					if (ddx * ddx + ddz * ddz < 0.64) { // reached the water column: snap onto the surface
+						this.setPos(target.x, targetSurfaceY, target.z);
+						this.setDeltaMovement(Vec3.ZERO);
+						state = State.BOBBING;
+						return;
+					}
+				}
 				if (inWater) {
 					this.setDeltaMovement(dm.multiply(0.3, 0.2, 0.3));
 					state = State.BOBBING;
+				} else if (this.horizontalCollision || this.onGround()) {
+					this.setDeltaMovement(Vec3.ZERO);
 				} else {
-					if (this.horizontalCollision || this.onGround()) {
-						this.setDeltaMovement(Vec3.ZERO);
-					} else {
-						this.setDeltaMovement(dm.scale(0.99).subtract(0, 0.03, 0));
-						this.move(MoverType.SELF, this.getDeltaMovement());
-					}
+					this.setDeltaMovement(dm.scale(0.99).subtract(0, 0.03, 0));
+					this.move(MoverType.SELF, this.getDeltaMovement());
 				}
 			}
 			case BOBBING -> {

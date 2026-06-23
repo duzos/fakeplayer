@@ -8,6 +8,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
@@ -49,16 +50,21 @@ public class FishermanJobExecutor implements JobExecutor {
 		if (spot == null) return; // no spot set: idle (GUI shows "Waypoint unset")
 
 		JobHelpers.vacuum(level, entity, VACUUM_RADIUS); // catch flying back from the bobber lands here
+		ensureRod(entity); // a fisherman always holds his rod
 
 		switch (phase) {
 			case TO_SPOT -> {
 				if (JobHelpers.walkTo(entity, spot, SPEED)) { entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING); phase = Phase.CAST; }
 			}
 			case CAST -> {
-				if (rod(entity).isEmpty()) return; // wait for a rod in inventory
-				entity.getLookControl().setLookAt(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
+				if (rod(entity).isEmpty()) return; // no rod anywhere: idle
+				BlockPos water = findWaterSurface(level, spot);
+				if (water == null) return; // no water near the waypoint: idle
+				double surfaceY = water.getY() + 0.9;
+				Vec3 target = new Vec3(water.getX() + 0.5, surfaceY, water.getZ() + 0.5);
+				entity.getLookControl().setLookAt(target.x, target.y, target.z);
 				entity.swing(InteractionHand.MAIN_HAND);
-				castHook(level, entity, spot);
+				castHook(level, entity, target, surfaceY);
 				int lure = enchant(entity, Enchantments.LURE);
 				waitUntil = level.getGameTime() + Math.max(20, BASE_WAIT_TICKS - lure * 20 * 5L);
 				phase = Phase.WAIT;
@@ -101,15 +107,50 @@ public class FishermanJobExecutor implements JobExecutor {
 		}
 	}
 
-	private void castHook(ServerLevel level, FakePlayerEntity entity, BlockPos spot) {
+	private void castHook(ServerLevel level, FakePlayerEntity entity, Vec3 target, double surfaceY) {
 		clearHook();
 		FakeFishingHook hook = new FakeFishingHook(level, entity);
 		double sx = entity.getX(), sy = entity.getEyeY(), sz = entity.getZ();
 		hook.setPos(sx, sy, sz);
-		Vec3 dir = Vec3.atCenterOf(spot).subtract(sx, sy, sz);
-		hook.shoot(dir.x, dir.y + 0.3, dir.z, 0.5F, 0.4F);
+		hook.aimAt(target, surfaceY);
+		Vec3 dir = target.subtract(sx, sy, sz);
+		hook.shoot(dir.x, dir.y + 0.3, dir.z, 0.5F, 0.2F);
 		level.addFreshEntity(hook);
 		activeHook = hook;
+	}
+
+	/** Nearest water surface (water with air above) within a small radius of the waypoint, or null. */
+	private BlockPos findWaterSurface(ServerLevel level, BlockPos near) {
+		BlockPos.MutableBlockPos c = new BlockPos.MutableBlockPos();
+		for (int r = 0; r <= 4; r++) {
+			for (int dx = -r; dx <= r; dx++) {
+				for (int dz = -r; dz <= r; dz++) {
+					if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue; // expanding ring
+					for (int dy = 3; dy >= -3; dy--) {
+						c.set(near.getX() + dx, near.getY() + dy, near.getZ() + dz);
+						if (level.getFluidState(c).is(FluidTags.WATER) && level.getBlockState(c.above()).isAir())
+							return c.immutable();
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	private void ensureRod(FakePlayerEntity e) {
+		if (e.getMainHandItem().getItem() == Items.FISHING_ROD) return;
+		SimpleContainer inv = e.getInventory();
+		for (int i = 0; i < inv.getContainerSize(); i++) {
+			if (inv.getItem(i).getItem() != Items.FISHING_ROD) continue;
+			ItemStack rod = inv.removeItemNoUpdate(i);
+			ItemStack prev = e.getMainHandItem();
+			e.setItemSlot(EquipmentSlot.MAINHAND, rod);
+			if (!prev.isEmpty()) {
+				ItemStack leftover = inv.addItem(prev);
+				if (!leftover.isEmpty()) e.spawnAtLocation((ServerLevel) e.level(), leftover);
+			}
+			return;
+		}
 	}
 
 	private void flingCatch(ServerLevel level, FakePlayerEntity entity, Vec3 from, ItemStack drop) {
