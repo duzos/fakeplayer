@@ -66,7 +66,7 @@ public class FakePlayerEntity extends PathfinderMob {
 	private JobExecutor jobExecutor;
 	private Job jobExecutorJob = Job.NONE;
 	private boolean jobPaused;
-	private boolean jobPausedPrev;
+	private boolean jobActivePrev;
 
 	public FakePlayerEntity(EntityType<? extends FakePlayerEntity> type, Level level) {
 		super(type, level);
@@ -99,14 +99,17 @@ public class FakePlayerEntity extends PathfinderMob {
 			jobExecutor = JobExecutors.create(job);
 			jobExecutor.deserialize(state.jobState());
 			jobExecutorJob = job;
-			jobPausedPrev = false;
+			jobActivePrev = false;
 		}
-		if (jobPaused != jobPausedPrev) {
-			if (jobPaused) jobExecutor.onPause(this);
-			else jobExecutor.onResume(this);
-			jobPausedPrev = jobPaused;
+		// onResume/onPause fire on the active edge (start/stop as well as the follow-override pause),
+		// so starting a job re-runs the executor from its initial phase.
+		boolean active = state.running() && !jobPaused;
+		if (active != jobActivePrev) {
+			if (active) jobExecutor.onResume(this);
+			else jobExecutor.onPause(this);
+			jobActivePrev = active;
 		}
-		if (state.running() && !jobPaused) {
+		if (active) {
 			jobExecutor.tick(level, this);
 		}
 	}
@@ -251,7 +254,7 @@ public class FakePlayerEntity extends PathfinderMob {
 	public void resetJobExecutor() {
 		this.jobExecutor = null;
 		this.jobExecutorJob = Job.NONE;
-		this.jobPausedPrev = false;
+		this.jobActivePrev = false;
 	}
 
 	@Override

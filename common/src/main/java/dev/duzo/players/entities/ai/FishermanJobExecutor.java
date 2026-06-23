@@ -51,10 +51,20 @@ public class FishermanJobExecutor implements JobExecutor {
 
 		JobHelpers.vacuum(level, entity, VACUUM_RADIUS); // catch flying back from the bobber lands here
 		ensureRod(entity); // a fisherman always holds his rod
+		if (activeHook != null && activeHook.isAlive()) faceHook(entity); // always face the bobber while it's out
 
 		switch (phase) {
 			case TO_SPOT -> {
-				if (JobHelpers.walkTo(entity, spot, SPEED)) { entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING); phase = Phase.CAST; }
+				double cx = spot.getX() + 0.5, cy = spot.getY() + 1, cz = spot.getZ() + 0.5;
+				double dx = entity.getX() - cx, dz = entity.getZ() - cz;
+				if (dx * dx + dz * dz <= 1.0) {
+					entity.getNavigation().stop();
+					entity.setPos(cx, cy, cz); // sit EXACTLY on top of the waypoint block, not near it
+					entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
+					phase = Phase.CAST;
+				} else if (entity.getNavigation().isDone()) {
+					entity.getNavigation().moveTo(cx, cy, cz, SPEED);
+				}
 			}
 			case CAST -> {
 				if (rod(entity).isEmpty()) return; // no rod anywhere: idle
@@ -193,6 +203,16 @@ public class FishermanJobExecutor implements JobExecutor {
 		if (activeHook != null) { activeHook.discard(); activeHook = null; }
 	}
 
+	private void faceHook(FakePlayerEntity e) {
+		double dx = activeHook.getX() - e.getX();
+		double dz = activeHook.getZ() - e.getZ();
+		float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+		e.setYRot(yaw);
+		e.setYBodyRot(yaw);
+		e.yHeadRot = yaw;
+		e.getLookControl().setLookAt(activeHook.getX(), activeHook.getY(), activeHook.getZ());
+	}
+
 	private List<ItemStack> rollCatch(ServerLevel level, FakePlayerEntity e, BlockPos spot) {
 		LootTable table = level.getServer().reloadableRegistries().getLootTable(BuiltInLootTables.FISHING);
 		int luck = enchant(e, Enchantments.LUCK_OF_THE_SEA);
@@ -238,7 +258,12 @@ public class FishermanJobExecutor implements JobExecutor {
 	}
 
 	@Override public void onPause(FakePlayerEntity e) { e.getNavigation().stop(); clearHook(); }
-	@Override public void onResume(FakePlayerEntity e) {}
+	@Override public void onResume(FakePlayerEntity e) {
+		// (re)start: re-check the waypoint and walk to it instead of resuming mid-cast at the old spot
+		clearHook();
+		phase = Phase.TO_SPOT;
+		e.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
+	}
 	@Override public CompoundTag serialize() {
 		CompoundTag t = new CompoundTag(); t.putString("Phase", phase.name()); t.putInt("Caught", caught); t.putLong("WaitUntil", waitUntil); return t;
 	}
