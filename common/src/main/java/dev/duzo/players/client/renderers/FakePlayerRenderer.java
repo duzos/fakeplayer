@@ -57,8 +57,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 				null, null,
 				fake.slim ? PlayerModelType.SLIM : PlayerModelType.WIDE);
 			if (fake.isSitting) {
-				state.isPassenger = true;
-				state.y -= 0.5;
+				state.isPassenger = true; // seated pose; the -0.5 lower is applied once in submit()
 			}
 		}
 		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING) {
