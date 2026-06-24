@@ -21,7 +21,9 @@ jobs:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
           set -euo pipefail
-          jq -Rs '{body: .}' README.md > body.json
+          # Modrinth renders YouTube iframes; swap the GitHub thumbnail-link for a real player.
+          sed -E 's#<a href="https://www\.youtube\.com/watch\?v=([A-Za-z0-9_-]+)"><img[^>]*></a>#<iframe allowfullscreen="allowfullscreen" src="https://www.youtube.com/embed/\1" height="358" width="638"></iframe>#' README.md > body.md
+          jq -Rs '{body: .}' body.md > body.json
           curl --fail-with-body -sS \
             -X PATCH "https://api.modrinth.com/v2/project/1RSY6DQH" \
             -H "Authorization: $MODRINTH_TOKEN" \

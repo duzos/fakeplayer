@@ -5,7 +5,8 @@ CurseForge's description editor only accepts markdown (no raw HTML), so the
 hand-written HTML in README.md (centering divs, screenshot tables, <img> badges)
 has to be lowered to plain markdown. Badges are kept as markdown badges
 ([![alt](img)](link)) and relative image paths are rewritten to absolute raw
-GitHub URLs so they resolve off-site.
+GitHub URLs so they resolve off-site. The one exception is the YouTube showcase,
+emitted as an <iframe> since CurseForge renders it as an inline player.
 
 Usage: readme_to_markdown.py <input.md> <output.md>
 """
@@ -30,6 +31,12 @@ def img_to_md(m):
 
 
 def convert(text):
+    # YouTube showcase: keep a real iframe player (both stores render it)
+    text = re.sub(
+        r'<a href="https://www\.youtube\.com/watch\?v=([A-Za-z0-9_-]+)"><img[^>]*></a>',
+        r'<iframe allowfullscreen="allowfullscreen" src="https://www.youtube.com/embed/\1" height="358" width="638"></iframe>',
+        text,
+    )
     # <img> (incl. those wrapped in [..](url) badge links) -> markdown image
     text = re.sub(r"<img\b([^>]*?)/?>", img_to_md, text)
     # line breaks -> newline
