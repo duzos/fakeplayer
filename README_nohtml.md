@@ -16,7 +16,7 @@ Entities that look **exactly** like real players - auto-grabbed skins, armour, f
 
 ## 🎬 Showcase
 
-<a href="https://www.youtube.com/watch?v=ZVp2m_3AAxg">![Fake Players showcase video](https://img.youtube.com/vi/ZVp2m_3AAxg/hqdefault.jpg)</a>
+<iframe allowfullscreen="allowfullscreen" src="https://www.youtube.com/embed/ZVp2m_3AAxg" height="358" width="638"></iframe>
 
 ## 🧍 The Fake Player
 
