@@ -14,6 +14,10 @@
 
 Entities that look **exactly** like real players - auto-grabbed skins, armour, full inventories, the lot. Bond one to yourself, give it a job, and it gets to work.
 
+## 🎬 Showcase
+
+<a href="https://www.youtube.com/watch?v=ZVp2m_3AAxg">![Fake Players showcase video](https://img.youtube.com/vi/ZVp2m_3AAxg/hqdefault.jpg)</a>
+
 ## 🧍 The Fake Player
 
 - **Looks like a player** - real model with a skin grabbed from any username (or URL / the trending list); slim & classic.
@@ -72,7 +76,7 @@ Craft a `Robot Shell` and a `Robot AI` and combine them in a crafting table (or 
 - [CurseForge](https://www.curseforge.com/minecraft/mc-mods/fake-player)
 - [Modrinth](https://modrinth.com/mod/fake-players)
 - [Discord](https://discord.gg/ZgssqpUMHS)
-- [Showcase video](https://www.youtube.com/watch?v=O5BO6fA41n0)
+- [Showcase video](https://www.youtube.com/watch?v=ZVp2m_3AAxg)
 
 ## 🙏 Credits
 
