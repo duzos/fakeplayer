@@ -1,6 +1,7 @@
 plugins {
     id 'multiloader-loader'
     id 'fabric-loom'
+    id 'me.modmuss50.mod-publish-plugin'
 }
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
@@ -43,5 +44,32 @@ loom {
             ideConfigGenerated(true)
             runDir("run/server")
         }
+    }
+}
+
+publishMods {
+    file = remapJar.archiveFile
+    changelog = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOG.md")).asText
+    type = STABLE
+    version = "${project.version}-${minecraft_version}-fabric"
+    displayName = "Fake Players ${project.version} (${minecraft_version} Fabric)"
+    modLoaders.add("fabric")
+
+    def mcVersions = project.publish_game_versions.split(",").collect { it.trim() }
+
+    modrinth {
+        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+        projectId = "1RSY6DQH"
+        minecraftVersions.addAll(mcVersions)
+    }
+    curseforge {
+        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+        projectId = "845992"
+        minecraftVersions.addAll(mcVersions)
+    }
+    discord {
+        webhookUrl = providers.environmentVariable("DISCORD_WEBHOOK")
+        username = "Fake Players"
+        content = "**Fake Players ${project.version}** released for Minecraft ${minecraft_version} (Fabric)"
     }
 }
