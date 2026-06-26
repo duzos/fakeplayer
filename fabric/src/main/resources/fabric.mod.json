@@ -26,11 +26,10 @@
         "${mod_id}.mixins.json",
         "${mod_id}.fabric.mixins.json"
     ],
-    "accessWidener": "${mod_id}.accesswidener",
     "depends": {
         "fabricloader": ">=0.14",
         "fabric": "*",
-        "minecraft": "${minecraft_version}",
+        "minecraft": "${minecraft_version_range_fabric}",
         "java": ">=17"
     },
     "suggests": {

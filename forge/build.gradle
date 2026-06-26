@@ -1,6 +1,7 @@
 plugins {
     id 'multiloader-loader'
     id 'net.neoforged.moddev.legacyforge'
+    id 'me.modmuss50.mod-publish-plugin'
 }
 
 //mixin {
@@ -61,4 +62,32 @@ jar {
     manifest.attributes([
             "MixinConfigs": "${mod_id}.mixins.json,${mod_id}.forge.mixins.json"
     ])
+}
+
+publishMods {
+    file = jar.archiveFile
+    changelog = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOG.md")).asText
+    type = STABLE
+    version = "${project.version}-${minecraft_version}-forge"
+    displayName = "Fake Players ${project.version} (${minecraft_version} Forge/NeoForge)"
+    // NeoForge 1.20.1 is API-compatible with Forge 1.20.1, so the Forge jar runs on both.
+    modLoaders.addAll("forge", "neoforge")
+
+    def mcVersions = project.publish_game_versions.split(",").collect { it.trim() }
+
+    modrinth {
+        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+        projectId = "1RSY6DQH"
+        minecraftVersions.addAll(mcVersions)
+    }
+    curseforge {
+        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+        projectId = "845992"
+        minecraftVersions.addAll(mcVersions)
+    }
+    discord {
+        webhookUrl = providers.environmentVariable("DISCORD_WEBHOOK")
+        username = "Fake Players"
+        content = "**Fake Players ${project.version}** released for Minecraft ${minecraft_version} (Forge/NeoForge)"
+    }
 }
