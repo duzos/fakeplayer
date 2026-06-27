@@ -4,6 +4,7 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.client.renderers.FakeFishingHookRenderer;
 import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
 import dev.duzo.players.client.renderers.LegacyRodCast;
+import dev.duzo.players.client.screen.FakeCrafterScreen;
 import dev.duzo.players.client.screen.FakePlayerInventoryScreen;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPMenus;
@@ -25,6 +26,7 @@ public class ClientModEvents {
 	@SubscribeEvent
 	public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
 		event.register(FPMenus.FAKE_PLAYER.get(), FakePlayerInventoryScreen::new);
+		event.register(FPMenus.CRAFTER_LEARN.get(), FakeCrafterScreen::new);
 	}
 
 	@SubscribeEvent
