@@ -15,7 +15,6 @@ import net.minecraft.world.inventory.ResultContainer;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeType;
 
 /**
@@ -77,10 +76,9 @@ public class FakeCrafterMenu extends AbstractContainerMenu {
 	@Override
 	public void slotsChanged(Container container) {
 		if (!(owner instanceof ServerPlayer sp)) return;
-		CraftingInput input = grid.asCraftInput();
 		ItemStack out = sp.level().getServer().getRecipeManager()
-				.getRecipeFor(RecipeType.CRAFTING, input, sp.level())
-				.map(holder -> holder.value().assemble(input, sp.level().registryAccess()))
+				.getRecipeFor(RecipeType.CRAFTING, grid, sp.level())
+				.map(holder -> holder.value().assemble(grid, sp.level().registryAccess()))
 				.orElse(ItemStack.EMPTY);
 		result.setItem(0, out);
 		sp.connection.send(new ClientboundContainerSetSlotPacket(this.containerId, this.incrementStateId(), RESULT_SLOT, out));
