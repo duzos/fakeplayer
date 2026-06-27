@@ -303,7 +303,7 @@ public class AISubMenuScreen extends Screen {
 				case DEPOSIT -> drawMarkerRow(ctx, x, rowY, "Deposit", s.depositChest());
 				case SOURCE -> drawMarkerRow(ctx, x, rowY, "Source", s.sourceChest());
 				case TEACH -> {
-					CompoundTag recipe = s.jobParams().getCompoundOrEmpty("Recipe");
+					CompoundTag recipe = s.jobParams().getCompound("Recipe");
 					boolean learned = !recipe.isEmpty();
 					drawChip(ctx, x + PADDING, rowY,
 							learned ? COL_GREEN : COL_MUTED,

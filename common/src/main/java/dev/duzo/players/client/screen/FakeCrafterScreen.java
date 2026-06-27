@@ -6,13 +6,12 @@ import dev.duzo.players.network.c2s.LearnRecipePacketC2S;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 
 public class FakeCrafterScreen extends AbstractContainerScreen<FakeCrafterMenu> {
-	private static final Identifier TEXTURE = Identifier.withDefaultNamespace("textures/gui/container/crafting_table.png");
+	private static final ResourceLocation TEXTURE = new ResourceLocation("textures/gui/container/crafting_table.png");
 
 	public FakeCrafterScreen(FakeCrafterMenu menu, Inventory playerInventory, Component title) {
 		super(menu, playerInventory, title);
@@ -36,6 +35,6 @@ public class FakeCrafterScreen extends AbstractContainerScreen<FakeCrafterMenu> 
 
 	@Override
 	protected void renderBg(GuiGraphics ctx, float partialTick, int mouseX, int mouseY) {
-		ctx.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, 256, 256);
+		ctx.blit(TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight);
 	}
 }
