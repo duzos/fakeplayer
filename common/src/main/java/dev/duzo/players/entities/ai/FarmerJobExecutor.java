@@ -59,6 +59,9 @@ public class FarmerJobExecutor implements JobExecutor {
 		JobHelpers.vacuum(level, entity, VACUUM_RADIUS);
 		if (actionCooldown > 0) actionCooldown--;
 
+		// field-work phases never touch a container; only chest phases re-open it inside serviceAtChest
+		if (phase == Phase.WORKING || phase == Phase.COLLECTING_DROPS) JobHelpers.closeContainer(level, entity);
+
 		switch (phase) {
 			case SCANNING -> tickScanning(level, entity);
 			case COLLECTING_DROPS -> tickCollectingDrops(level, entity);
@@ -266,7 +269,7 @@ public class FarmerJobExecutor implements JobExecutor {
 			waitForBlocker(level, entity, "farmer: deposit container gone");
 			return;
 		}
-		serviceAtChest(level, entity);
+		if (!serviceAtChest(level, entity)) return; // still pausing with the chest open
 		pathFailCount = 0;
 		phase = Phase.SCANNING;
 	}
@@ -394,16 +397,19 @@ public class FarmerJobExecutor implements JobExecutor {
 
 	// --- chest service: dump surplus, restock the keep-set ---
 
-	private void serviceAtChest(ServerLevel level, FakePlayerEntity entity) {
+	/** Returns false while still pausing with the chest open (caller should not advance the phase yet). */
+	private boolean serviceAtChest(ServerLevel level, FakePlayerEntity entity) {
 		BlockPos chest = entity.getAIState().depositChest();
-		if (chest == null) return;
+		if (chest == null) { JobHelpers.closeContainer(level, entity); return true; }
 		Container c = HopperBlockEntity.getContainerAt(level, chest);
-		if (c == null) return;
+		if (c == null) { JobHelpers.closeContainer(level, entity); return true; }
+		if (!JobHelpers.pollContainer(level, entity, chest)) return false; // open + pause ~1s before servicing
 		dumpInto(c, entity);
 		pickHoe(c, entity);
 		pickItem(c, entity, Items.WATER_BUCKET, 1);
 		pickItem(c, entity, Items.BONE_MEAL, BONEMEAL_RESERVE);
 		pickSeeds(c, entity);
+		return true;
 	}
 
 	/** Deposit produce and seeds beyond the replant reserve; keep tools, water and bonemeal. */
@@ -525,6 +531,7 @@ public class FarmerJobExecutor implements JobExecutor {
 		double cx = chest.getX() + 0.5, cz = chest.getZ() + 0.5;
 		double dx = entity.getX() - cx, dz = entity.getZ() - cz;
 		if (dx * dx + dz * dz <= 9.0) return false;
+		JobHelpers.closeContainer(level, entity); // still walking to the chest
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 		if (entity.getNavigation().isDone()) {
 			boolean ok = entity.getNavigation().moveTo(cx, chest.getY(), cz, 1.0);
@@ -594,6 +601,7 @@ public class FarmerJobExecutor implements JobExecutor {
 	@Override
 	public void onPause(FakePlayerEntity entity) {
 		entity.getNavigation().stop();
+		if (entity.level() instanceof ServerLevel sl) JobHelpers.closeContainer(sl, entity);
 	}
 
 	@Override
