@@ -63,6 +63,9 @@ public class MinerJobExecutor implements JobExecutor {
 			clearWait(entity);
 		}
 
+		// only the deposit run opens a container; every other phase is out at the quarry
+		if (phase != Phase.RETURNING) JobHelpers.closeContainer(level, entity);
+
 		switch (phase) {
 			case INIT -> init(level, entity, cfg);
 			case QUARRY -> tickQuarry(level, entity, cfg);
@@ -75,6 +78,7 @@ public class MinerJobExecutor implements JobExecutor {
 	@Override
 	public void onPause(FakePlayerEntity entity) {
 		entity.getNavigation().stop();
+		if (entity.level() instanceof ServerLevel sl) JobHelpers.closeContainer(sl, entity);
 	}
 
 	@Override
@@ -402,12 +406,14 @@ public class MinerJobExecutor implements JobExecutor {
 		AIState s = entity.getAIState();
 		BlockPos chest = s.depositChest();
 		if (chest == null) {
+			JobHelpers.closeContainer(level, entity);
 			waitForBlocker(level, entity, "miner: no deposit container set");
 			return;
 		}
 		double cx = chest.getX() + 0.5, cz = chest.getZ() + 0.5;
 		double dx = entity.getX() - cx, dz = entity.getZ() - cz;
 		if (dx * dx + dz * dz > 9.0) {
+			JobHelpers.closeContainer(level, entity); // still walking to the chest
 			if (entity.getNavigation().isDone()) {
 				boolean ok = entity.getNavigation().moveTo(cx, chest.getY(), cz, 1.0);
 				if (!ok && ++pathFailCount >= MAX_PATH_FAIL) {
@@ -419,9 +425,11 @@ public class MinerJobExecutor implements JobExecutor {
 		}
 		Container c = HopperBlockEntity.getContainerAt(level, chest);
 		if (c == null) {
+			JobHelpers.closeContainer(level, entity);
 			waitForBlocker(level, entity, "miner: deposit container gone");
 			return;
 		}
+		if (!JobHelpers.pollContainer(level, entity, chest)) return; // open + pause ~1s before servicing
 		dumpInto(c, entity);
 		takeUsefulSupplies(c, entity);
 		pickBetterPickaxe(c, entity);
