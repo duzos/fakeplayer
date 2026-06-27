@@ -11,7 +11,8 @@ public enum Job {
 	MINER("Miner"),
 	LUMBERJACK("Lumberjack"),
 	FISHERMAN("Fisherman"),
-	FARMER("Farmer");
+	FARMER("Farmer"),
+	CRAFTER("Crafter");
 
 	private final String label;
 

@@ -6,6 +6,8 @@ import dev.duzo.players.network.c2s.BondPacketC2S;
 import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.CyclePosePacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
+import dev.duzo.players.network.c2s.LearnRecipePacketC2S;
+import dev.duzo.players.network.c2s.OpenCrafterLearnPacketC2S;
 import dev.duzo.players.network.c2s.RequestSkinDataPacketC2S;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetFakePlayerNamePacketC2S;
@@ -34,5 +36,7 @@ public class PlayersNetwork {
 		Network.registerPacket(StartStopJobPacketC2S.LOCATION, StartStopJobPacketC2S.class, StartStopJobPacketC2S::encode, StartStopJobPacketC2S::decode, StartStopJobPacketC2S::handle);
 		Network.registerPacket(GiveAIMarkerPacketC2S.LOCATION, GiveAIMarkerPacketC2S.class, GiveAIMarkerPacketC2S::encode, GiveAIMarkerPacketC2S::decode, GiveAIMarkerPacketC2S::handle);
 		Network.registerPacket(ClearPatrolPacketC2S.LOCATION, ClearPatrolPacketC2S.class, ClearPatrolPacketC2S::encode, ClearPatrolPacketC2S::decode, ClearPatrolPacketC2S::handle);
+		Network.registerPacket(OpenCrafterLearnPacketC2S.LOCATION, OpenCrafterLearnPacketC2S.class, OpenCrafterLearnPacketC2S::encode, OpenCrafterLearnPacketC2S::decode, OpenCrafterLearnPacketC2S::handle);
+		Network.registerPacket(LearnRecipePacketC2S.LOCATION, LearnRecipePacketC2S.class, LearnRecipePacketC2S::encode, LearnRecipePacketC2S::decode, LearnRecipePacketC2S::handle);
 	}
 }
