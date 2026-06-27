@@ -31,18 +31,23 @@ public class CourierJobExecutor implements JobExecutor {
 		BlockPos deposit = state.depositChest();
 		if (source == null || deposit == null) return;
 
+		if (phase != Phase.PULL && phase != Phase.DUMP) JobHelpers.closeContainer(level, entity);
+
 		switch (phase) {
 			case TO_SOURCE -> walkTo(entity, source, Phase.PULL);
 			case PULL -> {
 				Container src = HopperBlockEntity.getContainerAt(level, source);
 				if (src == null) {
+					JobHelpers.closeContainer(level, entity);
 					phase = Phase.TO_DEPOSIT;
 					return;
 				}
 				if (entity.blockPosition().distSqr(source) > ARRIVAL_DIST_SQR) {
+					JobHelpers.closeContainer(level, entity);
 					phase = Phase.TO_SOURCE;
 					return;
 				}
+				if (!JobHelpers.pollContainer(level, entity, source)) return; // open + pause ~1s before pulling
 				SimpleContainer dest = entity.getInventory();
 				if (isFull(dest)) {
 					phase = Phase.TO_DEPOSIT;
@@ -55,13 +60,16 @@ public class CourierJobExecutor implements JobExecutor {
 			case DUMP -> {
 				Container dst = HopperBlockEntity.getContainerAt(level, deposit);
 				if (dst == null) {
+					JobHelpers.closeContainer(level, entity);
 					phase = Phase.TO_SOURCE;
 					return;
 				}
 				if (entity.blockPosition().distSqr(deposit) > ARRIVAL_DIST_SQR) {
+					JobHelpers.closeContainer(level, entity);
 					phase = Phase.TO_DEPOSIT;
 					return;
 				}
+				if (!JobHelpers.pollContainer(level, entity, deposit)) return; // open + pause ~1s before depositing
 				SimpleContainer src = entity.getInventory();
 				int moved = dumpAll(src, dst, TRANSFER_PER_TICK);
 				if (moved == 0) phase = Phase.TO_SOURCE;
@@ -154,6 +162,7 @@ public class CourierJobExecutor implements JobExecutor {
 	@Override
 	public void onPause(FakePlayerEntity entity) {
 		entity.getNavigation().stop();
+		if (entity.level() instanceof ServerLevel sl) JobHelpers.closeContainer(sl, entity);
 	}
 
 	@Override public void onResume(FakePlayerEntity entity) {}

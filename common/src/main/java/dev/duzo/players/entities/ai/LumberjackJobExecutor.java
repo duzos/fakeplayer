@@ -71,6 +71,12 @@ public class LumberjackJobExecutor implements JobExecutor {
 		vacuumNearbyItems(level, entity);
 		if (actionCooldown > 0) actionCooldown--;
 
+		// work phases never touch a container; only chest phases re-open it inside serviceAtChest
+		switch (phase) {
+			case COLLECTING_DROPS, PATHING_TO_BLOCK, BREAKING, PLANTING, BONEMEALING -> JobHelpers.closeContainer(level, entity);
+			default -> {}
+		}
+
 		switch (phase) {
 			case SCANNING -> tickScanning(level, entity);
 			case COLLECTING_DROPS -> tickCollectingDrops(level, entity);
@@ -87,6 +93,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 	public void onPause(FakePlayerEntity entity) {
 		entity.getNavigation().stop();
 		clearBreakStages((ServerLevel) entity.level(), entity);
+		if (entity.level() instanceof ServerLevel sl) JobHelpers.closeContainer(sl, entity);
 	}
 
 	@Override
@@ -414,7 +421,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			waitForBlocker(level, entity, "lumberjack: deposit container gone");
 			return;
 		}
-		serviceAtChest(level, entity);
+		if (!serviceAtChest(level, entity)) return; // still pausing with the chest open
 		pathFailCount = 0;
 		phase = Phase.SCANNING;
 	}
@@ -548,15 +555,18 @@ public class LumberjackJobExecutor implements JobExecutor {
 		return true;
 	}
 
-	private void serviceAtChest(ServerLevel level, FakePlayerEntity entity) {
+	/** Returns false while still pausing with the chest open (caller should not advance the phase yet). */
+	private boolean serviceAtChest(ServerLevel level, FakePlayerEntity entity) {
 		BlockPos chest = entity.getAIState().depositChest();
-		if (chest == null) return;
+		if (chest == null) { JobHelpers.closeContainer(level, entity); return true; }
 		Container c = HopperBlockEntity.getContainerAt(level, chest);
-		if (c == null) return;
+		if (c == null) { JobHelpers.closeContainer(level, entity); return true; }
+		if (!JobHelpers.pollContainer(level, entity, chest)) return false; // open + pause ~1s before servicing
 		dumpInto(c, entity);
 		pickBetterAxe(c, entity);
 		pickSaplings(c, entity);
 		pickBonemeal(c, entity);
+		return true;
 	}
 
 	private void dumpInto(Container chest, FakePlayerEntity entity) {
@@ -828,6 +838,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		double cx = chest.getX() + 0.5, cz = chest.getZ() + 0.5;
 		double dx = entity.getX() - cx, dz = entity.getZ() - cz;
 		if (dx * dx + dz * dz <= 9.0) return false;
+		JobHelpers.closeContainer(level, entity); // still walking to the chest
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 		if (entity.getNavigation().isDone()) {
 			boolean ok = entity.getNavigation().moveTo(cx, chest.getY(), cz, 1.0);
