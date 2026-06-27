@@ -8,6 +8,7 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 /** Shared, side-effect-light helpers for job executors. Mirrors patterns proven in LumberjackJobExecutor. */
@@ -52,6 +53,19 @@ public final class JobHelpers {
 			}
 		}
 		return 0;
+	}
+
+	/** A cell the fake can occupy: no collision and no fluid (so it walks into crops/grass but not water). */
+	public static boolean isPassable(ServerLevel level, BlockPos pos) {
+		BlockState state = level.getBlockState(pos);
+		return state.getCollisionShape(level, pos).isEmpty() && state.getFluidState().isEmpty();
+	}
+
+	/** Feet+head passable, solid block to stand on below (and not a fluid). */
+	public static boolean canStandAt(ServerLevel level, BlockPos feet) {
+		return isPassable(level, feet)
+				&& isPassable(level, feet.above())
+				&& !level.getBlockState(feet.below()).getCollisionShape(level, feet.below()).isEmpty();
 	}
 
 	public static boolean inventoryFull(FakePlayerEntity e) {
