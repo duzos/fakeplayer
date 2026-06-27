@@ -868,9 +868,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 	}
 
 	private boolean canStandAt(ServerLevel level, BlockPos feet) {
-		if (!level.getBlockState(feet).isAir()) return false;
-		if (!level.getBlockState(feet.above()).isAir()) return false;
-		return !level.getBlockState(feet.below()).isAir();
+		return JobHelpers.canStandAt(level, feet);
 	}
 
 	private boolean near(FakePlayerEntity entity, BlockPos pos, double range) {
