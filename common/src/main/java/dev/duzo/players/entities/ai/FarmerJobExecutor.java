@@ -215,7 +215,7 @@ public class FarmerJobExecutor implements JobExecutor {
 				level.setBlockAndUpdate(target, Blocks.FARMLAND.defaultBlockState());
 				ItemStack hoe = entity.getMainHandItem();
 				if (hoe.getItem() instanceof HoeItem && hoe.isDamageableItem())
-					hoe.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
+					hoe.hurtAndBreak(1, entity, ent -> ent.broadcastBreakEvent(EquipmentSlot.MAINHAND));
 			}
 			// the bucket is a tool, not a consumable - it never empties
 			case WATER -> level.setBlockAndUpdate(target, Blocks.WATER.defaultBlockState());
@@ -362,7 +362,7 @@ public class FarmerJobExecutor implements JobExecutor {
 			entity.setItemSlot(EquipmentSlot.MAINHAND, hoe);
 			if (!prev.isEmpty()) {
 				ItemStack leftover = inv.addItem(prev);
-				if (!leftover.isEmpty()) entity.spawnAtLocation((ServerLevel) entity.level(), leftover);
+				if (!leftover.isEmpty()) entity.spawnAtLocation(leftover);
 			}
 			return;
 		}
@@ -618,10 +618,10 @@ public class FarmerJobExecutor implements JobExecutor {
 	public void deserialize(CompoundTag tag) {
 		if (tag == null || tag.isEmpty()) return;
 		Phase[] all = Phase.values();
-		int p = tag.getIntOr("Phase", 0);
+		int p = tag.contains("Phase") ? tag.getInt("Phase") : 0;
 		phase = (p >= 0 && p < all.length) ? all[p] : Phase.SCANNING;
-		pathFailCount = tag.getIntOr("PathFail", 0);
-		waitUntilTick = tag.getLongOr("WaitUntil", 0L);
+		pathFailCount = tag.contains("PathFail") ? tag.getInt("PathFail") : 0;
+		waitUntilTick = tag.contains("WaitUntil") ? tag.getLong("WaitUntil") : 0L;
 		target = null;
 		actionStand = null;
 		action = null;
