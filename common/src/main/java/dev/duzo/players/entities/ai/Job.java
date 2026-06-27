@@ -10,7 +10,8 @@ public enum Job {
 	COURIER("Courier"),
 	MINER("Miner"),
 	LUMBERJACK("Lumberjack"),
-	FISHERMAN("Fisherman");
+	FISHERMAN("Fisherman"),
+	FARMER("Farmer");
 
 	private final String label;
 
