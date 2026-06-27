@@ -43,17 +43,7 @@ public class FakeCrafterMenu extends AbstractContainerMenu {
 			for (int col = 0; col < 3; col++)
 				this.addSlot(new Slot(grid, col + row * 3, 30 + col * 18, 17 + row * 18));
 
-		this.addSlot(new Slot(result, 0, 124, 35) {
-			@Override
-			public boolean mayPlace(ItemStack stack) {
-				return false;
-			}
-
-			@Override
-			public boolean mayPickup(Player player) {
-				return false;
-			}
-		});
+		this.addSlot(new ResultSlot(result, 0, 124, 35));
 
 		for (int row = 0; row < 3; row++)
 			for (int col = 0; col < 9; col++)
@@ -128,5 +118,23 @@ public class FakeCrafterMenu extends AbstractContainerMenu {
 		if (stack.getCount() == copy.getCount()) return ItemStack.EMPTY;
 		slot.onTake(player, stack);
 		return copy;
+	}
+
+	// Named (not anonymous) read-only result slot: regular Forge 1.20.1's javac rejects the
+	// anonymous-subclass form here ("variable o is already defined in constructor").
+	private static class ResultSlot extends Slot {
+		ResultSlot(Container container, int slot, int x, int y) {
+			super(container, slot, x, y);
+		}
+
+		@Override
+		public boolean mayPlace(ItemStack stack) {
+			return false;
+		}
+
+		@Override
+		public boolean mayPickup(Player player) {
+			return false;
+		}
 	}
 }
