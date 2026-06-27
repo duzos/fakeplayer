@@ -53,6 +53,8 @@ public class FishermanJobExecutor implements JobExecutor {
 		ensureRod(entity); // a fisherman always holds his rod
 		if (activeHook != null && activeHook.isAlive()) faceHook(entity); // always face the bobber while it's out
 
+		if (phase != Phase.DUMP) JobHelpers.closeContainer(level, entity);
+
 		switch (phase) {
 			case TO_SPOT -> {
 				double cx = spot.getX() + 0.5, cy = spot.getY() + 1, cz = spot.getZ() + 0.5;
@@ -110,7 +112,8 @@ public class FishermanJobExecutor implements JobExecutor {
 			case TO_DEPOSIT -> { if (JobHelpers.walkTo(entity, deposit, SPEED)) phase = Phase.DUMP; }
 			case DUMP -> {
 				Container dst = JobHelpers.containerAt(level, deposit);
-				if (dst == null) { phase = Phase.TO_SPOT; return; }
+				if (dst == null) { JobHelpers.closeContainer(level, entity); phase = Phase.TO_SPOT; return; }
+				if (!JobHelpers.pollContainer(level, entity, deposit)) return; // open + pause ~1s before depositing
 				dumpFish(entity, dst);
 				restockRod(entity, dst); // grab a fresh rod from the deposit container if ours broke
 				phase = Phase.TO_SPOT;
@@ -273,7 +276,7 @@ public class FishermanJobExecutor implements JobExecutor {
 		}
 	}
 
-	@Override public void onPause(FakePlayerEntity e) { e.getNavigation().stop(); clearHook(); }
+	@Override public void onPause(FakePlayerEntity e) { e.getNavigation().stop(); clearHook(); if (e.level() instanceof ServerLevel sl) JobHelpers.closeContainer(sl, e); }
 	@Override public void onResume(FakePlayerEntity e) {
 		// (re)start: re-check the waypoint and walk to it instead of resuming mid-cast at the old spot
 		clearHook();
