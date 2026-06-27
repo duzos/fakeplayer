@@ -14,6 +14,7 @@ import dev.duzo.players.entities.goal.FollowOwnerGoal;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
 import dev.duzo.players.entities.inventory.FakePlayerInventory;
+import dev.duzo.players.menu.FakeCrafterMenu;
 import dev.duzo.players.menu.FakePlayerMenu;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
 import dev.duzo.players.platform.Services;
@@ -160,7 +161,8 @@ public class FakePlayerEntity extends PathfinderMob {
 	}
 
 	private boolean hasMenuOpen(Player owner) {
-		return owner.containerMenu instanceof FakePlayerMenu menu && menu.getEntity() == this;
+		return (owner.containerMenu instanceof FakePlayerMenu menu && menu.getEntity() == this)
+				|| (owner.containerMenu instanceof FakeCrafterMenu craft && craft.fake() == this);
 	}
 
 	public boolean isMovementManagedByJob() {
