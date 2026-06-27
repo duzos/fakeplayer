@@ -19,6 +19,7 @@ public final class JobExecutors {
 		register(Job.LUMBERJACK, LumberjackJobExecutor::new);
 		register(Job.FISHERMAN, FishermanJobExecutor::new);
 		register(Job.FARMER, FarmerJobExecutor::new);
+		register(Job.CRAFTER, CrafterJobExecutor::new);
 	}
 
 	private JobExecutors() {}
