@@ -51,6 +51,10 @@ Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `miner
     <td align="center" valign="top"><img src="docs/img/miner-quarry.png" width="330" alt="Miner quarry"><br><sub><b>Miner</b> clearing a quarry</sub></td>
     <td align="center" valign="top"><img src="docs/img/lumberjack.png" width="330" alt="Lumberjack"><br><sub><b>Lumberjack</b> after felling a tree</sub></td>
   </tr>
+  <tr>
+    <td align="center" valign="top"><img src="docs/img/farmer.png" width="330" alt="Farmer"><br><sub><b>Farmer</b> tending a watered plot</sub></td>
+    <td align="center" valign="top"><img src="docs/img/fisherman.png" width="330" alt="Fisherman"><br><sub><b>Fisherman</b> casting at the water's edge</sub></td>
+  </tr>
 </table>
 </div>
 
