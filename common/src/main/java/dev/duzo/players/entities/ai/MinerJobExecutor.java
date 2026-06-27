@@ -300,9 +300,7 @@ public class MinerJobExecutor implements JobExecutor {
 
 	private boolean canStandAt(ServerLevel level, BlockPos feet, BlockPos target) {
 		if (feet.equals(target) || feet.below().equals(target)) return false;
-		if (!level.getBlockState(feet).isAir()) return false;
-		if (!level.getBlockState(feet.above()).isAir()) return false;
-		return !level.getBlockState(feet.below()).isAir();
+		return JobHelpers.canStandAt(level, feet);
 	}
 
 	private boolean isAdjacent(BlockPos a, BlockPos b) {
