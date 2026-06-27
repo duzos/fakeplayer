@@ -6,7 +6,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
@@ -44,7 +44,7 @@ public class CrafterJobExecutor implements JobExecutor {
 		BlockPos table = state.waypoint();
 		if (source == null || deposit == null || table == null) return; // needs source, table and deposit
 
-		CompoundTag recipe = state.jobParams().getCompoundOrEmpty("Recipe");
+		CompoundTag recipe = state.jobParams().getCompound("Recipe");
 		if (recipe.isEmpty()) return; // nothing taught yet
 
 		List<Item> placeOrder = readPlaceOrder(recipe);
@@ -103,7 +103,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				// Whole grid placed: assemble one result, then craft another set or go deposit.
 				consumeSet(inv, need);
 				ItemStack rem = inv.addItem(out.copy());
-				if (!rem.isEmpty()) entity.spawnAtLocation(level, rem);
+				if (!rem.isEmpty()) entity.spawnAtLocation(rem);
 				craftIndex = 0;
 				if (hasFullSet(inv, need) && !JobHelpers.inventoryFull(entity)) {
 					craftTimer = PLACE_TICKS;
@@ -142,13 +142,13 @@ public class CrafterJobExecutor implements JobExecutor {
 	/** The learned grid as an ordered list of items, one per filled cell. */
 	private List<Item> readPlaceOrder(CompoundTag recipe) {
 		List<Item> order = new ArrayList<>();
-		ListTag grid = recipe.getListOrEmpty("Grid");
+		ListTag grid = recipe.getList("Grid", net.minecraft.nbt.Tag.TAG_STRING);
 		for (int i = 0; i < grid.size(); i++) {
-			String id = grid.getStringOr(i, "");
+			String id = grid.getString(i);
 			if (id.isEmpty()) continue;
-			Identifier rid = Identifier.tryParse(id);
+			ResourceLocation rid = ResourceLocation.tryParse(id);
 			if (rid == null) continue;
-			Item item = BuiltInRegistries.ITEM.getValue(rid);
+			Item item = BuiltInRegistries.ITEM.get(rid);
 			if (item == Items.AIR) continue;
 			order.add(item);
 		}
@@ -156,7 +156,7 @@ public class CrafterJobExecutor implements JobExecutor {
 	}
 
 	private ItemStack readOut(CompoundTag recipe, FakePlayerEntity entity) {
-		CompoundTag outTag = recipe.getCompoundOrEmpty("Out");
+		CompoundTag outTag = recipe.getCompound("Out");
 		if (outTag.isEmpty()) return ItemStack.EMPTY;
 		var ops = entity.registryAccess().createSerializationContext(NbtOps.INSTANCE);
 		return ItemStack.CODEC.parse(ops, outTag).result().orElse(ItemStack.EMPTY);
@@ -258,7 +258,7 @@ public class CrafterJobExecutor implements JobExecutor {
 	@Override
 	public void deserialize(CompoundTag tag) {
 		if (tag == null || tag.isEmpty()) return;
-		String name = tag.getStringOr("Phase", "");
+		String name = tag.getString("Phase");
 		if (name.isEmpty()) return;
 		try { phase = Phase.valueOf(name); } catch (IllegalArgumentException ignored) {}
 	}
