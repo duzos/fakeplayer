@@ -7,11 +7,11 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.menu.FakeCrafterMenuProvider;
 import dev.duzo.players.platform.Services;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 public record OpenCrafterLearnPacketC2S(int id) {
-	public static final Identifier LOCATION = PlayersCommon.id("open_crafter_learn");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("open_crafter_learn");
 
 	public static OpenCrafterLearnPacketC2S decode(FriendlyByteBuf buf) {
 		return new OpenCrafterLearnPacketC2S(buf.readInt());

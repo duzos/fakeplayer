@@ -6,7 +6,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
@@ -146,7 +146,7 @@ public class CrafterJobExecutor implements JobExecutor {
 		for (int i = 0; i < grid.size(); i++) {
 			String id = grid.getStringOr(i, "");
 			if (id.isEmpty()) continue;
-			Identifier rid = Identifier.tryParse(id);
+			ResourceLocation rid = ResourceLocation.tryParse(id);
 			if (rid == null) continue;
 			Item item = BuiltInRegistries.ITEM.getValue(rid);
 			if (item == Items.AIR) continue;

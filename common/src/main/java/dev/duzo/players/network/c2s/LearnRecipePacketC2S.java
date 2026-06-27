@@ -12,12 +12,12 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
 public record LearnRecipePacketC2S(int id) {
-	public static final Identifier LOCATION = PlayersCommon.id("learn_recipe");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("learn_recipe");
 
 	public static LearnRecipePacketC2S decode(FriendlyByteBuf buf) {
 		return new LearnRecipePacketC2S(buf.readInt());
