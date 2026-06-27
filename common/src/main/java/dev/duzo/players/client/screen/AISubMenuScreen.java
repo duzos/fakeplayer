@@ -9,6 +9,7 @@ import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.network.c2s.BondPacketC2S;
 import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
+import dev.duzo.players.network.c2s.OpenCrafterLearnPacketC2S;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
@@ -18,11 +19,13 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 
+import java.util.List;
 import java.util.UUID;
 
 public class AISubMenuScreen extends Screen {
@@ -66,17 +69,20 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton regionButton;
 	private FlatButton depositButton;
 	private FlatButton sourceButton;
+	private FlatButton teachButton;
 	private FlatButton patrolClearButton;
 	private EditBox filterEdit;
 	private FlatButton filterButton;
 	private FlatButton startStopButton;
-	private int patrolRowY;
 
 	private int ownerSectionY;
 	private int behaviourSectionY;
 	private int markerSectionY;
-	private int sourceRowY;
-	private int filterRowY;
+	private int rightBtnX;
+	private int innerLeft;
+
+	// Which marker rows a job actually uses, in display order. Drives both layout and rendering.
+	private enum Row { WAYPOINT, REGION, DEPOSIT, SOURCE, TEACH, FILTER, PATROL }
 
 	// Shrinks the whole panel when the screen is too small to fit it (large GUI scale).
 	private float uiScale = 1f;
@@ -139,40 +145,37 @@ public class AISubMenuScreen extends Screen {
 		y += BTN_H + 8;
 
 		markerSectionY = y;
-		y += 14;
-		waypointButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
+		this.rightBtnX = rightBtnX;
+		this.innerLeft = innerLeft;
+
+		// All marker widgets are created once; relayout() positions and shows only the ones the current job uses.
+		waypointButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
 				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_WAYPOINT));
 		this.addRenderableWidget(waypointButton);
-		y += ROW_H;
-		regionButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
+		regionButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
 				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_REGION));
 		this.addRenderableWidget(regionButton);
-		y += ROW_H;
-		depositButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
+		depositButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
 				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_DEPOSIT));
 		this.addRenderableWidget(depositButton);
-		y += ROW_H;
-		sourceRowY = y;
-		filterRowY = y;
-		patrolRowY = y;
-		sourceButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
+		sourceButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
 				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.CHEST_SLOT_SOURCE));
-		sourceButton.visible = courierActive();
 		this.addRenderableWidget(sourceButton);
-		patrolClearButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H,
+		teachButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
+				Component.literal("Teach"), this::openTeach);
+		this.addRenderableWidget(teachButton);
+		patrolClearButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
 				Component.literal("Clear"), this::clearPatrol);
 		this.addRenderableWidget(patrolClearButton);
-		filterEdit = new EditBox(this.font, innerLeft + 52, y, 88, BTN_H, Component.literal("filter"));
+		filterEdit = new EditBox(this.font, innerLeft + 52, markerSectionY, 88, BTN_H, Component.literal("filter"));
 		filterEdit.setMaxLength(128);
 		filterEdit.setValue(filterText(entity.getAIState()));
-		filterEdit.visible = minerActive();
 		this.addRenderableWidget(filterEdit);
-		filterButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
-		filterButton.visible = minerActive();
+		filterButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
 		this.addRenderableWidget(filterButton);
-		y += BTN_H + 54;
 
-		startStopButton = new FlatButton(innerLeft, y, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
+		int startStopY = markerSectionY + 18 + 4 * ROW_H + 48;
+		startStopButton = new FlatButton(innerLeft, startStopY, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
 		this.addRenderableWidget(startStopButton);
 
 		refreshLabels();
@@ -187,13 +190,9 @@ public class AISubMenuScreen extends Screen {
 	private void refreshLabels() {
 		AIState s = entity.getAIState();
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
-		if (sourceButton != null) sourceButton.visible = courierActive();
-		if (filterEdit != null) filterEdit.visible = minerActive();
-		if (filterButton != null) filterButton.visible = minerActive();
-		if (patrolClearButton != null) {
-			boolean guard = s.job() == Job.GUARD;
-			patrolClearButton.visible = guard;
-			patrolClearButton.active = guard && GuardJobExecutor.readPatrolPoints(s).length > 0;
+		relayout(s);
+		if (patrolClearButton != null && patrolClearButton.visible) {
+			patrolClearButton.active = GuardJobExecutor.readPatrolPoints(s).length > 0;
 		}
 		if (startStopButton != null) {
 			startStopButton.setMessage(startStopLabel());
@@ -206,6 +205,55 @@ public class AISubMenuScreen extends Screen {
 					run ? 0xFFFF8A8A : 0xFF8AFFB0,
 					run ? 0xFFFFC0C0 : 0xFFC0FFD0);
 		}
+	}
+
+	private List<Row> rowsFor(Job job) {
+		return switch (job) {
+			case IDLE -> List.of(Row.WAYPOINT);
+			case GUARD -> List.of(Row.WAYPOINT, Row.PATROL);
+			case COURIER -> List.of(Row.SOURCE, Row.DEPOSIT);
+			case MINER -> List.of(Row.REGION, Row.DEPOSIT, Row.FILTER);
+			case LUMBERJACK -> List.of(Row.REGION, Row.DEPOSIT);
+			case FISHERMAN -> List.of(Row.WAYPOINT, Row.DEPOSIT);
+			case FARMER -> List.of(Row.REGION, Row.DEPOSIT);
+			case CRAFTER -> List.of(Row.WAYPOINT, Row.SOURCE, Row.DEPOSIT, Row.TEACH);
+			default -> List.of();
+		};
+	}
+
+	private void relayout(AIState s) {
+		waypointButton.visible = false;
+		regionButton.visible = false;
+		depositButton.visible = false;
+		sourceButton.visible = false;
+		teachButton.visible = false;
+		patrolClearButton.visible = false;
+		filterButton.visible = false;
+		filterEdit.visible = false;
+		List<Row> rows = rowsFor(s.job());
+		for (int i = 0; i < rows.size(); i++) {
+			int btnY = markerSectionY + 18 + i * ROW_H - 4;
+			switch (rows.get(i)) {
+				case WAYPOINT -> place(waypointButton, btnY);
+				case REGION -> place(regionButton, btnY);
+				case DEPOSIT -> place(depositButton, btnY);
+				case SOURCE -> place(sourceButton, btnY);
+				case TEACH -> place(teachButton, btnY);
+				case PATROL -> place(patrolClearButton, btnY);
+				case FILTER -> {
+					place(filterButton, btnY);
+					filterEdit.setX(innerLeft + 52);
+					filterEdit.setY(btnY);
+					filterEdit.visible = true;
+				}
+			}
+		}
+	}
+
+	private void place(FlatButton b, int y) {
+		b.setX(rightBtnX);
+		b.setY(y);
+		b.visible = true;
 	}
 
 	private Component bondButtonLabel(AIState s) {
@@ -251,17 +299,27 @@ public class AISubMenuScreen extends Screen {
 		drawAiRow(ctx, x, behaviourSectionY + 18);
 		drawJobRow(ctx, x, behaviourSectionY + 18 + ROW_H, s);
 
-		drawSectionHeader(ctx, x, markerSectionY, "MARKERS");
-		drawWaypointRow(ctx, x, markerSectionY + 18, s);
-		drawRegionRow(ctx, x, markerSectionY + 18 + ROW_H, s);
-		drawMarkerRow(ctx, x, markerSectionY + 18 + ROW_H * 2, "Deposit", s.depositChest());
-		if (courierActive()) {
-			drawMarkerRow(ctx, x, sourceRowY + 4, "Source", s.sourceChest());
+		List<Row> rows = rowsFor(s.job());
+		if (!rows.isEmpty()) drawSectionHeader(ctx, x, markerSectionY, "MARKERS");
+		for (int i = 0; i < rows.size(); i++) {
+			int rowY = markerSectionY + 18 + i * ROW_H;
+			switch (rows.get(i)) {
+				case WAYPOINT -> drawWaypointRow(ctx, x, rowY, s);
+				case REGION -> drawRegionRow(ctx, x, rowY, s);
+				case DEPOSIT -> drawMarkerRow(ctx, x, rowY, "Deposit", s.depositChest());
+				case SOURCE -> drawMarkerRow(ctx, x, rowY, "Source", s.sourceChest());
+				case TEACH -> {
+					CompoundTag recipe = s.jobParams().getCompoundOrEmpty("Recipe");
+					boolean learned = !recipe.isEmpty();
+					drawChip(ctx, x + PADDING, rowY,
+							learned ? COL_GREEN : COL_MUTED,
+							learned ? "Recipe  learned" : "Recipe  teach one",
+							learned ? COL_BODY : COL_MUTED);
+				}
+				case FILTER -> drawChip(ctx, x + PADDING, rowY, COL_AQUA, "Filter", COL_BODY);
+				case PATROL -> drawPatrolRow(ctx, x, rowY, s);
+			}
 		}
-		if (minerActive()) {
-			drawChip(ctx, x + PADDING, filterRowY + 4, COL_AQUA, "Filter", COL_BODY);
-		}
-		drawPatrolRow(ctx, x, patrolRowY + 1, s);
 
 		super.render(ctx, sMouseX, sMouseY, partialTick);
 		ctx.pose().popPose();
@@ -347,7 +405,7 @@ public class AISubMenuScreen extends Screen {
 			String text = count == 0 ? "Waypoint  add patrol" : "Waypoint  +1 (" + count + " pts)";
 			drawChip(ctx, panelX + PADDING, y, dot, text, count == 0 ? COL_MUTED : COL_BODY);
 		} else {
-			drawMarkerRow(ctx, panelX, y, "Waypoint", s.waypoint());
+			drawMarkerRow(ctx, panelX, y, crafterActive() ? "Table" : "Waypoint", s.waypoint());
 		}
 	}
 
@@ -426,12 +484,13 @@ public class AISubMenuScreen extends Screen {
 		Minecraft.getInstance().setScreen(null);
 	}
 
-	private boolean courierActive() {
-		return entity.getAIState().job() == Job.COURIER;
+	private boolean crafterActive() {
+		return entity.getAIState().job() == Job.CRAFTER;
 	}
 
-	private boolean minerActive() {
-		return entity.getAIState().job() == Job.MINER;
+	private void openTeach() {
+		Network.getNetworkHandler().sendToServer(new OpenCrafterLearnPacketC2S(entity.getId()));
+		Minecraft.getInstance().setScreen(null);
 	}
 
 	private void applyFilter() {
