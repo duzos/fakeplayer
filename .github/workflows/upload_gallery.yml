@@ -86,8 +86,12 @@ jobs:
             featured=$(meta "$name" '.featured' "false")
             ordering=$(meta "$name" '.ordering' "0")
             etitle=$(jq -rn --arg v "$title" '$v|@uri')
-            edesc=$(jq -rn --arg v "$desc" '$v|@uri')
-            qurl="$API/project/$PID/gallery?ext=$ext&featured=$featured&title=$etitle&description=$edesc&ordering=$ordering"
+            qurl="$API/project/$PID/gallery?ext=$ext&featured=$featured&title=$etitle&ordering=$ordering"
+            # Modrinth rejects an empty description, so only send the param when set.
+            if [ -n "$desc" ]; then
+              edesc=$(jq -rn --arg v "$desc" '$v|@uri')
+              qurl="$qurl&description=$edesc"
+            fi
             echo "Uploading $name (title=\"$title\", featured=$featured, ordering=$ordering)"
             code=$(curl -sS -o resp.txt -w '%{http_code}' -X POST "$qurl" \
               -H "Authorization: $MODRINTH_TOKEN" \
