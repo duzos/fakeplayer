@@ -1,11 +1,12 @@
 name: Sync gallery (Modrinth)
 
 # Syncs the Modrinth gallery to match docs/img/ + docs/gallery.json.
-# Every image in docs/img/ is uploaded; docs/gallery.json optionally adds a
-# title / description / featured flag / ordering per filename. After a fully
-# successful upload the previously-existing gallery entries are deleted, so the
-# gallery always ends up matching docs/img/ exactly - adding, replacing and
-# removing images all just work, and re-running is safe (no duplicates).
+# The existing gallery entries are cleared first, then every image in docs/img/
+# is uploaded; docs/gallery.json optionally adds a title / description / featured
+# flag / ordering per filename. Clearing before uploading keeps re-runs safe -
+# Modrinth rejects re-uploading an unchanged image as a duplicate, so the old
+# copies have to go before the new ones land. The gallery always ends up matching
+# docs/img/ exactly - adding, replacing and removing images all just work.
 #
 # Runs manually, or on a push to master whose commit message contains [deploy].
 on:
@@ -53,8 +54,18 @@ jobs:
             [ -n "$v" ] && echo "$v" || echo "$3"
           }
 
-          # 1. Remember the current gallery so we can clear it after a clean re-upload.
+          # 1. Clear the current gallery first. Modrinth dedupes by image content,
+          #    so an unchanged image can't be re-uploaded while its old copy is still there.
           existing=$(curl -fsSL "$API/project/$PID" | jq -r '.gallery[]?.url')
+          if [ -n "$existing" ]; then
+            while IFS= read -r u; do
+              [ -z "$u" ] && continue
+              eu=$(jq -rn --arg v "$u" '$v|@uri')
+              code=$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE "$API/project/$PID/gallery?url=$eu" \
+                -H "Authorization: $MODRINTH_TOKEN")
+              echo "Removed old entry (HTTP $code)"
+            done <<< "$existing"
+          fi
 
           # 2. Upload every image in docs/img/, ordered by the manifest's "ordering".
           shopt -s nullglob
@@ -86,14 +97,4 @@ jobs:
             if [ "$code" != "204" ]; then echo "  $(cat resp.txt)"; echo "::error::upload failed for $name"; exit 1; fi
           done <<< "$sorted"
 
-          # 3. Uploads succeeded - delete the entries that existed beforehand.
-          if [ -n "$existing" ]; then
-            while IFS= read -r u; do
-              [ -z "$u" ] && continue
-              eu=$(jq -rn --arg v "$u" '$v|@uri')
-              code=$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE "$API/project/$PID/gallery?url=$eu" \
-                -H "Authorization: $MODRINTH_TOKEN")
-              echo "Removed old entry (HTTP $code)"
-            done <<< "$existing"
-          fi
           echo "Gallery sync complete."
