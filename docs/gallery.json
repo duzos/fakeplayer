@@ -9,5 +9,8 @@
   "ai-submenu.png":    { "title": "AI Sub-menu",     "description": "Bond a fake, pick a job, hand out markers and start work.", "ordering": 10 },
   "management-gui.png":{ "title": "Management GUI",  "description": "Skin, pose and the AI / SL / TG controls.",                 "ordering": 11 },
   "miner-quarry.png":  { "title": "Miner Job",       "description": "A fake player clearing a quarry on the Miner job.",         "ordering": 12 },
-  "lumberjack.png":    { "title": "Lumberjack Job",  "description": "A fake player after felling a tree on the Lumberjack job.", "ordering": 13 }
+  "lumberjack.png":    { "title": "Lumberjack Job",  "description": "A fake player after felling a tree on the Lumberjack job.", "ordering": 13 },
+  "farmer.png":        { "title": "Farmer Job",      "description": "A fake player tending a watered plot on the Farmer job.",    "ordering": 14 },
+  "fisherman.png":     { "title": "Fisherman Job",   "description": "A fake player casting at the water's edge on the Fisherman job.", "ordering": 15 },
+  "crafter.png":       { "title": "Crafter Job",     "description": "A fake player crafting by hand at its table on the Crafter job.", "ordering": 16 }
 }

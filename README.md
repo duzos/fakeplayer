@@ -32,7 +32,7 @@ Entities that look **exactly** like real players - auto-grabbed skins, armour, f
 
 ## 🧠 AI Jobs
 
-Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI hands you markers (waypoint, region, chests); right-click to place them - the fake follows you while you do.
+Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI hands you markers (waypoint, region, chests); right-click to place them - the fake follows you while you do. Each job's menu shows only the markers it needs, and fakes visibly open the chests and barrels they work from.
 
 | Job | Needs | Does |
 | --- | --- | --- |
@@ -42,8 +42,11 @@ Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI han
 | **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. |
 | **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
 | **Courier** | source + deposit | Hauls matching items from one chest to another. |
+| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. |
+| **Farmer** | region + deposit | Tills a plot, waters it, plants any seed (modded too), bonemeals, then harvests and replants on a loop. |
+| **Crafter** | table + source + deposit | Walks to a crafting table and lays out a recipe you teach it by hand; chain it onto another job's chest for a pipeline. |
 
-Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`, `minerLavaCobbleSafety`, `minerNeverMineBlockUnderFeet`).
+Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`).
 
 <div align="center">
 <table>
@@ -54,6 +57,13 @@ Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `miner
   <tr>
     <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/miner-quarry.png" width="330" alt="Miner quarry"><br><sub><b>Miner</b> clearing a quarry</sub></td>
     <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/lumberjack.png" width="330" alt="Lumberjack"><br><sub><b>Lumberjack</b> after felling a tree</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/farmer.png" width="330" alt="Farmer"><br><sub><b>Farmer</b> tending a watered plot</sub></td>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/fisherman.png" width="330" alt="Fisherman"><br><sub><b>Fisherman</b> casting at the water's edge</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/crafter.png" width="330" alt="Crafter"><br><sub><b>Crafter</b> crafting by hand at its table</sub></td>
   </tr>
 </table>
 </div>
