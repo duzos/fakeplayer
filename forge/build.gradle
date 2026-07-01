@@ -83,6 +83,7 @@ publishMods {
     curseforge {
         accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
         projectId = "845992"
+        projectSlug = "fake-player"
         minecraftVersions.addAll(mcVersions)
         clientRequired = true
         serverRequired = true
