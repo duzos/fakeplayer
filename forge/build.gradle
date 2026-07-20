@@ -4,12 +4,12 @@ plugins {
     id 'me.modmuss50.mod-publish-plugin'
 }
 
-//mixin {
-//    add(sourceSets.main, "${mod_id}.refmap.json")
-//
-//    config("${mod_id}.mixins.json")
-//    config("${mod_id}.forge.mixins.json")
-//}
+mixin {
+    add(sourceSets.main, "${mod_id}.refmap.json")
+
+    config("${mod_id}.mixins.json")
+    config("${mod_id}.forge.mixins.json")
+}
 
 legacyForge {
     version = "${minecraft_version}-${forge_version}"
@@ -65,7 +65,7 @@ jar {
 }
 
 publishMods {
-    file = jar.archiveFile
+    file = reobfJar.archiveFile
     changelog = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOG.md")).asText
     type = STABLE
     version = "${project.version}-${minecraft_version}-forge"
