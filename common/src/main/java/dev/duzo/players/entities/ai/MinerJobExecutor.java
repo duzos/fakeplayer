@@ -626,11 +626,14 @@ public class MinerJobExecutor implements JobExecutor {
 			}
 			return;
 		}
-		if (!sourceBlockMatchesFilter && !matchesInventoryFilter(entity, stack)) return;
-		addOrDrop(entity, stack);
+		if (sourceBlockMatchesFilter || matchesInventoryFilter(entity, stack)) {
+			addOrDrop(entity, stack);
+		} else {
+			handleSpoil(entity, stack);
+		}
 	}
 
-	/** What happens to a build-block drop once the {@link #BUILD_RESERVE} reserve is full - user's choice. */
+	/** What happens to any drop the miner won't keep - build-block excess or a filter miss - user's choice. */
 	private void handleSpoil(FakePlayerEntity entity, ItemStack stack) {
 		if (stack.isEmpty()) return;
 		switch (PlayersConfig.get().minerSpoil) {
