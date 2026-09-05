@@ -247,7 +247,10 @@ public class FarmerJobExecutor implements JobExecutor {
 			return;
 		}
 		if (entity.distanceToSqr(item) <= ITEM_REACH_SQR) {
-			pickItem(entity, item);
+			if (!pickItem(entity, item)) {
+				waitForBlocker(level, entity, "farmer: cannot fit dropped items");
+				return;
+			}
 			pathFailCount = 0;
 			return;
 		}
@@ -498,16 +501,18 @@ public class FarmerJobExecutor implements JobExecutor {
 
 	// --- shared movement / waiting (mirrors LumberjackJobExecutor) ---
 
-	private void pickItem(FakePlayerEntity entity, ItemEntity item) {
-		if (!item.isAlive()) return;
+	/** Returns false when the item is alive but nothing of it could fit - a full-inventory blocker, not just no-op. */
+	private boolean pickItem(FakePlayerEntity entity, ItemEntity item) {
+		if (!item.isAlive()) return true;
 		ItemStack stack = item.getItem().copy();
 		int before = stack.getCount();
 		ItemStack remainder = entity.getInventory().addItem(stack);
 		int taken = before - remainder.getCount();
-		if (taken <= 0) return;
+		if (taken <= 0) return false;
 		entity.take(item, taken);
 		if (remainder.isEmpty()) item.discard();
 		else item.setItem(remainder);
+		return true;
 	}
 
 	private ItemEntity nearestRegionDrop(ServerLevel level, FakePlayerEntity entity) {
