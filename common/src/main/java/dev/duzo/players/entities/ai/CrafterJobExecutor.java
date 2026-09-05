@@ -6,6 +6,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
@@ -38,9 +39,16 @@ public class CrafterJobExecutor implements JobExecutor {
 	// the real main-hand item, stashed while the hand instead holds the visual "placing an ingredient" stack
 	private ItemStack heldMainHand = ItemStack.EMPTY;
 	private boolean handStashed = false;
+	// heldMainHand encoded to NBT so serialize() can persist it without needing entity/registry access;
+	// kept in sync whenever heldMainHand changes
+	private CompoundTag heldMainHandTag = new CompoundTag();
+	// set by deserialize() when a stash was persisted; heldMainHand is decoded from heldMainHandTag lazily,
+	// the first time entity/registry access is available (deserialize() itself has neither)
+	private boolean needsHandRestore = false;
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
+		restoreHandIfNeeded(entity);
 		AIState state = entity.getAIState();
 		BlockPos source = state.sourceChest();
 		BlockPos deposit = state.depositChest();
@@ -89,6 +97,7 @@ public class CrafterJobExecutor implements JobExecutor {
 					if (!handStashed) {
 						heldMainHand = entity.getMainHandItem().copy();
 						handStashed = true;
+						heldMainHandTag = encodeMainHand(entity, heldMainHand);
 					}
 					craftIndex = 0;
 					craftTimer = PLACE_TICKS;
@@ -97,7 +106,7 @@ public class CrafterJobExecutor implements JobExecutor {
 			}
 			case CRAFT -> {
 				if (entity.blockPosition().distSqr(table) > JobHelpers.ARRIVE_SQR) { phase = Phase.TO_TABLE; return; }
-				if (!hasFullSet(inv, need)) { clearHand(entity); phase = Phase.TO_DEPOSIT; return; }
+				if (!hasFullSet(inv, need)) { clearHand(entity, need); phase = Phase.TO_DEPOSIT; return; }
 				if (--craftTimer > 0) return;
 				if (craftIndex < placeOrder.size()) {
 					// Hold the ingredient being placed and swing, one cell every 0.1s.
@@ -115,7 +124,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				if (hasFullSet(inv, need) && JobHelpers.canAccept(inv, out)) {
 					craftTimer = PLACE_TICKS;
 				} else {
-					clearHand(entity);
+					clearHand(entity, need);
 					phase = Phase.TO_DEPOSIT;
 				}
 			}
@@ -143,10 +152,53 @@ public class CrafterJobExecutor implements JobExecutor {
 	}
 
 	/** Restores whatever the main hand really held before crafting started overwriting it with visual stacks. */
-	private void clearHand(FakePlayerEntity entity) {
-		entity.setItemSlot(EquipmentSlot.MAINHAND, heldMainHand);
+	private void clearHand(FakePlayerEntity entity, Map<Item, Integer> need) {
+		if (handStashed) {
+			ItemStack current = entity.getMainHandItem();
+			// only overwrite what's plausibly still ours (empty, or a leftover ingredient placeholder) - if
+			// something else put a different item in the main hand meanwhile, don't clobber it, bank the stash
+			if (current.isEmpty() || need.containsKey(current.getItem())) {
+				entity.setItemSlot(EquipmentSlot.MAINHAND, heldMainHand);
+			} else if (!heldMainHand.isEmpty()) {
+				ItemStack rem = entity.getInventory().addItem(heldMainHand.copy());
+				if (!rem.isEmpty()) entity.spawnAtLocation(rem);
+			}
+		}
 		heldMainHand = ItemStack.EMPTY;
 		handStashed = false;
+		heldMainHandTag = new CompoundTag();
+		needsHandRestore = false;
+	}
+
+	/** The recipe's ingredient tally, recomputed from job params - used where tick()'s local copy isn't in scope. */
+	private Map<Item, Integer> currentNeed(FakePlayerEntity entity) {
+		CompoundTag recipe = entity.getAIState().jobParams().getCompound("Recipe");
+		Map<Item, Integer> need = new LinkedHashMap<>();
+		for (Item it : readPlaceOrder(recipe)) need.merge(it, 1, Integer::sum);
+		return need;
+	}
+
+	/** Decodes heldMainHand from the persisted tag once entity/registry access is available. */
+	private void restoreHandIfNeeded(FakePlayerEntity entity) {
+		if (!needsHandRestore) return;
+		heldMainHand = decodeMainHand(entity, heldMainHandTag);
+		needsHandRestore = false;
+	}
+
+	private CompoundTag encodeMainHand(FakePlayerEntity entity, ItemStack stack) {
+		if (stack.isEmpty()) return new CompoundTag();
+		var ops = entity.registryAccess().createSerializationContext(NbtOps.INSTANCE);
+		Tag encoded = ItemStack.CODEC.encodeStart(ops, stack).result().orElse(null);
+		if (encoded == null) return new CompoundTag();
+		CompoundTag holder = new CompoundTag();
+		holder.put("Stack", encoded);
+		return holder.getCompound("Stack");
+	}
+
+	private ItemStack decodeMainHand(FakePlayerEntity entity, CompoundTag stackTag) {
+		if (stackTag == null || stackTag.isEmpty()) return ItemStack.EMPTY;
+		var ops = entity.registryAccess().createSerializationContext(NbtOps.INSTANCE);
+		return ItemStack.CODEC.parse(ops, stackTag).result().orElse(ItemStack.EMPTY);
 	}
 
 	/** The learned grid as an ordered list of items, one per filled cell. */
@@ -250,8 +302,9 @@ public class CrafterJobExecutor implements JobExecutor {
 
 	@Override
 	public void onPause(FakePlayerEntity entity) {
+		restoreHandIfNeeded(entity);
 		entity.getNavigation().stop();
-		clearHand(entity);
+		clearHand(entity, currentNeed(entity));
 		if (entity.level() instanceof ServerLevel sl) JobHelpers.closeContainer(sl, entity);
 	}
 
@@ -262,6 +315,8 @@ public class CrafterJobExecutor implements JobExecutor {
 	public CompoundTag serialize() {
 		CompoundTag tag = new CompoundTag();
 		tag.putString("Phase", phase.name());
+		tag.putBoolean("HandStashed", handStashed);
+		tag.put("HeldMainHand", heldMainHandTag);
 		return tag;
 	}
 
@@ -269,7 +324,12 @@ public class CrafterJobExecutor implements JobExecutor {
 	public void deserialize(CompoundTag tag) {
 		if (tag == null || tag.isEmpty()) return;
 		String name = tag.getString("Phase");
-		if (name.isEmpty()) return;
-		try { phase = Phase.valueOf(name); } catch (IllegalArgumentException ignored) {}
+		if (!name.isEmpty()) {
+			try { phase = Phase.valueOf(name); } catch (IllegalArgumentException ignored) {}
+		}
+		handStashed = tag.contains("HandStashed") && tag.getBoolean("HandStashed");
+		heldMainHandTag = tag.getCompound("HeldMainHand");
+		heldMainHand = ItemStack.EMPTY;
+		needsHandRestore = handStashed; // decode lazily once entity/registry access is available
 	}
 }
