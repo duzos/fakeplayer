@@ -59,7 +59,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 	private int actionCooldown = 0;
 	private boolean bailed = false;
 	private long waitUntilTick = 0L;
-	private String waitMessage = "";
+	private String lastBlocker = "";
 	private PlantTask plantTask;
 	private final Deque<BlockPos> targets = new ArrayDeque<>();
 	private final List<BlockPos> activeTree = new ArrayList<>();
@@ -107,7 +107,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		tag.putInt("BreakTotal", breakTotalTicks);
 		tag.putBoolean("Bailed", bailed);
 		tag.putLong("WaitUntil", waitUntilTick);
-		tag.putString("WaitMessage", waitMessage == null ? "" : waitMessage);
+		tag.putString("WaitMessage", lastBlocker == null ? "" : lastBlocker);
 		if (target != null) tag.putLong("Target", target.asLong());
 		return tag;
 	}
@@ -123,7 +123,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		breakTotalTicks = tag.contains("BreakTotal") ? tag.getInt("BreakTotal") : 0;
 		bailed = false;
 		waitUntilTick = tag.contains("WaitUntil") ? tag.getLong("WaitUntil") : 0L;
-		waitMessage = tag.contains("WaitMessage") ? tag.getString("WaitMessage") : "";
+		lastBlocker = tag.contains("WaitMessage") ? tag.getString("WaitMessage") : "";
 		target = null;
 		actionStand = null;
 		plantTask = null;
@@ -154,6 +154,12 @@ public class LumberjackJobExecutor implements JobExecutor {
 			return;
 		}
 
+		// no point walking out to a tree it cannot cut; wait at the chest for an axe instead
+		if (!hasUsableAxe(entity)) {
+			phase = Phase.RETURNING;
+			return;
+		}
+
 		targets.clear();
 		List<BlockPos> matches = findLogs(level, a, b, entity.blockPosition());
 		if (!matches.isEmpty()) {
@@ -162,6 +168,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			for (int i = 0; i < n; i++) targets.add(matches.get(i));
 			phase = Phase.PATHING_TO_BLOCK;
 			pathFailCount = 0;
+			lastBlocker = ""; // making progress again - let the next problem re-announce
 			return;
 		}
 
@@ -177,6 +184,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			actionStand = null;
 			phase = Phase.BONEMEALING;
 			pathFailCount = 0;
+			lastBlocker = ""; // making progress again - let the next problem re-announce
 			return;
 		}
 
@@ -185,6 +193,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			actionStand = null;
 			phase = Phase.PLANTING;
 			pathFailCount = 0;
+			lastBlocker = ""; // making progress again - let the next problem re-announce
 			return;
 		}
 
@@ -235,6 +244,10 @@ public class LumberjackJobExecutor implements JobExecutor {
 	}
 
 	private void tickPathing(ServerLevel level, FakePlayerEntity entity) {
+		if (!hasUsableAxe(entity)) {
+			phase = Phase.RETURNING;
+			return;
+		}
 		if (target == null) target = targets.peek();
 		if (target == null) { phase = Phase.SCANNING; return; }
 		if (!level.getBlockState(target).is(BlockTags.LOGS)) {
@@ -429,6 +442,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			return;
 		}
 		pathFailCount = 0;
+		lastBlocker = ""; // making progress again - let the next problem re-announce
 		phase = Phase.SCANNING;
 	}
 
@@ -439,8 +453,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		if (level.getGameTime() < waitUntilTick) return;
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 		pathFailCount = 0;
-		waitMessage = ""; // clear so a still-blocked retry re-announces instead of staying silent
-		phase = Phase.SCANNING;
+		phase = Phase.SCANNING; // re-check; waitForBlocker fires again if still blocked, silently if unchanged
 	}
 
 	private Set<BlockPos> collectTree(ServerLevel level, BlockPos start) {
@@ -838,7 +851,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 	private void waitAtChest(ServerLevel level, FakePlayerEntity entity, int ticks) {
 		phase = Phase.WAITING_AT_CHEST;
 		waitUntilTick = level.getGameTime() + ticks;
-		waitMessage = "";
+		lastBlocker = "";
 		entity.getNavigation().stop();
 	}
 
@@ -859,9 +872,9 @@ public class LumberjackJobExecutor implements JobExecutor {
 		bailed = false;
 		pathFailCount = 0;
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
-		if (!message.equals(waitMessage)) { // tell the owner once per distinct problem, not every retry
+		if (!message.equals(lastBlocker)) { // tell the owner once per distinct problem, not every retry
 			entity.sendChat(message + " - waiting 15s before retry");
-			waitMessage = message;
+			lastBlocker = message;
 		}
 		entity.getNavigation().stop();
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
