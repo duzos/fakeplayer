@@ -15,3 +15,4 @@
 - The `E` key no longer closes the management screen while you are typing a name (#51), so names with an `E` in them can be typed straight in.
 - Session markers now disappear when used in creative mode (#55), and the region preview box goes with them.
 - The filter syntax and every config option are now written up in the README (#55).
+- The Miner now recognises ore on Forge 1.20 (#54). Minecraft only moved the shared item tags to the `c:` namespace in 1.20.5, so on this version the default `c:ores` filter matched nothing at all and the fake collected no ore; the default now covers `forge:ores` too, and metal and gem blocks are correctly kept out of the building material.
