@@ -10,7 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public record SetAIFilterPacketC2S(int id, String tagName) {
 	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_set_filter");
-	private static final String DEFAULT_FILTER = "c:ores";
+	private static final String DEFAULT_FILTER = "c:ores,forge:ores";
 	private static final int MAX_FILTER_LENGTH = 512;
 
 	public static SetAIFilterPacketC2S decode(FriendlyByteBuf buf) {

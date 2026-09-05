@@ -36,7 +36,7 @@ public class MinerJobExecutor implements JobExecutor {
 	private static final int DURABILITY_RESERVE = 8;
 	private static final int BUILD_RESERVE = 64;
 	private static final int LIQUID_SCAN_RADIUS = 6;
-	private static final String DEFAULT_FILTER = "c:ores";
+	private static final String DEFAULT_FILTER = "c:ores,forge:ores";
 
 	private Phase phase = Phase.INIT;
 	private Phase returnPhase = Phase.QUARRY;
@@ -847,10 +847,14 @@ public class MinerJobExecutor implements JobExecutor {
 				|| item == Items.DEEPSLATE;
 	}
 
+	// convention tags only moved to the c: namespace in 1.20.5, so on this version fabric supplies c:
+	// and forge supplies forge:. Both are checked because common/ is shared by the two loaders.
 	private static final TagKey<Item> BUILD_DENY_ORES_TAG = TagKey.create(Registries.ITEM, new ResourceLocation("c", "ores"));
-	// refined metal/gem storage blocks (iron_block, diamond_block, etc, modded equivalents included) live under this
-	// tag family, not c:ores - without it they pass every other check and get cemented into the build
+	private static final TagKey<Item> BUILD_DENY_ORES_TAG_FORGE = TagKey.create(Registries.ITEM, new ResourceLocation("forge", "ores"));
+	// refined metal/gem storage blocks (iron_block, diamond_block, etc, modded equivalents included) live under
+	// this tag family, not ores - without it they pass every other check and get cemented into the build
 	private static final TagKey<Item> BUILD_DENY_STORAGE_BLOCKS_TAG = TagKey.create(Registries.ITEM, new ResourceLocation("c", "storage_blocks"));
+	private static final TagKey<Item> BUILD_DENY_STORAGE_BLOCKS_TAG_FORGE = TagKey.create(Registries.ITEM, new ResourceLocation("forge", "storage_blocks"));
 	private static final java.util.Set<Item> BUILD_DENYLIST = java.util.Set.of(
 			Items.RAW_IRON_BLOCK, Items.RAW_COPPER_BLOCK, Items.RAW_GOLD_BLOCK,
 			Items.OBSIDIAN, Items.CRYING_OBSIDIAN, Items.ANCIENT_DEBRIS,
@@ -864,6 +868,7 @@ public class MinerJobExecutor implements JobExecutor {
 		if (!(stack.getItem() instanceof BlockItem blockItem)) return false;
 		if (BUILD_DENYLIST.contains(stack.getItem())) return false;
 		if (stack.is(BUILD_DENY_ORES_TAG) || stack.is(BUILD_DENY_STORAGE_BLOCKS_TAG)) return false;
+		if (stack.is(BUILD_DENY_ORES_TAG_FORGE) || stack.is(BUILD_DENY_STORAGE_BLOCKS_TAG_FORGE)) return false;
 		BlockState state = blockItem.getBlock().defaultBlockState();
 		if (state.hasBlockEntity()) return false;
 		if (state.getBlock() instanceof FallingBlock) return false;
