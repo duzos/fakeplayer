@@ -35,6 +35,9 @@ public class CrafterJobExecutor implements JobExecutor {
 	private Phase phase = Phase.TO_SOURCE;
 	private int craftIndex;
 	private int craftTimer = PLACE_TICKS;
+	// the real main-hand item, stashed while the hand instead holds the visual "placing an ingredient" stack
+	private ItemStack heldMainHand = ItemStack.EMPTY;
+	private boolean handStashed = false;
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
@@ -83,6 +86,10 @@ public class CrafterJobExecutor implements JobExecutor {
 			case TO_TABLE -> {
 				if (JobHelpers.walkTo(entity, table, SPEED) == JobHelpers.WalkResult.ARRIVED) {
 					if (!craftingTableNear(level, table)) { entity.getNavigation().stop(); return; } // no table here: idle
+					if (!handStashed) {
+						heldMainHand = entity.getMainHandItem().copy();
+						handStashed = true;
+					}
 					craftIndex = 0;
 					craftTimer = PLACE_TICKS;
 					phase = Phase.CRAFT;
@@ -135,8 +142,11 @@ public class CrafterJobExecutor implements JobExecutor {
 		return false;
 	}
 
+	/** Restores whatever the main hand really held before crafting started overwriting it with visual stacks. */
 	private void clearHand(FakePlayerEntity entity) {
-		entity.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+		entity.setItemSlot(EquipmentSlot.MAINHAND, heldMainHand);
+		heldMainHand = ItemStack.EMPTY;
+		handStashed = false;
 	}
 
 	/** The learned grid as an ordered list of items, one per filled cell. */
