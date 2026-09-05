@@ -16,6 +16,8 @@ dependencies {
         capabilities {
             requireCapability "$group:$mod_id"
         }
+        // the platform-specific common-networking variant each loader depends on directly supersedes this one
+        exclude group: "mysticdrew", module: "common-networking-common"
     }
     commonJava project(path: ':common', configuration: 'commonJava')
     commonResources project(path: ':common', configuration: 'commonResources')

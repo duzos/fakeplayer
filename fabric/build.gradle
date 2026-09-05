@@ -1,19 +1,20 @@
 plugins {
     id 'multiloader-loader'
-    id 'fabric-loom'
+    id 'net.fabricmc.fabric-loom'
     id 'me.modmuss50.mod-publish-plugin'
 }
 dependencies {
+    // Minecraft ${minecraft_version} ships unobfuscated; no mappings artifact exists or is needed,
+    // and mods no longer need the mod* remapping variants
     minecraft "com.mojang:minecraft:${minecraft_version}"
-    mappings loom.layered() {
-        officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
-    }
-    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
     implementation group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.1'
-    implementation project(":common")
-    include(modImplementation "mysticdrew:common-networking-fabric:${project.common_network_version}")
+    implementation(project(":common")) {
+        // the platform-specific common-networking variant below supersedes the common one
+        exclude group: "mysticdrew", module: "common-networking-common"
+    }
+    include(implementation("mysticdrew:common-networking-fabric:${project.common_network_version}"))
 }
 
 loom {
@@ -48,7 +49,7 @@ loom {
 }
 
 publishMods {
-    file = remapJar.archiveFile
+    file = jar.archiveFile
     changelog = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOG.md")).asText
     type = STABLE
     version = "${project.version}-${minecraft_version}-fabric"
