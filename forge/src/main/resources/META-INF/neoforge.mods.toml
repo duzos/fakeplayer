@@ -12,7 +12,6 @@ config = "${mod_id}.forge.mixins.json"
 modId = "${mod_id}"
 version = "${version}"
 displayName = "${mod_name}"
-logoFile = "${mod_id}.png"
 credits = "Thanks bub"
 authors = "${mod_author}"
 description = '''${description}'''
