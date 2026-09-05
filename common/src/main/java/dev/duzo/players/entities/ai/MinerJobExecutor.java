@@ -431,19 +431,7 @@ public class MinerJobExecutor implements JobExecutor {
 			waitForBlocker(level, entity, "miner: no deposit container set");
 			return;
 		}
-		double cx = chest.getX() + 0.5, cz = chest.getZ() + 0.5;
-		double dx = entity.getX() - cx, dz = entity.getZ() - cz;
-		if (dx * dx + dz * dz > 9.0) {
-			JobHelpers.closeContainer(level, entity); // still walking to the chest
-			if (entity.getNavigation().isDone()) {
-				boolean ok = entity.getNavigation().moveTo(cx, chest.getY(), cz, 1.0);
-				if (!ok && ++pathFailCount >= MAX_PATH_FAIL) {
-					pathFailCount = 0;
-					waitForBlocker(level, entity, "miner: cannot reach deposit container");
-				}
-			}
-			return;
-		}
+		if (moveToChest(level, entity)) return;
 		Container c = HopperBlockEntity.getContainerAt(level, chest);
 		if (c == null) {
 			JobHelpers.closeContainer(level, entity);
@@ -471,6 +459,19 @@ public class MinerJobExecutor implements JobExecutor {
 		pathFailCount = 0;
 		if (phase == Phase.QUARRY) walkToSafeStep(level, entity);
 		else walkToTopRim(entity);
+	}
+
+	private boolean moveToChest(ServerLevel level, FakePlayerEntity entity) {
+		BlockPos chest = entity.getAIState().depositChest();
+		if (chest == null) return false;
+		JobHelpers.WalkResult result = JobHelpers.walkTo(entity, chest, 1.0);
+		if (result == JobHelpers.WalkResult.ARRIVED) return false;
+		JobHelpers.closeContainer(level, entity); // still walking to the chest
+		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
+		if (result == JobHelpers.WalkResult.UNREACHABLE && ++pathFailCount >= MAX_PATH_FAIL) {
+			waitForBlocker(level, entity, "miner: cannot reach deposit container");
+		}
+		return true;
 	}
 
 	private boolean ensureStairStep(ServerLevel level, FakePlayerEntity entity) {
