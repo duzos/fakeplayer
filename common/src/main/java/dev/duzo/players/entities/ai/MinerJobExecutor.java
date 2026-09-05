@@ -135,8 +135,7 @@ public class MinerJobExecutor implements JobExecutor {
 	}
 
 	private int resumeCursor() {
-		if (phase != Phase.QUARRY || activeTarget == null) return cursor;
-		return Math.max(0, cursor - 1);
+		return cursor;
 	}
 
 	private static Phase phase(int ordinal) {
@@ -208,6 +207,7 @@ public class MinerJobExecutor implements JobExecutor {
 		entity.getNavigation().stop();
 		BlockState state = level.getBlockState(activeTarget);
 		if (state.isAir()) {
+			cursor++;
 			clearActive();
 			return;
 		}
@@ -225,6 +225,7 @@ public class MinerJobExecutor implements JobExecutor {
 				waitForBlocker(level, entity, "miner: out of build blocks for liquid hazard");
 				return;
 			}
+			cursor++;
 			clearActive();
 			return;
 		}
@@ -237,6 +238,7 @@ public class MinerJobExecutor implements JobExecutor {
 		ItemStack tool = entity.getMainHandItem();
 		boolean broke = breakIntoInventory(level, entity, activeTarget, state, tool);
 		if (broke && isMiningTool(tool)) tool.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
+		if (broke) cursor++; // else the drops couldn't fit (canHoldKeptDrops) - block still stands, retry this cell
 		clearActive(level, entity);
 
 		double bps = Math.max(0.5, cfg.minerMaxBlocksPerSecond);
@@ -269,7 +271,7 @@ public class MinerJobExecutor implements JobExecutor {
 			if (stand == null) {
 				stand = mineFromCurrentPosition(entity);
 			}
-			cursor++;
+			// cursor advances only once this cell is actually finished (mined, plugged, or skipped) - not on assignment
 			activeTarget = target;
 			activeStand = stand;
 			resetMining();
@@ -584,7 +586,10 @@ public class MinerJobExecutor implements JobExecutor {
 		for (ItemStack drop : drops) {
 			if (drop.isEmpty() || isBuildBlock(drop)) continue;
 			if (!sourceMatches && !matchesInventoryFilter(entity, drop)) continue;
-			if (!JobHelpers.canAccept(inv, drop)) return false;
+			if (!JobHelpers.canAccept(inv, drop)) {
+				dropOverflow = true; // same "kept drop can't fit" condition needsService watches for
+				return false;
+			}
 		}
 		return true;
 	}
