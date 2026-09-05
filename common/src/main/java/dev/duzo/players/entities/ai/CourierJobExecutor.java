@@ -15,10 +15,14 @@ public class CourierJobExecutor implements JobExecutor {
 	private static final int TRANSFER_PER_TICK = 1;
 	private static final int IDLE_REPATH_COOLDOWN = 40;
 
-	private enum Phase { TO_SOURCE, PULL, TO_DEPOSIT, DUMP }
+	private static final int RETRY_WAIT_TICKS = 20 * 15;
+
+	private enum Phase { TO_SOURCE, PULL, TO_DEPOSIT, DUMP, WAITING_AT_DEPOSIT }
 
 	private Phase phase = Phase.TO_SOURCE;
 	private int repathCooldown;
+	private long waitUntilTick = 0L;
+	private String lastBlocker = "";
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
@@ -27,7 +31,7 @@ public class CourierJobExecutor implements JobExecutor {
 		BlockPos deposit = state.depositChest();
 		if (source == null || deposit == null) return;
 
-		if (phase != Phase.PULL && phase != Phase.DUMP) JobHelpers.closeContainer(level, entity);
+		if (phase != Phase.PULL && phase != Phase.DUMP && phase != Phase.WAITING_AT_DEPOSIT) JobHelpers.closeContainer(level, entity);
 
 		switch (phase) {
 			case TO_SOURCE -> walkTo(entity, source, Phase.PULL);
@@ -51,6 +55,7 @@ public class CourierJobExecutor implements JobExecutor {
 				}
 				int moved = pullMatching(src, dest, state.filter(), TRANSFER_PER_TICK);
 				if (moved == 0) phase = Phase.TO_DEPOSIT;
+				else lastBlocker = ""; // making progress again - let the next problem re-announce
 			}
 			case TO_DEPOSIT -> walkTo(entity, deposit, Phase.DUMP);
 			case DUMP -> {
@@ -68,8 +73,44 @@ public class CourierJobExecutor implements JobExecutor {
 				if (!JobHelpers.pollContainer(level, entity, deposit)) return; // open + pause ~1s before depositing
 				SimpleContainer src = entity.getInventory();
 				int moved = dumpAll(src, dst, TRANSFER_PER_TICK);
-				if (moved == 0) phase = Phase.TO_SOURCE;
+				if (moved == 0) {
+					// nothing left our inventory and it's still full: the deposit chest has no room, not just empty
+					// pockets - cycling straight back to PULL would only bounce between the two chests forever
+					if (JobHelpers.isFull(src)) { waitForBlocker(level, entity, "courier: deposit chest full"); return; }
+					phase = Phase.TO_SOURCE;
+				} else {
+					lastBlocker = "";
+				}
 			}
+			case WAITING_AT_DEPOSIT -> tickWaitingAtDeposit(level, entity, deposit);
+		}
+	}
+
+	private void tickWaitingAtDeposit(ServerLevel level, FakePlayerEntity entity, BlockPos deposit) {
+		Container dst = HopperBlockEntity.getContainerAt(level, deposit);
+		if (dst != null && entity.blockPosition().distSqr(deposit) <= ARRIVAL_DIST_SQR && JobHelpers.pollContainer(level, entity, deposit)) {
+			int moved = dumpAll(entity.getInventory(), dst, TRANSFER_PER_TICK);
+			if (moved > 0) { // owner made room - resume the normal drain
+				entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
+				lastBlocker = "";
+				phase = Phase.DUMP;
+				return;
+			}
+		}
+		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
+		if (level.getGameTime() < waitUntilTick) return;
+		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
+		phase = Phase.DUMP; // re-check; waitForBlocker fires again if still full
+	}
+
+	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
+		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
+		entity.getNavigation().stop();
+		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
+		phase = Phase.WAITING_AT_DEPOSIT;
+		if (!message.equals(lastBlocker)) { // tell the owner once per distinct problem, not every retry
+			entity.sendChat(message + " - waiting 15s before retry");
+			lastBlocker = message;
 		}
 	}
 
@@ -152,6 +193,7 @@ public class CourierJobExecutor implements JobExecutor {
 	public CompoundTag serialize() {
 		CompoundTag tag = new CompoundTag();
 		tag.putString("Phase", phase.name());
+		tag.putLong("WaitUntil", waitUntilTick);
 		return tag;
 	}
 
@@ -159,7 +201,9 @@ public class CourierJobExecutor implements JobExecutor {
 	public void deserialize(CompoundTag tag) {
 		if (tag == null || tag.isEmpty()) return;
 		String name = tag.getStringOr("Phase", "");
-		if (name.isEmpty()) return;
-		try { phase = Phase.valueOf(name); } catch (IllegalArgumentException ignored) {}
+		if (!name.isEmpty()) {
+			try { phase = Phase.valueOf(name); } catch (IllegalArgumentException ignored) {}
+		}
+		waitUntilTick = tag.getLongOr("WaitUntil", 0L);
 	}
 }
