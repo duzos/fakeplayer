@@ -560,14 +560,28 @@ public class AISubMenuScreen extends Screen {
 		}
 	}
 
+	// An absent Tag means "no filter ever set", and that means different things per job: the miner
+	// defaults to ore-only ("c:ores"), the courier defaults to match-all ("*") - see
+	// CourierJobExecutor#matchesFilter. The canonical constants (MinerJobExecutor.DEFAULT_FILTER,
+	// SetAIFilterPacketC2S.DEFAULT_FILTER) are private and live under entities/ai/** and network/c2s/**,
+	// which this branch doesn't own, so the literals are duplicated here rather than shared.
+	private String defaultFilterFor(Job job) {
+		return job == Job.COURIER ? "*" : "c:ores";
+	}
+
+	private String effectiveFilterTag(AIState s) {
+		String def = defaultFilterFor(s.job());
+		String tag = s.filter().getStringOr("Tag", def);
+		return tag.isBlank() ? def : tag;
+	}
+
 	private boolean filterDisabled(AIState s) {
-		return s.filter().getStringOr("Tag", "c:ores").equals("*");
+		return effectiveFilterTag(s).equals("*");
 	}
 
 	private String filterText(AIState state) {
-		String tag = state.filter().getStringOr("Tag", "c:ores");
-		if (tag.equals("*")) return "";
-		return tag.isEmpty() ? "c:ores" : tag;
+		String tag = effectiveFilterTag(state);
+		return tag.equals("*") ? "" : tag;
 	}
 
 	private void toggleRun() {
