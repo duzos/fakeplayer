@@ -220,7 +220,9 @@ public class MinerJobExecutor implements JobExecutor {
 			return;
 		}
 		if (!canHarvest(entity, state)) {
-			waitForBlocker(level, entity, "miner: no correct tool for " + blockName(state));
+			cursor++;
+			entity.sendChat("miner: skipping block, no correct tool for " + blockName(state));
+			clearActive();
 			return;
 		}
 		if (isLiquid(level, activeTarget)) {
@@ -266,9 +268,11 @@ public class MinerJobExecutor implements JobExecutor {
 				cursor++;
 				continue;
 			}
+			ensurePickaxe(entity);
 			if (!canHarvest(entity, state)) {
-				waitForBlocker(level, entity, "miner: no correct tool for " + blockName(state));
-				return;
+				cursor++;
+				entity.sendChat("miner: skipping block, no correct tool for " + blockName(state));
+				continue;
 			}
 			BlockPos stand = findStand(level, target, targetIndex);
 			if (stand == null) {
@@ -860,12 +864,13 @@ public class MinerJobExecutor implements JobExecutor {
 		return BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
 	}
 
+	/** Swaps in the best usable pickaxe available - upgrades out of a worse one already in hand, not just an unusable one. */
 	private void ensurePickaxe(FakePlayerEntity entity) {
 		ItemStack main = entity.getMainHandItem();
-		if (isUsablePickaxe(main)) return;
+		float curSpeed = isUsablePickaxe(main) ? pickaxeSpeed(main) : -1f;
 		SimpleContainer inv = entity.getInventory();
 		int bestIdx = -1;
-		float bestSpeed = -1f;
+		float bestSpeed = curSpeed;
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack s = inv.getItem(i);
 			if (!isUsablePickaxe(s)) continue;
@@ -877,7 +882,7 @@ public class MinerJobExecutor implements JobExecutor {
 		if (!main.isEmpty()) {
 			ItemStack leftover = inv.addItem(main);
 			if (!leftover.isEmpty()) {
-				net.minecraft.world.entity.item.ItemEntity drop = new net.minecraft.world.entity.item.ItemEntity(entity.level(), entity.getX(), entity.getY(), entity.getZ(), leftover);
+				ItemEntity drop = new ItemEntity(entity.level(), entity.getX(), entity.getY(), entity.getZ(), leftover);
 				entity.level().addFreshEntity(drop);
 			}
 		}
