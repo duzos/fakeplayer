@@ -126,9 +126,28 @@ public final class JobHelpers {
 	}
 
 	public static boolean inventoryFull(FakePlayerEntity e) {
-		SimpleContainer inv = e.getInventory();
-		for (int i = 0; i < inv.getContainerSize(); i++) if (inv.getItem(i).isEmpty()) return false;
+		return isFull(e.getInventory());
+	}
+
+	/** Every slot occupied and at max count for both the stack's own cap and the container's cap. */
+	public static boolean isFull(Container c) {
+		for (int i = 0; i < c.getContainerSize(); i++) {
+			ItemStack s = c.getItem(i);
+			if (s.isEmpty()) return false;
+			if (s.getCount() < s.getMaxStackSize() && s.getCount() < c.getMaxStackSize()) return false;
+		}
 		return true;
+	}
+
+	/** Whether at least one unit of `stack` could be added to `c` - an empty slot, or a matching slot with headroom. */
+	public static boolean canAccept(Container c, ItemStack stack) {
+		if (stack.isEmpty()) return true;
+		for (int i = 0; i < c.getContainerSize(); i++) {
+			ItemStack s = c.getItem(i);
+			if (s.isEmpty()) return true;
+			if (ItemStack.isSameItemSameComponents(s, stack) && s.getCount() < s.getMaxStackSize() && s.getCount() < c.getMaxStackSize()) return true;
+		}
+		return false;
 	}
 
 	/** Vacuum loose items within radius (mirrors Lumberjack.vacuumNearbyItems). */

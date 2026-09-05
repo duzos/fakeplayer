@@ -49,7 +49,7 @@ public class CourierJobExecutor implements JobExecutor {
 				}
 				if (!JobHelpers.pollContainer(level, entity, source)) return; // open + pause ~1s before pulling
 				SimpleContainer dest = entity.getInventory();
-				if (isFull(dest)) {
+				if (JobHelpers.isFull(dest)) {
 					phase = Phase.TO_DEPOSIT;
 					return;
 				}
@@ -89,15 +89,6 @@ public class CourierJobExecutor implements JobExecutor {
 			entity.getNavigation().moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, SPEED);
 			repathCooldown = IDLE_REPATH_COOLDOWN;
 		}
-	}
-
-	private boolean isFull(Container c) {
-		for (int i = 0; i < c.getContainerSize(); i++) {
-			ItemStack s = c.getItem(i);
-			if (s.isEmpty()) return false;
-			if (s.getCount() < s.getMaxStackSize() && s.getCount() < c.getMaxStackSize()) return false;
-		}
-		return true;
 	}
 
 	private int pullMatching(Container src, Container dst, CompoundTag filter, int budget) {
