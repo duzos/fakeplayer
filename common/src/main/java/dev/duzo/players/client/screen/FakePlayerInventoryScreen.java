@@ -136,7 +136,8 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 			if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_TAB) {
 				return super.keyPressed(event);
 			}
-			return this.nameEdit.keyPressed(event);
+			this.nameEdit.keyPressed(event);
+			return true;
 		}
 		return super.keyPressed(event);
 	}

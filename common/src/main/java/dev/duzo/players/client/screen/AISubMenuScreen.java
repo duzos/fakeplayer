@@ -486,7 +486,8 @@ public class AISubMenuScreen extends Screen {
 			if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_TAB) {
 				return super.keyPressed(event);
 			}
-			return this.filterEdit.keyPressed(event);
+			this.filterEdit.keyPressed(event);
+			return true;
 		}
 		return super.keyPressed(event);
 	}
