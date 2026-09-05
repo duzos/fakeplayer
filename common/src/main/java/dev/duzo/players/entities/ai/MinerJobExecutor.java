@@ -466,6 +466,7 @@ public class MinerJobExecutor implements JobExecutor {
 		JobHelpers.closeContainer(level, entity); // still walking to the chest
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 		if (result == JobHelpers.WalkResult.UNREACHABLE && ++pathFailCount >= MAX_PATH_FAIL) {
+			pathFailCount = 0;
 			waitForBlocker(level, entity, "miner: cannot reach deposit container");
 		}
 		return true;
