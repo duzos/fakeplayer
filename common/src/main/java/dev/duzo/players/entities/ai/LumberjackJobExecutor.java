@@ -221,7 +221,10 @@ public class LumberjackJobExecutor implements JobExecutor {
 			return;
 		}
 		if (entity.distanceToSqr(item) <= ITEM_REACH_SQR) {
-			pickItem(entity, item);
+			if (!pickItem(entity, item)) {
+				waitForBlocker(level, entity, "lumberjack: cannot fit dropped items");
+				return;
+			}
 			pathFailCount = 0;
 			return;
 		}
@@ -466,16 +469,18 @@ public class LumberjackJobExecutor implements JobExecutor {
 		for (ItemEntity item : items) pickItem(entity, item);
 	}
 
-	private void pickItem(FakePlayerEntity entity, ItemEntity item) {
-		if (!item.isAlive()) return;
+	/** Returns false when the item is alive but nothing of it could fit - a full-inventory blocker, not just no-op. */
+	private boolean pickItem(FakePlayerEntity entity, ItemEntity item) {
+		if (!item.isAlive()) return true;
 		ItemStack stack = item.getItem().copy();
 		int before = stack.getCount();
 		ItemStack remainder = entity.getInventory().addItem(stack);
 		int taken = before - remainder.getCount();
-		if (taken <= 0) return;
+		if (taken <= 0) return false;
 		entity.take(item, taken);
 		if (remainder.isEmpty()) item.discard();
 		else item.setItem(remainder);
+		return true;
 	}
 
 	private ItemEntity nearestRegionDrop(ServerLevel level, FakePlayerEntity entity) {
@@ -552,11 +557,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 	}
 
 	private boolean inventoryFull(FakePlayerEntity entity) {
-		SimpleContainer inv = entity.getInventory();
-		for (int i = 0; i < inv.getContainerSize(); i++) {
-			if (inv.getItem(i).isEmpty()) return false;
-		}
-		return true;
+		return JobHelpers.isFull(entity.getInventory());
 	}
 
 	/** Returns false while still pausing with the chest open (caller should not advance the phase yet). */
