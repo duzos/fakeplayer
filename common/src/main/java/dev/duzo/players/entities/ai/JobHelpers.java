@@ -183,16 +183,23 @@ public final class JobHelpers {
 		return false;
 	}
 
-	/** One filter token: {@code namespace:id} (item id), {@code #namespace:tag} (item tag), or unparsable -> no match. */
+	/**
+	 * One filter token ({@code namespace:id} or {@code #namespace:tag}) against an item drop. Tests item id, item
+	 * tag, and - since some mods only tag the block, not the item - the corresponding block's id and tag too.
+	 */
 	public static boolean matchesFilterToken(ItemStack stack, String token) {
 		boolean explicitTag = token.startsWith("#");
 		String name = explicitTag ? token.substring(1).trim() : token;
 		Identifier id = Identifier.tryParse(name);
 		if (id == null) return false;
-		if (!explicitTag && BuiltInRegistries.ITEM.getOptional(id).map(stack::is).orElse(false)) {
-			return true;
+		if (!explicitTag && BuiltInRegistries.ITEM.getOptional(id).map(stack::is).orElse(false)) return true;
+		if (stack.is(TagKey.create(Registries.ITEM, id))) return true;
+		if (stack.getItem() instanceof net.minecraft.world.item.BlockItem blockItem) {
+			BlockState state = blockItem.getBlock().defaultBlockState();
+			if (!explicitTag && BuiltInRegistries.BLOCK.getOptional(id).map(state::is).orElse(false)) return true;
+			if (state.is(TagKey.create(Registries.BLOCK, id))) return true;
 		}
-		return stack.is(TagKey.create(Registries.ITEM, id));
+		return false;
 	}
 
 	/** Vacuum loose items within radius (mirrors Lumberjack.vacuumNearbyItems). */
