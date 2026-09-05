@@ -41,6 +41,8 @@ public class MinerJobExecutor implements JobExecutor {
 	private boolean bailed;
 	private int pathFailCount;
 	private long throttleUntilTick;
+	// set when a kept drop can't fit in the inventory and spills to the ground; cleared once serviced
+	private boolean dropOverflow;
 
 	private int minX, maxX, minZ, maxZ;
 	private int topY, bottomY, currentY;
@@ -433,6 +435,7 @@ public class MinerJobExecutor implements JobExecutor {
 		dumpInto(c, entity);
 		takeUsefulSupplies(c, entity);
 		pickBetterPickaxe(c, entity);
+		dropOverflow = false;
 		if (shouldEat(entity) && !eatFromInventory(entity)) {
 			waitForBlocker(level, entity, "miner: hungry and no food");
 			return;
@@ -560,11 +563,24 @@ public class MinerJobExecutor implements JobExecutor {
 		java.util.List<ItemStack> drops = entity == null
 				? java.util.List.of()
 				: Block.getDrops(state, level, pos, blockEntity, entity, tool);
+		if (entity != null && !canHoldKeptDrops(entity, state, drops)) return false;
 		boolean broke = level.destroyBlock(pos, false, entity);
 		if (!broke) return false;
 		if (entity == null) return true;
 		for (ItemStack drop : drops) {
 			addFilteredDrop(entity, drop, matchesBlockFilter(entity, state));
+		}
+		return true;
+	}
+
+	/** Don't break a block whose kept drops (build blocks aside - those top up a bounded reserve) can't fit. */
+	private boolean canHoldKeptDrops(FakePlayerEntity entity, BlockState state, java.util.List<ItemStack> drops) {
+		boolean sourceMatches = matchesBlockFilter(entity, state);
+		SimpleContainer inv = entity.getInventory();
+		for (ItemStack drop : drops) {
+			if (drop.isEmpty() || isBuildBlock(drop)) continue;
+			if (!sourceMatches && !matchesInventoryFilter(entity, drop)) continue;
+			if (!JobHelpers.canAccept(inv, drop)) return false;
 		}
 		return true;
 	}
@@ -631,6 +647,7 @@ public class MinerJobExecutor implements JobExecutor {
 		if (stack.isEmpty()) return;
 		ItemStack leftover = entity.getInventory().addItem(stack.copy());
 		if (leftover.isEmpty()) return;
+		dropOverflow = true;
 		ItemEntity drop = new ItemEntity(entity.level(), entity.getX(), entity.getY(), entity.getZ(), leftover);
 		entity.level().addFreshEntity(drop);
 	}
@@ -713,7 +730,7 @@ public class MinerJobExecutor implements JobExecutor {
 	}
 
 	private boolean needsService(FakePlayerEntity entity) {
-		return inventoryFull(entity) || pickaxeNearBroken(entity) || shouldEat(entity) || !hasUsablePickaxe(entity);
+		return dropOverflow || pickaxeNearBroken(entity) || shouldEat(entity) || !hasUsablePickaxe(entity);
 	}
 
 	private boolean isProtected(ServerLevel level, BlockPos pos) {
@@ -860,11 +877,7 @@ public class MinerJobExecutor implements JobExecutor {
 	}
 
 	private boolean inventoryFull(FakePlayerEntity entity) {
-		SimpleContainer inv = entity.getInventory();
-		for (int i = 0; i < inv.getContainerSize(); i++) {
-			if (inv.getItem(i).isEmpty()) return false;
-		}
-		return true;
+		return JobHelpers.isFull(entity.getInventory());
 	}
 
 	private void dumpInto(Container chest, FakePlayerEntity entity) {
