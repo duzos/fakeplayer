@@ -178,7 +178,7 @@ public final class JobHelpers {
 		for (int i = 0; i < c.getContainerSize(); i++) {
 			ItemStack s = c.getItem(i);
 			if (s.isEmpty()) return true;
-			if (ItemStack.isSameItemSameComponents(s, stack) && s.getCount() < s.getMaxStackSize() && s.getCount() < c.getMaxStackSize()) return true;
+			if (ItemStack.isSameItemSameTags(s, stack) && s.getCount() < s.getMaxStackSize() && s.getCount() < c.getMaxStackSize()) return true;
 		}
 		return false;
 	}
