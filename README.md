@@ -66,7 +66,7 @@ Tuning lives in `players.json`:
 | `guardRadius` | `12` | How far a Guard chases from its patrol point. |
 | `minerMaxBlocksPerSecond` | `2.5` | Caps how fast the Miner can break blocks. |
 | `minerBailY` | `-58` | Y level the Miner refuses to dig below. |
-| `minerSpoil` | `ground` | What the Miner does with drops that don't match its filter and aren't a build block: `ground` (dropped and left at the bot's feet - most despawns uncollected), `chest` (deposited like ore), or `void` (deleted). An unrecognised value falls back to `ground` with a logged warning. |
+| `minerSpoil` | `ground` | What the Miner does with a drop its filter doesn't ask for once the build reserve (up to 64 build blocks) is full: `ground` (dropped and left at the bot's feet - most despawns uncollected), `chest` (deposited like ore), or `void` (deleted). Anything the filter matches is always kept, build-suitable or not. An unrecognised value falls back to `ground` with a logged warning. |
 
 <div align="center">
 <table>
