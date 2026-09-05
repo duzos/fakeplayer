@@ -15,11 +15,14 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -583,7 +586,7 @@ public class MinerJobExecutor implements JobExecutor {
 		boolean sourceMatches = matchesBlockFilter(entity, state);
 		SimpleContainer inv = entity.getInventory();
 		for (ItemStack drop : drops) {
-			if (drop.isEmpty() || isBuildBlock(drop)) continue;
+			if (drop.isEmpty() || canConsumeForBuild(drop)) continue;
 			if (!sourceMatches && !matchesInventoryFilter(entity, drop)) continue;
 			if (!JobHelpers.canAccept(inv, drop)) {
 				dropOverflow = true; // same "kept drop can't fit" condition needsService watches for
@@ -595,16 +598,37 @@ public class MinerJobExecutor implements JobExecutor {
 
 	private void addFilteredDrop(FakePlayerEntity entity, ItemStack stack, boolean sourceBlockMatchesFilter) {
 		if (stack.isEmpty()) return;
-		if (isBuildBlock(stack)) {
+		if (canConsumeForBuild(stack)) {
 			int needed = BUILD_RESERVE - buildBlockCount(entity);
-			if (needed <= 0) return;
-			ItemStack kept = stack.copy();
-			kept.setCount(Math.min(stack.getCount(), needed));
-			addOrDrop(entity, kept);
+			int keepCount = Math.max(0, Math.min(stack.getCount(), needed));
+			if (keepCount > 0) {
+				ItemStack kept = stack.copy();
+				kept.setCount(keepCount);
+				addOrDrop(entity, kept);
+			}
+			int spoilCount = stack.getCount() - keepCount;
+			if (spoilCount > 0) {
+				ItemStack spoil = stack.copy();
+				spoil.setCount(spoilCount);
+				handleSpoil(entity, spoil);
+			}
 			return;
 		}
 		if (!sourceBlockMatchesFilter && !matchesInventoryFilter(entity, stack)) return;
 		addOrDrop(entity, stack);
+	}
+
+	/** What happens to a build-block drop once the {@link #BUILD_RESERVE} reserve is full - user's choice. */
+	private void handleSpoil(FakePlayerEntity entity, ItemStack stack) {
+		if (stack.isEmpty()) return;
+		switch (PlayersConfig.get().minerSpoil) {
+			case "chest" -> addOrDrop(entity, stack); // kept like ore; reaches the ground only if inv and chest are both full
+			case "void" -> { /* today's behaviour: discarded */ }
+			default -> { // "ground", and the fallback for an invalid config value
+				ItemEntity drop = new ItemEntity(entity.level(), entity.getX(), entity.getY(), entity.getZ(), stack);
+				entity.level().addFreshEntity(drop);
+			}
+		}
 	}
 
 	private boolean matchesInventoryFilter(FakePlayerEntity entity, ItemStack stack) {
@@ -753,25 +777,40 @@ public class MinerJobExecutor implements JobExecutor {
 	}
 
 	private boolean placeBuildBlock(ServerLevel level, FakePlayerEntity entity, BlockPos pos) {
-		if (!consumeBuildBlock(entity)) return false;
-		level.setBlock(pos, Blocks.COBBLESTONE.defaultBlockState(), 3);
+		Block block = consumeBuildBlock(entity);
+		if (block == null) return false;
+		level.setBlock(pos, block.defaultBlockState(), 3);
 		entity.swing(InteractionHand.MAIN_HAND);
 		return true;
 	}
 
-	private boolean consumeBuildBlock(FakePlayerEntity entity) {
+	/** Consumes one unit of whatever build-eligible block is in the inventory and returns its block, or null if none. */
+	private Block consumeBuildBlock(FakePlayerEntity entity) {
 		SimpleContainer inv = entity.getInventory();
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack stack = inv.getItem(i);
-			if (!isBuildBlock(stack)) continue;
+			if (!canConsumeForBuild(stack)) continue;
+			Block block = ((BlockItem) stack.getItem()).getBlock();
 			stack.shrink(1);
 			if (stack.isEmpty()) inv.setItem(i, ItemStack.EMPTY);
-			return true;
+			return block;
 		}
-		return false;
+		return null;
 	}
 
+	/** Broad count (every {@link #canConsumeForBuild} stack) - governs the retention cap and dumpInto's holdback. */
 	private int buildBlockCount(FakePlayerEntity entity) {
+		int count = 0;
+		SimpleContainer inv = entity.getInventory();
+		for (int i = 0; i < inv.getContainerSize(); i++) {
+			ItemStack stack = inv.getItem(i);
+			if (canConsumeForBuild(stack)) count += stack.getCount();
+		}
+		return count;
+	}
+
+	/** Narrow count (only {@link #isBuildBlock}) - governs the chest top-up, so it never pulls the player's own supplies. */
+	private int narrowBuildBlockCount(FakePlayerEntity entity) {
 		int count = 0;
 		SimpleContainer inv = entity.getInventory();
 		for (int i = 0; i < inv.getContainerSize(); i++) {
@@ -791,12 +830,27 @@ public class MinerJobExecutor implements JobExecutor {
 				|| item == Items.DEEPSLATE;
 	}
 
+	private static final TagKey<Item> BUILD_DENY_TAG = TagKey.create(Registries.ITEM, new ResourceLocation("c", "ores"));
+	private static final java.util.Set<Item> BUILD_DENYLIST = java.util.Set.of(
+			Items.RAW_IRON_BLOCK, Items.RAW_COPPER_BLOCK, Items.RAW_GOLD_BLOCK,
+			Items.OBSIDIAN, Items.CRYING_OBSIDIAN, Items.ANCIENT_DEBRIS,
+			Items.TNT, Items.REDSTONE_BLOCK
+	);
+
+	/** Anything safe to place as stair/plug material: a solid full-cube block, nothing valuable or functional. */
+	private boolean canConsumeForBuild(ItemStack stack) {
+		if (stack.isEmpty()) return false;
+		if (!(stack.getItem() instanceof BlockItem blockItem)) return false;
+		if (BUILD_DENYLIST.contains(stack.getItem()) || stack.is(BUILD_DENY_TAG)) return false;
+		BlockState state = blockItem.getBlock().defaultBlockState();
+		if (state.hasBlockEntity()) return false;
+		if (state.getBlock() instanceof FallingBlock) return false;
+		return state.isCollisionShapeFullBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+	}
+
+	/** Must accept exactly what {@link #canConsumeForBuild} can place, or the miner won't recognise its own stair step. */
 	private boolean isBuildBlockState(BlockState state) {
-		return state.is(Blocks.COBBLESTONE)
-				|| state.is(Blocks.COBBLED_DEEPSLATE)
-				|| state.is(Blocks.DIRT)
-				|| state.is(Blocks.STONE)
-				|| state.is(Blocks.DEEPSLATE);
+		return canConsumeForBuild(new ItemStack(state.getBlock()));
 	}
 
 	private String blockName(BlockState state) {
@@ -895,7 +949,7 @@ public class MinerJobExecutor implements JobExecutor {
 			ItemStack stack = inv.getItem(i);
 			if (stack.isEmpty()) continue;
 			if (isKeep(stack)) continue;
-			if (isBuildBlock(stack)) {
+			if (canConsumeForBuild(stack)) {
 				int keep = Math.max(0, BUILD_RESERVE - keptBuildBlocks);
 				int move = Math.max(0, stack.getCount() - keep);
 				keptBuildBlocks += stack.getCount() - move;
@@ -941,8 +995,8 @@ public class MinerJobExecutor implements JobExecutor {
 	private boolean shouldTakeFromDeposit(FakePlayerEntity entity, ItemStack stack) {
 		if (isUsablePickaxe(stack)) return true;
 		if (isFood(stack)) return true;
-		// supplies only: top up build blocks, never pull filter-matching loot back out of the chest
-		if (isBuildBlock(stack)) return buildBlockCount(entity) < BUILD_RESERVE;
+		// supplies only, and only the narrow list - broadening this would pull the player's planks/bricks out of the chest
+		if (isBuildBlock(stack)) return narrowBuildBlockCount(entity) < BUILD_RESERVE;
 		return false;
 	}
 
