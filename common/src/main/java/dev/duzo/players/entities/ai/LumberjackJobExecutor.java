@@ -423,6 +423,12 @@ public class LumberjackJobExecutor implements JobExecutor {
 			waitForBlocker(level, entity, "lumberjack: deposit container full");
 			return;
 		}
+		// chest visit (via serviceAtChest -> pickBetterAxe) is the only way to pick up an axe; if it still came
+		// up empty, resuming to SCANNING would just find the same tree and bounce straight back here forever
+		if (!hasUsableAxe(entity)) {
+			waitForBlocker(level, entity, "lumberjack: no usable axe");
+			return;
+		}
 		pathFailCount = 0;
 		phase = Phase.SCANNING;
 	}
@@ -434,6 +440,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		if (level.getGameTime() < waitUntilTick) return;
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 		pathFailCount = 0;
+		waitMessage = ""; // clear so a still-blocked retry re-announces instead of staying silent
 		phase = Phase.SCANNING;
 	}
 
@@ -853,7 +860,10 @@ public class LumberjackJobExecutor implements JobExecutor {
 		bailed = false;
 		pathFailCount = 0;
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
-		waitMessage = message;
+		if (!message.equals(waitMessage)) { // tell the owner once per distinct problem, not every retry
+			entity.sendChat(message + " - waiting 15s before retry");
+			waitMessage = message;
+		}
 		entity.getNavigation().stop();
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
 		phase = Phase.WAITING_AT_CHEST;
