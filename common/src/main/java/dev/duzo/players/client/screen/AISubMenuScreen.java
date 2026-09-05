@@ -1,5 +1,6 @@
 package dev.duzo.players.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import commonnetwork.api.Network;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
@@ -442,6 +443,27 @@ public class AISubMenuScreen extends Screen {
 				Component.literal(text).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(textColor & 0xFFFFFF))),
 				x + 10, y, 0xFFFFFFFF, false);
 	}
+
+	@Override
+	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		if (this.filterEdit != null && this.filterEdit.isFocused()) {
+			if (keyCode == InputConstants.KEY_ESCAPE || keyCode == InputConstants.KEY_TAB) {
+				return super.keyPressed(keyCode, scanCode, modifiers);
+			}
+			return this.filterEdit.keyPressed(keyCode, scanCode, modifiers);
+		}
+		return super.keyPressed(keyCode, scanCode, modifiers);
+	}
+
+	@Override
+	public boolean charTyped(char codePoint, int modifiers) {
+		if (this.filterEdit != null && this.filterEdit.isFocused()) {
+			this.filterEdit.charTyped(codePoint, modifiers);
+			return true;
+		}
+		return super.charTyped(codePoint, modifiers);
+	}
+
 
 	private void toggleBond() {
 		AIState s = entity.getAIState();
