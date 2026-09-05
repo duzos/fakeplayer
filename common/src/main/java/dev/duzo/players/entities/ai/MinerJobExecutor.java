@@ -435,6 +435,10 @@ public class MinerJobExecutor implements JobExecutor {
 		takeUsefulSupplies(c, entity);
 		pickBetterPickaxe(c, entity);
 		dropOverflow = false;
+		if (inventoryFull(entity)) {
+			waitForBlocker(level, entity, "miner: deposit container full");
+			return;
+		}
 		if (shouldEat(entity) && !eatFromInventory(entity)) {
 			waitForBlocker(level, entity, "miner: hungry and no food");
 			return;
