@@ -2,14 +2,10 @@ package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
@@ -130,24 +126,18 @@ public class CourierJobExecutor implements JobExecutor {
 		return moved;
 	}
 
+	/** Same grammar the miner uses: {@code namespace:id}, {@code #namespace:tag}, {@code *}, comma-separated. */
 	private boolean matchesFilter(ItemStack stack, CompoundTag filter) {
-		if (filter == null || filter.isEmpty()) return true;
-		String tagId = filter.getStringOr("Tag", "");
-		if (!tagId.isEmpty()) {
-			Identifier id = Identifier.tryParse(tagId);
-			if (id == null) return true;
-			TagKey<Item> key = TagKey.create(BuiltInRegistries.ITEM.key(), id);
-			return stack.is(key);
+		String raw = filter == null ? "" : filter.getStringOr("Tag", "");
+		// absent or empty means no filter has ever been set for this fake - match everything, not the miner's
+		// "c:ores" default, since every deployed courier has a blank filter today
+		if (raw == null || raw.isBlank() || raw.equals("*")) return true;
+		for (String part : raw.split(",")) {
+			String token = part.trim();
+			if (token.isEmpty()) continue;
+			if (JobHelpers.matchesFilterToken(stack, token)) return true;
 		}
-		String itemId = filter.getStringOr("Item", "");
-		if (!itemId.isEmpty()) {
-			Identifier id = Identifier.tryParse(itemId);
-			if (id == null) return true;
-			Item item = BuiltInRegistries.ITEM.get(id).map(ref -> ref.value()).orElse(null);
-			if (item == null) return true;
-			return stack.getItem() == item;
-		}
-		return true;
+		return false;
 	}
 
 	@Override
