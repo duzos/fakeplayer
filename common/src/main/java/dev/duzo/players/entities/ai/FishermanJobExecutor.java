@@ -109,7 +109,7 @@ public class FishermanJobExecutor implements JobExecutor {
 					phase = Phase.CAST;
 				}
 			}
-			case TO_DEPOSIT -> { if (JobHelpers.walkTo(entity, deposit, SPEED)) phase = Phase.DUMP; }
+			case TO_DEPOSIT -> { if (JobHelpers.walkTo(entity, deposit, SPEED) == JobHelpers.WalkResult.ARRIVED) phase = Phase.DUMP; }
 			case DUMP -> {
 				Container dst = JobHelpers.containerAt(level, deposit);
 				if (dst == null) { JobHelpers.closeContainer(level, entity); phase = Phase.TO_SPOT; return; }
