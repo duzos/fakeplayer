@@ -33,14 +33,40 @@ Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI han
 | **Idle** | waypoint (optional) | Walks to its waypoint, else waits. |
 | **Follow** | bond | Sticks within 32 blocks, teleports if it lags behind. |
 | **Guard** | patrol points | Patrols your points and attacks hostiles in range. Hold the Waypoint marker to edit points - right-click adds, sneak + right-click removes. |
-| **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. |
+| **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. Filter grammar and the on/off toggle are covered below. |
 | **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
-| **Courier** | source + deposit | Hauls matching items from one chest to another. |
+| **Courier** | source + deposit | Hauls matching items from one chest to another. Shares the Miner's filter. |
 | **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. |
 | **Farmer** | region + deposit | Tills a plot, waters it, plants any seed (modded too), bonemeals, then harvests and replants on a loop. |
 | **Crafter** | table + source + deposit | Walks to a crafting table and lays out a recipe you teach it by hand; chain it onto another job's chest for a pipeline. |
 
-Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`).
+### Miner / Courier filter
+
+The Miner and Courier both filter what they collect against one stored string, edited from the AI menu's Filter row:
+
+- `<namespace>:<id>` - a specific item or block, e.g. `minecraft:diamond`.
+- `#<namespace>:<tag>` - an item or block tag, e.g. `#c:ores`.
+- Comma-separated for multiple tokens: `minecraft:diamond,#c:ores`.
+- `*`, or a blank box - matches everything. The ON/OFF button next to Apply toggles this directly, and a blank box always means the filter is off (reopening the menu shows it that way too).
+
+Miner defaults to `c:ores` when never set. Applying a filter does **not** reset quarry progress.
+
+## ⚙️ Config
+
+Tuning lives in `players.json`:
+
+| Key | Default | Effect |
+| --- | --- | --- |
+| `defaultSkin` | `duzo` | Skin applied to a freshly-placed fake before you rename it. |
+| `maxHealth` | `25.0` | Fake player max health. |
+| `movementSpeed` | `0.2` | Fake player walk speed. |
+| `attackDamage` | `1.0` | Fake player melee damage. |
+| `persistFakePlayers` | `true` | Whether fakes survive a server restart. |
+| `allowLocalSkinUploadOpOnly` | `true` | Restricts uploading a local skin file to server operators; disable to let any player upload one. |
+| `guardRadius` | `12` | How far a Guard chases from its patrol point. |
+| `minerMaxBlocksPerSecond` | `2.5` | Caps how fast the Miner can break blocks. |
+| `minerBailY` | `-58` | Y level the Miner refuses to dig below. |
+| `minerSpoil` | `ground` | What the Miner does with drops that don't match its filter and aren't a build block: `ground` (dropped and left at the bot's feet - most despawns uncollected), `chest` (deposited like ore), or `void` (deleted). An unrecognised value falls back to `ground` with a logged warning. |
 
 <div align="center">
 <table>

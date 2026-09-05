@@ -19,6 +19,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -173,6 +174,8 @@ public class AISubMenuScreen extends Screen {
 		filterEdit = new EditBox(this.font, innerLeft + 52, markerSectionY, FILTER_EDIT_W, BTN_H, Component.literal("filter"));
 		filterEdit.setMaxLength(512);
 		filterEdit.setValue(filterText(entity.getAIState()));
+		filterEdit.setTooltip(Tooltip.create(Component.literal(
+				"Item/block ids or #tags, comma-separated. * or blank matches everything.")));
 		this.addRenderableWidget(filterEdit);
 		filterButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
 		this.addRenderableWidget(filterButton);
@@ -216,7 +219,7 @@ public class AISubMenuScreen extends Screen {
 		return switch (job) {
 			case IDLE -> List.of(Row.WAYPOINT);
 			case GUARD -> List.of(Row.WAYPOINT, Row.PATROL);
-			case COURIER -> List.of(Row.SOURCE, Row.DEPOSIT);
+			case COURIER -> List.of(Row.SOURCE, Row.DEPOSIT, Row.FILTER);
 			case MINER -> List.of(Row.REGION, Row.DEPOSIT, Row.FILTER);
 			case LUMBERJACK -> List.of(Row.REGION, Row.DEPOSIT);
 			case FISHERMAN -> List.of(Row.WAYPOINT, Row.DEPOSIT);
