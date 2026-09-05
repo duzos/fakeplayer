@@ -60,7 +60,7 @@ public class CrafterJobExecutor implements JobExecutor {
 
 		switch (phase) {
 			case TO_SOURCE -> {
-				if (JobHelpers.walkTo(entity, source, SPEED)) phase = Phase.PULL;
+				if (JobHelpers.walkTo(entity, source, SPEED) == JobHelpers.WalkResult.ARRIVED) phase = Phase.PULL;
 			}
 			case PULL -> {
 				Container src = JobHelpers.containerAt(level, source);
@@ -80,7 +80,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				}
 			}
 			case TO_TABLE -> {
-				if (JobHelpers.walkTo(entity, table, SPEED)) {
+				if (JobHelpers.walkTo(entity, table, SPEED) == JobHelpers.WalkResult.ARRIVED) {
 					if (!craftingTableNear(level, table)) { entity.getNavigation().stop(); return; } // no table here: idle
 					craftIndex = 0;
 					craftTimer = PLACE_TICKS;
@@ -112,7 +112,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				}
 			}
 			case TO_DEPOSIT -> {
-				if (JobHelpers.walkTo(entity, deposit, SPEED)) phase = Phase.DUMP;
+				if (JobHelpers.walkTo(entity, deposit, SPEED) == JobHelpers.WalkResult.ARRIVED) phase = Phase.DUMP;
 			}
 			case DUMP -> {
 				Container dst = JobHelpers.containerAt(level, deposit);

@@ -2,6 +2,7 @@ package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.block.BarrelBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.AABB;
 
 import java.util.HashMap;
@@ -83,12 +85,39 @@ public final class JobHelpers {
 		return new AABB(x0, y0, z0, x1 + 1.0, y1 + 1.0, z1 + 1.0);
 	}
 
-	/** Walk toward target; returns true once within ARRIVE_SQR (and stops navigation). */
-	public static boolean walkTo(FakePlayerEntity e, BlockPos target, double speed) {
-		if (e.blockPosition().distSqr(target) <= ARRIVE_SQR) { e.getNavigation().stop(); return true; }
-		if (e.getNavigation().isDone())
-			e.getNavigation().moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, speed);
-		return false;
+	public enum WalkResult { ARRIVED, MOVING, UNREACHABLE }
+
+	/**
+	 * Walk toward a walkable neighbour of target (or target itself if none is found). Returns ARRIVED once within
+	 * ARRIVE_SQR of that spot (Y included), UNREACHABLE when a freshly computed path can't reach it, else MOVING.
+	 * Stops navigation on arrival.
+	 */
+	public static WalkResult walkTo(FakePlayerEntity e, BlockPos target, double speed) {
+		BlockPos dest = standableNeighbor((ServerLevel) e.level(), target);
+		if (e.blockPosition().distSqr(dest) <= ARRIVE_SQR) { e.getNavigation().stop(); return WalkResult.ARRIVED; }
+		if (!e.getNavigation().isDone()) return WalkResult.MOVING;
+		return moveToChecked(e, dest.getX() + 0.5, dest.getY(), dest.getZ() + 0.5, speed) ? WalkResult.MOVING : WalkResult.UNREACHABLE;
+	}
+
+	private static BlockPos standableNeighbor(ServerLevel level, BlockPos target) {
+		if (canStandAt(level, target)) return target;
+		for (Direction d : Direction.Plane.HORIZONTAL) {
+			BlockPos p = target.relative(d);
+			if (canStandAt(level, p)) return p;
+		}
+		return target;
+	}
+
+	/**
+	 * Starts navigating toward (x, y, z) if idle. Returns false - without starting to move - when a freshly
+	 * computed path can't reach the destination; a "path found" that can't actually get there is not success.
+	 */
+	public static boolean moveToChecked(FakePlayerEntity e, double x, double y, double z, double speed) {
+		if (!e.getNavigation().isDone()) return true;
+		Path path = e.getNavigation().createPath(BlockPos.containing(x, y, z), 1);
+		if (path == null || !path.canReach()) return false;
+		e.getNavigation().moveTo(path, speed);
+		return true;
 	}
 
 	public static Container containerAt(ServerLevel level, BlockPos pos) {
