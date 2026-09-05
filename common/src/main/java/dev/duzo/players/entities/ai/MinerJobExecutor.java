@@ -389,14 +389,24 @@ public class MinerJobExecutor implements JobExecutor {
 			entity.sendChat("miner: quarry complete");
 			return;
 		}
-		BlockPos target = posForIndex(capCursor++, topY + 1);
+		BlockPos target = posForIndex(capCursor, topY + 1);
 		walkToTopRim(entity);
-		if (isProtected(level, target)) return;
-		if (!level.getBlockState(target).isAir() && !isLiquid(level, target)) return;
+		// capCursor advances only on success or a deliberate, reported skip - never before the attempt, or a
+		// protected cell / a full build-block reserve would silently hole the cap
+		if (isProtected(level, target)) {
+			capCursor++;
+			entity.sendChat("miner: skipping protected cap cell");
+			return;
+		}
+		if (!level.getBlockState(target).isAir() && !isLiquid(level, target)) {
+			capCursor++; // already solid - nothing to place here
+			return;
+		}
 		if (!placeBuildBlock(level, entity, target)) {
 			waitForBlocker(level, entity, "miner: out of build blocks for cap");
 			return;
 		}
+		capCursor++;
 		double bps = Math.max(0.5, cfg.minerMaxBlocksPerSecond);
 		throttleUntilTick = level.getGameTime() + Math.max(1L, (long) (20.0 / bps));
 	}
