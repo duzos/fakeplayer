@@ -161,7 +161,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				entity.setItemSlot(EquipmentSlot.MAINHAND, heldMainHand);
 			} else if (!heldMainHand.isEmpty()) {
 				ItemStack rem = entity.getInventory().addItem(heldMainHand.copy());
-				if (!rem.isEmpty()) entity.spawnAtLocation(rem);
+				if (!rem.isEmpty()) entity.spawnAtLocation((ServerLevel) entity.level(), rem);
 			}
 		}
 		heldMainHand = ItemStack.EMPTY;
