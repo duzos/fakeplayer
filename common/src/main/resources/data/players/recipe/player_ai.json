@@ -20,7 +20,7 @@
     }
   },
   "result": {
-    "item": "players:player_ai",
+    "id": "players:player_ai",
     "count": 1
   }
 }
