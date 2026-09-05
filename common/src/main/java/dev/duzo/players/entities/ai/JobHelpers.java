@@ -3,10 +3,14 @@ package dev.duzo.players.entities.ai;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -177,6 +181,18 @@ public final class JobHelpers {
 			if (ItemStack.isSameItemSameComponents(s, stack) && s.getCount() < s.getMaxStackSize() && s.getCount() < c.getMaxStackSize()) return true;
 		}
 		return false;
+	}
+
+	/** One filter token: {@code namespace:id} (item id), {@code #namespace:tag} (item tag), or unparsable -> no match. */
+	public static boolean matchesFilterToken(ItemStack stack, String token) {
+		boolean explicitTag = token.startsWith("#");
+		String name = explicitTag ? token.substring(1).trim() : token;
+		Identifier id = Identifier.tryParse(name);
+		if (id == null) return false;
+		if (!explicitTag && BuiltInRegistries.ITEM.getOptional(id).map(stack::is).orElse(false)) {
+			return true;
+		}
+		return stack.is(TagKey.create(Registries.ITEM, id));
 	}
 
 	/** Vacuum loose items within radius (mirrors Lumberjack.vacuumNearbyItems). */
