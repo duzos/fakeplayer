@@ -273,6 +273,10 @@ public class FarmerJobExecutor implements JobExecutor {
 			return;
 		}
 		if (!serviceAtChest(level, entity)) return; // still pausing with the chest open
+		if (JobHelpers.inventoryFull(entity)) {
+			waitForBlocker(level, entity, "farmer: deposit container full");
+			return;
+		}
 		pathFailCount = 0;
 		phase = Phase.SCANNING;
 	}
