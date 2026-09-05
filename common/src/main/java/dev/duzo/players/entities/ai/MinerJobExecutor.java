@@ -847,18 +847,23 @@ public class MinerJobExecutor implements JobExecutor {
 				|| item == Items.DEEPSLATE;
 	}
 
-	private static final TagKey<Item> BUILD_DENY_TAG = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("c", "ores"));
+	private static final TagKey<Item> BUILD_DENY_ORES_TAG = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("c", "ores"));
+	// refined metal/gem storage blocks (iron_block, diamond_block, etc, modded equivalents included) live under this
+	// tag family, not c:ores - without it they pass every other check and get cemented into the build
+	private static final TagKey<Item> BUILD_DENY_STORAGE_BLOCKS_TAG = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("c", "storage_blocks"));
 	private static final java.util.Set<Item> BUILD_DENYLIST = java.util.Set.of(
 			Items.RAW_IRON_BLOCK, Items.RAW_COPPER_BLOCK, Items.RAW_GOLD_BLOCK,
 			Items.OBSIDIAN, Items.CRYING_OBSIDIAN, Items.ANCIENT_DEBRIS,
-			Items.TNT, Items.REDSTONE_BLOCK
+			Items.TNT, Items.REDSTONE_BLOCK,
+			Items.OBSERVER, Items.PISTON, Items.STICKY_PISTON
 	);
 
 	/** Anything safe to place as stair/plug material: a solid full-cube block, nothing valuable or functional. */
 	private boolean canConsumeForBuild(ItemStack stack) {
 		if (stack.isEmpty()) return false;
 		if (!(stack.getItem() instanceof BlockItem blockItem)) return false;
-		if (BUILD_DENYLIST.contains(stack.getItem()) || stack.is(BUILD_DENY_TAG)) return false;
+		if (BUILD_DENYLIST.contains(stack.getItem())) return false;
+		if (stack.is(BUILD_DENY_ORES_TAG) || stack.is(BUILD_DENY_STORAGE_BLOCKS_TAG)) return false;
 		BlockState state = blockItem.getBlock().defaultBlockState();
 		if (state.hasBlockEntity()) return false;
 		if (state.getBlock() instanceof FallingBlock) return false;
