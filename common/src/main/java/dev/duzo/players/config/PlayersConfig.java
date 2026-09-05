@@ -24,6 +24,8 @@ public class PlayersConfig {
 	public double minerMaxBlocksPerSecond = 2.5;
 	public int minerBailY = -58;
 	public int guardRadius = 12;
+	/** What the miner does with mined blocks past the build reserve: "ground", "chest", or "void". */
+	public String minerSpoil = "ground";
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {
@@ -31,6 +33,8 @@ public class PlayersConfig {
 		}
 		return INSTANCE;
 	}
+
+	private static final java.util.Set<String> MINER_SPOIL_VALUES = java.util.Set.of("ground", "chest", "void");
 
 	public static void load() {
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -42,6 +46,7 @@ public class PlayersConfig {
 				if (INSTANCE == null) {
 					INSTANCE = new PlayersConfig();
 				}
+				validate();
 				save(gson);
 			} else {
 				INSTANCE = new PlayersConfig();
@@ -50,6 +55,14 @@ public class PlayersConfig {
 		} catch (IOException e) {
 			Constants.LOG.error("Failed to load players.json, using defaults", e);
 			INSTANCE = new PlayersConfig();
+		}
+	}
+
+	private static void validate() {
+		if (INSTANCE.minerSpoil == null || !MINER_SPOIL_VALUES.contains(INSTANCE.minerSpoil)) {
+			Constants.LOG.warn("players.json: minerSpoil '{}' is not one of {}, falling back to 'ground'",
+					INSTANCE.minerSpoil, MINER_SPOIL_VALUES);
+			INSTANCE.minerSpoil = "ground";
 		}
 	}
 
