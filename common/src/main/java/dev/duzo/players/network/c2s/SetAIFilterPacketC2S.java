@@ -37,7 +37,9 @@ public record SetAIFilterPacketC2S(int id, String tagName) {
 
 	private static String normalize(String raw) {
 		String value = raw == null ? "" : raw.trim();
-		if (value.isEmpty()) return DEFAULT_FILTER;
+		// "*" is the match-all / disabled-filter token; an empty box means the same thing, and both must
+		// round-trip unchanged so a disabled filter survives a reload instead of reverting to the default
+		if (value.isEmpty() || value.equals("*")) return "*";
 		StringBuilder result = new StringBuilder();
 		for (String part : value.split(",")) {
 			String token = part.trim();

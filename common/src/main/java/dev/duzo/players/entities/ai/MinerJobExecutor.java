@@ -649,6 +649,7 @@ public class MinerJobExecutor implements JobExecutor {
 	private boolean matchesInventoryFilter(FakePlayerEntity entity, ItemStack stack) {
 		String raw = entity.getAIState().filter().contains("Tag") ? entity.getAIState().filter().getString("Tag") : DEFAULT_FILTER;
 		if (raw == null || raw.isBlank()) raw = DEFAULT_FILTER;
+		if (raw.equals("*")) return true; // match-all / disabled filter
 		for (String part : raw.split(",")) {
 			String token = part.trim();
 			if (token.isEmpty()) continue;
@@ -671,6 +672,7 @@ public class MinerJobExecutor implements JobExecutor {
 	private boolean matchesBlockFilter(FakePlayerEntity entity, BlockState state) {
 		String raw = entity.getAIState().filter().contains("Tag") ? entity.getAIState().filter().getString("Tag") : DEFAULT_FILTER;
 		if (raw == null || raw.isBlank()) raw = DEFAULT_FILTER;
+		if (raw.equals("*")) return true; // match-all / disabled filter
 		for (String part : raw.split(",")) {
 			String token = part.trim();
 			if (token.isEmpty()) continue;
