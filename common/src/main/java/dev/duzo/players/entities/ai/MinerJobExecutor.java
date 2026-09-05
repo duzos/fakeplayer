@@ -850,7 +850,7 @@ public class MinerJobExecutor implements JobExecutor {
 				|| item == Items.DEEPSLATE;
 	}
 
-	private static final TagKey<Item> BUILD_DENY_TAG = TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath("c", "ores"));
+	private static final TagKey<Item> BUILD_DENY_TAG = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("c", "ores"));
 	private static final java.util.Set<Item> BUILD_DENYLIST = java.util.Set.of(
 			Items.RAW_IRON_BLOCK, Items.RAW_COPPER_BLOCK, Items.RAW_GOLD_BLOCK,
 			Items.OBSIDIAN, Items.CRYING_OBSIDIAN, Items.ANCIENT_DEBRIS,
