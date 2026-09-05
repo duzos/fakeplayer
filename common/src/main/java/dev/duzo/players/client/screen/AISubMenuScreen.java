@@ -1,5 +1,6 @@
 package dev.duzo.players.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import commonnetwork.api.Network;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
@@ -459,8 +460,10 @@ public class AISubMenuScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (this.filterEdit != null && this.filterEdit.isFocused()) {
-			this.filterEdit.keyPressed(event);
-			return true;
+			if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_TAB) {
+				return super.keyPressed(event);
+			}
+			return this.filterEdit.keyPressed(event);
 		}
 		return super.keyPressed(event);
 	}

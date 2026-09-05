@@ -133,8 +133,10 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (this.nameEdit != null && this.nameEdit.isFocused()) {
-			this.nameEdit.keyPressed(event);
-			return true;
+			if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_TAB) {
+				return super.keyPressed(event);
+			}
+			return this.nameEdit.keyPressed(event);
 		}
 		return super.keyPressed(event);
 	}
