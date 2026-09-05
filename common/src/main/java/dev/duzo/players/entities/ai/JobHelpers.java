@@ -91,36 +91,69 @@ public final class JobHelpers {
 
 	public enum WalkResult { ARRIVED, MOVING, UNREACHABLE }
 
+	// FOLLOW_RANGE (16 blocks, see Mob.createMobAttributes) bounds every path PathNavigation computes, so a
+	// destination further than that returns a partial (canReach() == false) path as a matter of course. Treat that
+	// as progress and walk it in stages; only flag UNREACHABLE when successive completed legs stop closing the gap.
+	private static final double MIN_LEG_PROGRESS = 2.0; // blocks a completed leg must close to count as progress
+	private static final int STALE_LEG_LIMIT = 1;       // completed legs in a row with no progress before UNREACHABLE
+
+	private record Progress(BlockPos dest, double lastDist, int staleLegs) {}
+	private static final Map<UUID, Progress> PROGRESS = new HashMap<>();
+
 	/**
 	 * Walk toward a walkable neighbour of target (or target itself if none is found). Returns ARRIVED once within
-	 * ARRIVE_SQR of that spot (Y included), UNREACHABLE when a freshly computed path can't reach it, else MOVING.
-	 * Stops navigation on arrival.
+	 * ARRIVE_SQR horizontally and |dy| &lt;= 2 vertically of that spot, UNREACHABLE once repeated completed legs
+	 * make no real progress toward it, else MOVING. Stops navigation on arrival.
 	 */
 	public static WalkResult walkTo(FakePlayerEntity e, BlockPos target, double speed) {
 		BlockPos dest = standableNeighbor((ServerLevel) e.level(), target);
-		if (e.blockPosition().distSqr(dest) <= ARRIVE_SQR) { e.getNavigation().stop(); return WalkResult.ARRIVED; }
+		BlockPos cur = e.blockPosition();
+		double dx = cur.getX() - dest.getX(), dz = cur.getZ() - dest.getZ();
+		if (dx * dx + dz * dz <= ARRIVE_SQR && Math.abs(cur.getY() - dest.getY()) <= 2) {
+			e.getNavigation().stop();
+			PROGRESS.remove(e.getUUID());
+			return WalkResult.ARRIVED;
+		}
 		if (!e.getNavigation().isDone()) return WalkResult.MOVING;
 		return moveToChecked(e, dest.getX() + 0.5, dest.getY(), dest.getZ() + 0.5, speed) ? WalkResult.MOVING : WalkResult.UNREACHABLE;
 	}
 
 	private static BlockPos standableNeighbor(ServerLevel level, BlockPos target) {
-		if (canStandAt(level, target)) return target;
-		for (Direction d : Direction.Plane.HORIZONTAL) {
-			BlockPos p = target.relative(d);
-			if (canStandAt(level, p)) return p;
+		for (int dy : new int[] {0, -1, 1}) {
+			BlockPos base = target.above(dy);
+			if (canStandAt(level, base)) return base;
+			for (Direction d : Direction.Plane.HORIZONTAL) {
+				BlockPos p = base.relative(d);
+				if (canStandAt(level, p)) return p;
+			}
 		}
 		return target;
 	}
 
 	/**
-	 * Starts navigating toward (x, y, z) if idle. Returns false - without starting to move - when a freshly
-	 * computed path can't reach the destination; a "path found" that can't actually get there is not success.
+	 * Starts navigating toward (x, y, z) if idle. A null path is a genuine failure. A non-null path is progress
+	 * even when {@code canReach()} is false - vanilla treats a partial path the same way, which is what makes
+	 * multi-leg travel beyond FOLLOW_RANGE work at all - so it's always followed. Real unreachability is instead
+	 * caught by tracking distance-to-destination across completed legs: once a leg finishes without closing at
+	 * least {@link #MIN_LEG_PROGRESS} blocks, {@link #STALE_LEG_LIMIT} times in a row for the same destination,
+	 * this reports failure instead of computing yet another going-nowhere path.
 	 */
 	public static boolean moveToChecked(FakePlayerEntity e, double x, double y, double z, double speed) {
+		BlockPos dest = BlockPos.containing(x, y, z);
 		if (!e.getNavigation().isDone()) return true;
-		Path path = e.getNavigation().createPath(BlockPos.containing(x, y, z), 1);
-		if (path == null || !path.canReach()) return false;
+
+		double dist = Math.sqrt(e.blockPosition().distSqr(dest));
+		Progress prior = PROGRESS.get(e.getUUID());
+		int staleLegs = 0;
+		if (prior != null && prior.dest.equals(dest)) {
+			staleLegs = (prior.lastDist - dist) >= MIN_LEG_PROGRESS ? 0 : prior.staleLegs + 1;
+			if (staleLegs > STALE_LEG_LIMIT) { PROGRESS.remove(e.getUUID()); return false; }
+		}
+
+		Path path = e.getNavigation().createPath(dest, 1);
+		if (path == null) { PROGRESS.remove(e.getUUID()); return false; }
 		e.getNavigation().moveTo(path, speed);
+		PROGRESS.put(e.getUUID(), new Progress(dest.immutable(), dist, staleLegs));
 		return true;
 	}
 
