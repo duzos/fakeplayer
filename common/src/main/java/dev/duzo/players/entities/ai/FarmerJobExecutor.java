@@ -182,10 +182,8 @@ public class FarmerJobExecutor implements JobExecutor {
 		}
 		if (!near(entity, actionStand, STAND_RANGE)) {
 			entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
-			if (entity.getNavigation().isDone()) {
-				boolean ok = entity.getNavigation().moveTo(actionStand.getX() + 0.5, actionStand.getY(), actionStand.getZ() + 0.5, 1.0);
-				if (!ok && ++pathFailCount >= MAX_PATH_FAIL) waitForBlocker(level, entity, "farmer: pathing failed");
-			}
+			boolean ok = JobHelpers.moveToChecked(entity, actionStand.getX() + 0.5, actionStand.getY(), actionStand.getZ() + 0.5, 1.0);
+			if (!ok && ++pathFailCount >= MAX_PATH_FAIL) waitForBlocker(level, entity, "farmer: pathing failed");
 			return;
 		}
 		entity.getNavigation().stop();
@@ -537,14 +535,12 @@ public class FarmerJobExecutor implements JobExecutor {
 	private boolean moveToChest(ServerLevel level, FakePlayerEntity entity) {
 		BlockPos chest = entity.getAIState().depositChest();
 		if (chest == null) return false;
-		double cx = chest.getX() + 0.5, cz = chest.getZ() + 0.5;
-		double dx = entity.getX() - cx, dz = entity.getZ() - cz;
-		if (dx * dx + dz * dz <= 9.0) return false;
+		JobHelpers.WalkResult result = JobHelpers.walkTo(entity, chest, 1.0);
+		if (result == JobHelpers.WalkResult.ARRIVED) return false;
 		JobHelpers.closeContainer(level, entity); // still walking to the chest
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
-		if (entity.getNavigation().isDone()) {
-			boolean ok = entity.getNavigation().moveTo(cx, chest.getY(), cz, 1.0);
-			if (!ok && ++pathFailCount >= MAX_PATH_FAIL) waitForBlocker(level, entity, "farmer: cannot reach deposit container");
+		if (result == JobHelpers.WalkResult.UNREACHABLE && ++pathFailCount >= MAX_PATH_FAIL) {
+			waitForBlocker(level, entity, "farmer: cannot reach deposit container");
 		}
 		return true;
 	}
