@@ -176,14 +176,14 @@ public class AIMarkerItem extends Item {
 		byte purpose = purposeFromTag(tag);
 		UUID fake = tag == null ? null : readUUID(tag, TAG_FAKE);
 		if (purpose < 0 || fake == null) {
-			silentlyConsume(stack);
+			silentlyConsume(player, stack);
 			return InteractionResult.FAIL;
 		}
 
 		ServerLevel level = (ServerLevel) ctx.getLevel();
 		Entity raw = level.getEntity(fake);
 		if (!(raw instanceof FakePlayerEntity entity)) {
-			silentlyConsume(stack);
+			silentlyConsume(player, stack);
 			return InteractionResult.FAIL;
 		}
 
@@ -207,7 +207,7 @@ public class AIMarkerItem extends Item {
 				} else {
 					entity.mutateAIState(s -> s.setWaypoint(pos.immutable()));
 					player.displayClientMessage(Component.literal("Waypoint set.").withStyle(ChatFormatting.GREEN), true);
-					silentlyConsume(stack);
+					silentlyConsume(player, stack);
 				}
 			}
 			case PURPOSE_REGION -> {
@@ -224,7 +224,7 @@ public class AIMarkerItem extends Item {
 						s.setRegionB(b);
 					});
 					player.displayClientMessage(Component.literal("Region set.").withStyle(ChatFormatting.GREEN), true);
-					silentlyConsume(stack);
+					silentlyConsume(player, stack);
 				}
 			}
 			case PURPOSE_CHEST_PICKER -> {
@@ -241,7 +241,7 @@ public class AIMarkerItem extends Item {
 					entity.mutateAIState(s -> s.setDepositChest(commit));
 					player.displayClientMessage(Component.literal("Deposit container set.").withStyle(ChatFormatting.GREEN), true);
 				}
-				silentlyConsume(stack);
+				silentlyConsume(player, stack);
 			}
 		}
 
@@ -251,13 +251,32 @@ public class AIMarkerItem extends Item {
 	@Override
 	public InteractionResult use(Level level, Player player, InteractionHand hand) {
 		if (player.isShiftKeyDown() && !level.isClientSide() && player instanceof ServerPlayer) {
-			silentlyConsume(player.getItemInHand(hand));
+			silentlyConsume(player, player.getItemInHand(hand));
 			return InteractionResult.CONSUME;
 		}
 		return InteractionResult.PASS;
 	}
 
-	private static void silentlyConsume(ItemStack stack) {
+	// Vanilla's ServerPlayerGameMode.useItem/useItemOn saves the stack's count before
+	// dispatching and restores it after when the player has infinite materials (creative),
+	// so mutating the stack in place (stack.setCount(0)) gets silently undone. Remove it
+	// through the inventory instead, by reference identity, so the restore lands on a
+	// stack no longer held in any slot.
+	private static void silentlyConsume(Player player, ItemStack stack) {
+		Inventory inv = player.getInventory();
+		NonNullList<ItemStack> items = inv.getNonEquipmentItems();
+		for (int i = 0; i < items.size(); i++) {
+			if (items.get(i) == stack) {
+				inv.setItem(i, ItemStack.EMPTY);
+				return;
+			}
+		}
+		for (EquipmentSlot slot : MENU_EQUIPMENT_SLOTS) {
+			if (player.getItemBySlot(slot) == stack) {
+				player.setItemSlot(slot, ItemStack.EMPTY);
+				return;
+			}
+		}
 		stack.setCount(0);
 	}
 
