@@ -48,7 +48,7 @@ The Miner and Courier both filter what they collect against one stored string, e
 - Comma-separated for multiple tokens: `minecraft:diamond,#c:ores`.
 - `*`, or a blank box - matches everything. The ON/OFF button next to Apply toggles this directly, and a blank box always means the filter is off (reopening the menu shows it that way too).
 
-Miner defaults to `c:ores` when never set. Applying a filter does **not** reset quarry progress.
+Miner defaults to `c:ores` when never set; Courier defaults to matching everything when never set, and the Filter row reflects that per job. Applying a filter does **not** reset quarry progress.
 
 ## ⚙️ Config
 
