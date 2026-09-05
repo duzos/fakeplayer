@@ -5,7 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -190,7 +190,7 @@ public final class JobHelpers {
 	public static boolean matchesFilterToken(ItemStack stack, String token) {
 		boolean explicitTag = token.startsWith("#");
 		String name = explicitTag ? token.substring(1).trim() : token;
-		Identifier id = Identifier.tryParse(name);
+		ResourceLocation id = ResourceLocation.tryParse(name);
 		if (id == null) return false;
 		if (!explicitTag && BuiltInRegistries.ITEM.getOptional(id).map(stack::is).orElse(false)) return true;
 		if (stack.is(TagKey.create(Registries.ITEM, id))) return true;
