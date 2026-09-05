@@ -105,7 +105,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				ItemStack rem = inv.addItem(out.copy());
 				if (!rem.isEmpty()) entity.spawnAtLocation(level, rem);
 				craftIndex = 0;
-				if (hasFullSet(inv, need) && !JobHelpers.inventoryFull(entity)) {
+				if (hasFullSet(inv, need) && JobHelpers.canAccept(inv, out)) {
 					craftTimer = PLACE_TICKS;
 				} else {
 					clearHand(entity);
