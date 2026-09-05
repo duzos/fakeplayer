@@ -15,6 +15,7 @@ import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
 import dev.duzo.players.network.c2s.ToggleFakePlayerFlagPacketC2S;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -37,6 +38,9 @@ public class AISubMenuScreen extends Screen {
 	private static final int ROW_H = 18;
 	private static final int BTN_H = 16;
 	private static final int RIGHT_BTN_W = 64;
+	private static final int FILTER_EDIT_W = 58;
+	private static final int FILTER_TOGGLE_W = 30;
+	private static final int FILTER_TOGGLE_GAP = 4;
 
 	private static final int COL_PANEL = 0xEE0E1216;
 	private static final int COL_PANEL_TOP = 0xFF1F262E;
@@ -73,6 +77,7 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton patrolClearButton;
 	private EditBox filterEdit;
 	private FlatButton filterButton;
+	private FlatButton filterToggle;
 	private FlatButton startStopButton;
 
 	private int ownerSectionY;
@@ -80,6 +85,7 @@ public class AISubMenuScreen extends Screen {
 	private int markerSectionY;
 	private int rightBtnX;
 	private int innerLeft;
+	private int filterToggleX;
 
 	// Which marker rows a job actually uses, in display order. Drives both layout and rendering.
 	private enum Row { WAYPOINT, REGION, DEPOSIT, SOURCE, TEACH, FILTER, PATROL }
@@ -143,6 +149,7 @@ public class AISubMenuScreen extends Screen {
 		markerSectionY = y;
 		this.rightBtnX = rightBtnX;
 		this.innerLeft = innerLeft;
+		this.filterToggleX = rightBtnX - FILTER_TOGGLE_W - FILTER_TOGGLE_GAP;
 
 		// All marker widgets are created once; relayout() positions and shows only the ones the current job uses.
 		waypointButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
@@ -163,12 +170,14 @@ public class AISubMenuScreen extends Screen {
 		patrolClearButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
 				Component.literal("Clear"), this::clearPatrol);
 		this.addRenderableWidget(patrolClearButton);
-		filterEdit = new EditBox(this.font, innerLeft + 52, markerSectionY, 88, BTN_H, Component.literal("filter"));
+		filterEdit = new EditBox(this.font, innerLeft + 52, markerSectionY, FILTER_EDIT_W, BTN_H, Component.literal("filter"));
 		filterEdit.setMaxLength(512);
 		filterEdit.setValue(filterText(entity.getAIState()));
 		this.addRenderableWidget(filterEdit);
 		filterButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
 		this.addRenderableWidget(filterButton);
+		filterToggle = new FlatButton(filterToggleX, markerSectionY, FILTER_TOGGLE_W, BTN_H, Component.literal("ON"), this::toggleFilter);
+		this.addRenderableWidget(filterToggle);
 
 		int startStopY = markerSectionY + 18 + 4 * ROW_H + 48;
 		startStopButton = new FlatButton(innerLeft, startStopY, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
@@ -226,6 +235,7 @@ public class AISubMenuScreen extends Screen {
 		patrolClearButton.visible = false;
 		filterButton.visible = false;
 		filterEdit.visible = false;
+		filterToggle.visible = false;
 		List<Row> rows = rowsFor(s.job());
 		for (int i = 0; i < rows.size(); i++) {
 			int btnY = markerSectionY + 18 + i * ROW_H - 4;
@@ -237,10 +247,16 @@ public class AISubMenuScreen extends Screen {
 				case TEACH -> place(teachButton, btnY);
 				case PATROL -> place(patrolClearButton, btnY);
 				case FILTER -> {
+					boolean disabled = filterDisabled(s);
 					place(filterButton, btnY);
+					filterButton.active = !disabled;
 					filterEdit.setX(innerLeft + 52);
 					filterEdit.setY(btnY);
 					filterEdit.visible = true;
+					filterToggle.setX(filterToggleX);
+					filterToggle.setY(btnY);
+					filterToggle.visible = true;
+					filterToggle.setMessage(toggleLabel(disabled ? "OFF" : "ON", !disabled));
 				}
 			}
 		}
@@ -256,6 +272,10 @@ public class AISubMenuScreen extends Screen {
 		UUID self = Minecraft.getInstance().player == null ? null : Minecraft.getInstance().player.getUUID();
 		boolean ours = s.hasOwner() && s.ownerUUID().equals(self);
 		return Component.literal(ours ? "Unbond" : "Bond");
+	}
+
+	private static Component toggleLabel(String text, boolean on) {
+		return Component.literal(text).withStyle(on ? ChatFormatting.GREEN : ChatFormatting.RED);
 	}
 
 	private Component startStopLabel() {
@@ -510,11 +530,34 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	private void applyFilter() {
-		Network.getNetworkHandler().sendToServer(new SetAIFilterPacketC2S(entity.getId(), filterEdit.getValue()));
+		if (filterEdit == null) return;
+		String value = filterEdit.getValue();
+		String toSend = value.isBlank() ? "*" : value;
+		Network.getNetworkHandler().sendToServer(new SetAIFilterPacketC2S(entity.getId(), toSend));
+		if (toSend.equals("*")) filterEdit.setValue("");
+	}
+
+	// Blank box <=> filter disabled <=> stored value "*". Never surfaces the literal "*" to the user.
+	private void toggleFilter() {
+		if (filterEdit == null) return;
+		if (filterDisabled(entity.getAIState())) {
+			String value = filterEdit.getValue().isBlank() ? "c:ores" : filterEdit.getValue();
+			filterEdit.setValue(value);
+			Network.getNetworkHandler().sendToServer(new SetAIFilterPacketC2S(entity.getId(), value));
+		} else {
+			filterEdit.setValue("");
+			Network.getNetworkHandler().sendToServer(new SetAIFilterPacketC2S(entity.getId(), "*"));
+		}
+	}
+
+	private boolean filterDisabled(AIState s) {
+		String tag = s.filter().contains("Tag") ? s.filter().getString("Tag") : "c:ores";
+		return tag.equals("*");
 	}
 
 	private String filterText(AIState state) {
 		String tag = state.filter().contains("Tag") ? state.filter().getString("Tag") : "c:ores";
+		if (tag.equals("*")) return "";
 		return tag.isEmpty() ? "c:ores" : tag;
 	}
 
