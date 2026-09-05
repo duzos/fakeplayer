@@ -670,15 +670,23 @@ public class MinerJobExecutor implements JobExecutor {
 		return false;
 	}
 
+	/**
+	 * One filter token against a source block. Tests block id, block tag, and the corresponding item's id and
+	 * tag too - the symmetric case of {@link JobHelpers#matchesFilterToken}.
+	 */
 	private boolean matchesBlockFilterToken(BlockState state, String token) {
 		boolean explicitTag = token.startsWith("#");
 		String name = explicitTag ? token.substring(1).trim() : token;
 		ResourceLocation id = ResourceLocation.tryParse(name);
 		if (id == null) return false;
-		if (!explicitTag && BuiltInRegistries.BLOCK.getOptional(id).map(state::is).orElse(false)) {
-			return true;
+		if (!explicitTag && BuiltInRegistries.BLOCK.getOptional(id).map(state::is).orElse(false)) return true;
+		if (state.is(TagKey.create(Registries.BLOCK, id))) return true;
+		ItemStack asItem = new ItemStack(state.getBlock());
+		if (!asItem.isEmpty()) {
+			if (!explicitTag && BuiltInRegistries.ITEM.getOptional(id).map(asItem::is).orElse(false)) return true;
+			if (asItem.is(TagKey.create(Registries.ITEM, id))) return true;
 		}
-		return state.is(TagKey.create(Registries.BLOCK, id));
+		return false;
 	}
 
 	private void addOrDrop(FakePlayerEntity entity, ItemStack stack) {
