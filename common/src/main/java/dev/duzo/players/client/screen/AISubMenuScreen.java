@@ -545,7 +545,7 @@ public class AISubMenuScreen extends Screen {
 	private void toggleFilter() {
 		if (filterEdit == null) return;
 		if (filterDisabled(entity.getAIState())) {
-			String value = filterEdit.getValue().isBlank() ? "c:ores" : filterEdit.getValue();
+			String value = filterEdit.getValue().isBlank() ? MINER_DEFAULT_FILTER : filterEdit.getValue();
 			filterEdit.setValue(value);
 			Network.getNetworkHandler().sendToServer(new SetAIFilterPacketC2S(entity.getId(), value));
 		} else {
@@ -555,12 +555,15 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	// An absent Tag means "no filter ever set", and that means different things per job: the miner
-	// defaults to ore-only ("c:ores"), the courier defaults to match-all ("*") - see
+	// convention tags only moved to the c: namespace in 1.20.5, so on this version fabric supplies
+	// c:ores and forge supplies forge:ores - the default has to name both or forge sees no ore at all.
+	private static final String MINER_DEFAULT_FILTER = "c:ores,forge:ores";
+	// defaults to ore ("c:ores,forge:ores"), the courier defaults to match-all ("*") - see
 	// CourierJobExecutor#matchesFilter. The canonical constants (MinerJobExecutor.DEFAULT_FILTER,
 	// SetAIFilterPacketC2S.DEFAULT_FILTER) are private and live under entities/ai/** and network/c2s/**,
 	// which this branch doesn't own, so the literals are duplicated here rather than shared.
 	private String defaultFilterFor(Job job) {
-		return job == Job.COURIER ? "*" : "c:ores";
+		return job == Job.COURIER ? "*" : MINER_DEFAULT_FILTER;
 	}
 
 	private String effectiveFilterTag(AIState s) {
