@@ -1,5 +1,6 @@
 package dev.duzo.players.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import commonnetwork.api.Network;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.menu.FakePlayerMenu;
@@ -119,6 +120,27 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		if (widget == null) return;
 		widget.setTooltip(Tooltip.create(Component.literal(shift ? longText : shortText)));
 	}
+
+	@Override
+	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		if (this.nameEdit != null && this.nameEdit.isFocused()) {
+			if (keyCode == InputConstants.KEY_ESCAPE || keyCode == InputConstants.KEY_TAB) {
+				return super.keyPressed(keyCode, scanCode, modifiers);
+			}
+			return this.nameEdit.keyPressed(keyCode, scanCode, modifiers);
+		}
+		return super.keyPressed(keyCode, scanCode, modifiers);
+	}
+
+	@Override
+	public boolean charTyped(char codePoint, int modifiers) {
+		if (this.nameEdit != null && this.nameEdit.isFocused()) {
+			this.nameEdit.charTyped(codePoint, modifiers);
+			return true;
+		}
+		return super.charTyped(codePoint, modifiers);
+	}
+
 
 	private static Component poseLabel(FakePlayerEntity entity) {
 		String state = switch (entity.getPhysicalState()) {
