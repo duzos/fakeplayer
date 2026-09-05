@@ -41,7 +41,6 @@ public class MinerJobExecutor implements JobExecutor {
 
 	private Phase phase = Phase.INIT;
 	private Phase returnPhase = Phase.QUARRY;
-	private boolean bailed;
 	private int pathFailCount;
 	private long throttleUntilTick;
 	// set when a kept drop can't fit in the inventory and spills to the ground; cleared once serviced
@@ -61,7 +60,6 @@ public class MinerJobExecutor implements JobExecutor {
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
-		if (bailed) return;
 		PlayersConfig cfg = PlayersConfig.get();
 		if (waiting) {
 			if (level.getGameTime() < waitUntilTick) return;
@@ -94,7 +92,6 @@ public class MinerJobExecutor implements JobExecutor {
 		CompoundTag tag = new CompoundTag();
 		tag.putInt("Phase", phase.ordinal());
 		tag.putInt("ReturnPhase", returnPhase.ordinal());
-		tag.putBoolean("Bailed", bailed);
 		tag.putInt("PathFail", pathFailCount);
 		tag.putLong("Throttle", throttleUntilTick);
 		tag.putInt("MinX", minX);
@@ -117,7 +114,6 @@ public class MinerJobExecutor implements JobExecutor {
 		if (tag == null || tag.isEmpty()) return;
 		phase = phase(tag.contains("Phase") ? tag.getInt("Phase") : Phase.INIT.ordinal());
 		returnPhase = phase(tag.contains("ReturnPhase") ? tag.getInt("ReturnPhase") : Phase.QUARRY.ordinal());
-		bailed = tag.contains("Bailed") && tag.getBoolean("Bailed");
 		pathFailCount = 0;
 		throttleUntilTick = tag.contains("Throttle") ? tag.getLong("Throttle") : 0L;
 		minX = tag.contains("MinX") ? tag.getInt("MinX") : 0;
@@ -920,13 +916,6 @@ public class MinerJobExecutor implements JobExecutor {
 		return stack.getDestroySpeed(Blocks.STONE.defaultBlockState());
 	}
 
-	private boolean pickaxeNearBroken(FakePlayerEntity entity) {
-		ItemStack main = entity.getMainHandItem();
-		if (!isMiningTool(main)) return false;
-		if (!main.isDamageableItem()) return false;
-		return main.getMaxDamage() - main.getDamageValue() <= DURABILITY_RESERVE;
-	}
-
 	private boolean hasUsablePickaxe(FakePlayerEntity entity) {
 		if (isUsablePickaxe(entity.getMainHandItem())) return true;
 		SimpleContainer inv = entity.getInventory();
@@ -1062,11 +1051,5 @@ public class MinerJobExecutor implements JobExecutor {
 		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.SITTING) {
 			entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 		}
-	}
-
-	private void bail(FakePlayerEntity entity, String message) {
-		bailed = true;
-		entity.getNavigation().stop();
-		entity.sendChat(message);
 	}
 }
