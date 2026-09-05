@@ -609,8 +609,16 @@ public class MinerJobExecutor implements JobExecutor {
 		return true;
 	}
 
+	/**
+	 * Filter first: anything the player asked for is kept in full, build-suitable or not. Only material the
+	 * filter doesn't want falls back to the build reserve (up to {@link #BUILD_RESERVE}), with any excess spoiled.
+	 */
 	private void addFilteredDrop(FakePlayerEntity entity, ItemStack stack, boolean sourceBlockMatchesFilter) {
 		if (stack.isEmpty()) return;
+		if (sourceBlockMatchesFilter || matchesInventoryFilter(entity, stack)) {
+			addOrDrop(entity, stack);
+			return;
+		}
 		if (canConsumeForBuild(stack)) {
 			int needed = BUILD_RESERVE - buildBlockCount(entity);
 			int keepCount = Math.max(0, Math.min(stack.getCount(), needed));
@@ -627,11 +635,7 @@ public class MinerJobExecutor implements JobExecutor {
 			}
 			return;
 		}
-		if (sourceBlockMatchesFilter || matchesInventoryFilter(entity, stack)) {
-			addOrDrop(entity, stack);
-		} else {
-			handleSpoil(entity, stack);
-		}
+		handleSpoil(entity, stack);
 	}
 
 	/** What happens to any drop the miner won't keep - build-block excess or a filter miss - user's choice. */
