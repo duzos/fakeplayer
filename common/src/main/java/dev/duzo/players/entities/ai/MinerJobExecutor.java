@@ -178,6 +178,7 @@ public class MinerJobExecutor implements JobExecutor {
 			entity.sendChat("miner: quarry floor reached, capping top");
 			return;
 		}
+		ensurePickaxe(entity); // upgrade out of a near-broken main hand before judging whether service is needed
 		if (needsService(entity)) {
 			returnForService(entity, Phase.QUARRY);
 			return;
@@ -761,8 +762,10 @@ public class MinerJobExecutor implements JobExecutor {
 		return width() * length();
 	}
 
+	// no main-hand-only check here: ensurePickaxe runs before this in tickQuarry, so by this point either the
+	// main hand already holds a usable pickaxe or hasUsablePickaxe is false too - the main-hand term was redundant
 	private boolean needsService(FakePlayerEntity entity) {
-		return dropOverflow || pickaxeNearBroken(entity) || shouldEat(entity) || !hasUsablePickaxe(entity);
+		return dropOverflow || shouldEat(entity) || !hasUsablePickaxe(entity);
 	}
 
 	private boolean isProtected(ServerLevel level, BlockPos pos) {
@@ -945,11 +948,18 @@ public class MinerJobExecutor implements JobExecutor {
 	private void dumpInto(Container chest, FakePlayerEntity entity) {
 		SimpleContainer inv = entity.getInventory();
 		int keptBuildBlocks = 0;
+		boolean keptPickaxe = false;
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack stack = inv.getItem(i);
 			if (stack.isEmpty()) continue;
-			if (isKeep(stack)) continue;
-			if (canConsumeForBuild(stack)) {
+			if (isFood(stack)) continue;
+			// keep at most one usable pickaxe as a spare; deposit any others, including unusable ones
+			if (isMiningTool(stack)) {
+				if (!keptPickaxe && isUsablePickaxe(stack)) {
+					keptPickaxe = true;
+					continue;
+				}
+			} else if (canConsumeForBuild(stack)) {
 				int keep = Math.max(0, BUILD_RESERVE - keptBuildBlocks);
 				int move = Math.max(0, stack.getCount() - keep);
 				keptBuildBlocks += stack.getCount() - move;
@@ -966,11 +976,6 @@ public class MinerJobExecutor implements JobExecutor {
 			inv.setItem(i, remaining.isEmpty() ? ItemStack.EMPTY : remaining);
 		}
 		chest.setChanged();
-	}
-
-	private boolean isKeep(ItemStack stack) {
-		if (isMiningTool(stack)) return true;
-		return isFood(stack);
 	}
 
 	private boolean isFood(ItemStack stack) {
