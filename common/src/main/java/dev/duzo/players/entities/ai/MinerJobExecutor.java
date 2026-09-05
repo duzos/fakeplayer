@@ -920,8 +920,9 @@ public class MinerJobExecutor implements JobExecutor {
 	private boolean shouldTakeFromDeposit(FakePlayerEntity entity, ItemStack stack) {
 		if (isUsablePickaxe(stack)) return true;
 		if (isFood(stack)) return true;
-		if (isBuildBlock(stack)) return false;
-		return matchesInventoryFilter(entity, stack);
+		// supplies only: top up build blocks, never pull filter-matching loot back out of the chest
+		if (isBuildBlock(stack)) return buildBlockCount(entity) < BUILD_RESERVE;
+		return false;
 	}
 
 	private void pickBetterPickaxe(Container chest, FakePlayerEntity entity) {
