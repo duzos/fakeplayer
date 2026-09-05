@@ -654,20 +654,9 @@ public class MinerJobExecutor implements JobExecutor {
 		for (String part : raw.split(",")) {
 			String token = part.trim();
 			if (token.isEmpty()) continue;
-			if (matchesFilterToken(stack, token)) return true;
+			if (JobHelpers.matchesFilterToken(stack, token)) return true;
 		}
 		return false;
-	}
-
-	private boolean matchesFilterToken(ItemStack stack, String token) {
-		boolean explicitTag = token.startsWith("#");
-		String name = explicitTag ? token.substring(1).trim() : token;
-		ResourceLocation id = ResourceLocation.tryParse(name);
-		if (id == null) return false;
-		if (!explicitTag && BuiltInRegistries.ITEM.getOptional(id).map(stack::is).orElse(false)) {
-			return true;
-		}
-		return stack.is(TagKey.create(Registries.ITEM, id));
 	}
 
 	private boolean matchesBlockFilter(FakePlayerEntity entity, BlockState state) {
@@ -850,7 +839,7 @@ public class MinerJobExecutor implements JobExecutor {
 				|| item == Items.DEEPSLATE;
 	}
 
-	private static final TagKey<Item> BUILD_DENY_TAG = TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath("c", "ores"));
+	private static final TagKey<Item> BUILD_DENY_TAG = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("c", "ores"));
 	private static final java.util.Set<Item> BUILD_DENYLIST = java.util.Set.of(
 			Items.RAW_IRON_BLOCK, Items.RAW_COPPER_BLOCK, Items.RAW_GOLD_BLOCK,
 			Items.OBSIDIAN, Items.CRYING_OBSIDIAN, Items.ANCIENT_DEBRIS,
