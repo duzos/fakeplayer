@@ -425,6 +425,10 @@ public class LumberjackJobExecutor implements JobExecutor {
 			return;
 		}
 		if (!serviceAtChest(level, entity)) return; // still pausing with the chest open
+		if (inventoryFull(entity)) {
+			waitForBlocker(level, entity, "lumberjack: deposit container full");
+			return;
+		}
 		pathFailCount = 0;
 		phase = Phase.SCANNING;
 	}
