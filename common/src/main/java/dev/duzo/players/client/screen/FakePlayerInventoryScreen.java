@@ -202,6 +202,7 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 
 	@Override
 	public void extractBackground(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
+		super.extractBackground(ctx, mouseX, mouseY, partialTick);
 		int x = this.leftPos;
 		int y = this.topPos;
 

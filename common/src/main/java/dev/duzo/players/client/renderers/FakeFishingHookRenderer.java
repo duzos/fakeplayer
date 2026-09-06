@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.duzo.players.entities.FakeFishingHook;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -40,6 +41,19 @@ public class FakeFishingHookRenderer extends EntityRenderer<FakeFishingHook, Fak
 
 	public FakeFishingHookRenderer(EntityRendererProvider.Context context) {
 		super(context);
+	}
+
+	// The line spans from the fake to the bobber, so culling on the bobber's own tiny box would
+	// drop the whole line whenever the bobber leaves the frustum. Vanilla's FishingHookRenderer
+	// opts out of culling for the same reason.
+	@Override
+	protected boolean affectedByCulling(FakeFishingHook hook) {
+		return false;
+	}
+
+	@Override
+	public boolean shouldRender(FakeFishingHook hook, Frustum frustum, double x, double y, double z) {
+		return hook.getOwner() != null || super.shouldRender(hook, frustum, x, y, z);
 	}
 
 	@Override

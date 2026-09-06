@@ -34,6 +34,7 @@ public class FakeCrafterScreen extends AbstractContainerScreen<FakeCrafterMenu> 
 
 	@Override
 	public void extractBackground(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
+		super.extractBackground(ctx, mouseX, mouseY, partialTick);
 		ctx.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, 256, 256);
 	}
 }
