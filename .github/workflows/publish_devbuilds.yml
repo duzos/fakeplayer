@@ -33,6 +33,7 @@ jobs:
 
       - name: Publish FABRIC artifacts
         uses: drtheodor/discord-webhook-upload-action@v0.2
+        continue-on-error: true
         with:
           url: ${{ secrets.DEV_BUILDS }}
           username: FABRIC builds
@@ -90,6 +91,7 @@ jobs:
 
       - name: Publish FORGE artifacts
         uses: drtheodor/discord-webhook-upload-action@v0.2
+        continue-on-error: true
         with:
           url: ${{ secrets.DEV_BUILDS }}
           username: FORGE builds
