@@ -10,12 +10,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,6 +43,21 @@ public class InteractionRegistry {
 		return result;
 	}
 
+	// ItemTags no longer carries generic STAIRS/SLABS tags (only WOODEN_ variants); the block-level
+	// tags still cover every material, so resolve through the block -> item mapping instead.
+	private static Set<Item> fromBlockKey(TagKey<Block> key) {
+		Set<Item> result = new HashSet<>();
+
+		for (Block block : BuiltInRegistries.BLOCK) {
+			if (block.builtInRegistryHolder().is(key)) {
+				Item item = Item.byBlock(block);
+				if (item != Items.AIR) result.add(item);
+			}
+		}
+
+		return result;
+	}
+
 	private void defaults() {
 		register(Items.OBSERVER, (player, entity) -> {
 			entity.setNoAi(!entity.isNoAi());
@@ -49,7 +66,7 @@ public class InteractionRegistry {
 			return InteractionResult.SUCCESS;
 		});
 
-		register(ItemTags.STAIRS, ((player, entity) -> {
+		registerBlockTag(BlockTags.STAIRS, ((player, entity) -> {
 			entity.setPhysicalState(entity.isSitting() ? FakePlayerEntity.PhysicalState.STANDING : FakePlayerEntity.PhysicalState.SITTING);
 			player.sendSystemMessage(Component.literal(entity.isSitting() ? "Sitting" : "Standing"), true);
 			playSound(entity, SoundEvents.UI_BUTTON_CLICK.value());
@@ -63,7 +80,7 @@ public class InteractionRegistry {
 			return InteractionResult.SUCCESS;
 		}));
 
-		register(ItemTags.SLABS, ((player, entity) -> {
+		registerBlockTag(BlockTags.SLABS, ((player, entity) -> {
 			entity.setSlim(!entity.isSlim());
 			player.sendSystemMessage(Component.literal(entity.isSlim() ? "Slim" : "Normal"), true);
 			playSound(entity, SoundEvents.UI_BUTTON_CLICK.value());
@@ -111,6 +128,12 @@ public class InteractionRegistry {
 
 	public void register(TagKey<Item> tag, Interaction interaction) {
 		for (Item item : fromKey(tag)) {
+			register(item, interaction);
+		}
+	}
+
+	public void registerBlockTag(TagKey<Block> tag, Interaction interaction) {
+		for (Item item : fromBlockKey(tag)) {
 			register(item, interaction);
 		}
 	}

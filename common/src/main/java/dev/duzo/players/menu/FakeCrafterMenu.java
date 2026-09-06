@@ -80,7 +80,7 @@ public class FakeCrafterMenu extends AbstractContainerMenu {
 		CraftingInput input = grid.asCraftInput();
 		ItemStack out = sp.level().getServer().getRecipeManager()
 				.getRecipeFor(RecipeType.CRAFTING, input, sp.level())
-				.map(holder -> holder.value().assemble(input, sp.level().registryAccess()))
+				.map(holder -> holder.value().assemble(input))
 				.orElse(ItemStack.EMPTY);
 		result.setItem(0, out);
 		sp.connection.send(new ClientboundContainerSetSlotPacket(this.containerId, this.incrementStateId(), RESULT_SLOT, out));
