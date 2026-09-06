@@ -329,6 +329,9 @@ public class FakePlayerEntity extends PathfinderMob {
 
 	@Override
 	protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean dropExperience) {
+		// restore a job's stashed main hand before super's equipment-drop loop runs, otherwise it
+		// drops the fabricated placeholder and the real held tool is lost.
+		if (this.jobExecutor != null) this.jobExecutor.onPause(this);
 		super.dropCustomDeathLoot(level, source, dropExperience);
 
 		Containers.dropContents(this.level(), this, this.inventory);
