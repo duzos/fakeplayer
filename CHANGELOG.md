@@ -9,7 +9,7 @@
 - The Miner accepts any solid full block as stair and cap material (#54), not just cobblestone, stone, dirt and deepslate, and places whatever it actually used. Ores, metal and gem blocks, obsidian, ancient debris, TNT and redstone parts are never spent as building material. Stairs and slabs still are not accepted.
 - The Miner no longer takes back out of the deposit chest what it just put in (#54).
 - Fakes no longer report that a deposit container is unreachable when a path exists (#54). A route that cannot actually get there is now recognised as a failure instead of being mistaken for success.
-- The Crafter no longer destroys whatever the fake was holding when it starts work (#54), and remembers it across a save.
+- The Crafter no longer destroys whatever the fake was holding when it starts work (#54).
 - The Courier now understands the whole filter syntax (#54) instead of treating the entry as a single item tag.
 - Filters can be switched off (#55). There is a toggle beside the filter box, an empty box means no filter at all, and `*` matches everything. The filter row is available for the Courier as well as the Miner, and each job shows its real default.
 - The `E` key no longer closes the management screen while you are typing a name (#51), so names with an `E` in them can be typed straight in.
