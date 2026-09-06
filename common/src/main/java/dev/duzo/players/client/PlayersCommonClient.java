@@ -15,7 +15,7 @@ public class PlayersCommonClient {
 	}
 
 	public static void openSelectScreen(FakePlayerEntity entity) {
-		Minecraft.getInstance().setScreen(new SkinSelectScreen(entity));
+		Minecraft.getInstance().gui.setScreen(new SkinSelectScreen(entity));
 	}
 
 	/**

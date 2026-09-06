@@ -17,7 +17,7 @@ import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
 import dev.duzo.players.network.c2s.ToggleFakePlayerFlagPacketC2S;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
@@ -109,14 +109,14 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	@Override
-	public void renderBackground(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
+	public void extractBackground(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
 	}
 
 	@Override
 	protected void init() {
 		super.init();
 		if (entity == null) {
-			Minecraft.getInstance().setScreen(null);
+			Minecraft.getInstance().gui.setScreen(null);
 			return;
 		}
 
@@ -132,7 +132,7 @@ public class AISubMenuScreen extends Screen {
 
 		FlatButton close = new FlatButton(innerRight - 14, panelTop + 6, 14, 14,
 				Component.literal("x"),
-				() -> Minecraft.getInstance().setScreen(null))
+				() -> Minecraft.getInstance().gui.setScreen(null))
 				.noBackground()
 				.noBorder()
 				.withText(0xFF8E97A4, 0xFFE76060);
@@ -295,7 +295,7 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	@Override
-	public void render(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
+	public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
 		float scale = this.uiScale;
 		int viewW = Math.round(this.width / scale);
 		int viewH = Math.round(this.height / scale);
@@ -348,7 +348,7 @@ public class AISubMenuScreen extends Screen {
 			}
 		}
 
-		super.render(ctx, sMouseX, sMouseY, partialTick);
+		super.extractRenderState(ctx, sMouseX, sMouseY, partialTick);
 		ctx.pose().popMatrix();
 	}
 
@@ -372,15 +372,15 @@ public class AISubMenuScreen extends Screen {
 		return super.mouseDragged(scaled(event), dragX / this.uiScale, dragY / this.uiScale);
 	}
 
-	private void drawTitle(GuiGraphics ctx, int x, int y) {
+	private void drawTitle(GuiGraphicsExtractor ctx, int x, int y) {
 		MutableComponent title = Component.literal("AI").withStyle(s -> s.withColor(TextColor.fromRgb(COL_AQUA & 0xFFFFFF)).withBold(true));
 		String name = entity.getSkinData().name();
 		title.append(Component.literal("  ").append(Component.literal("-  " + name).withStyle(s -> s.withColor(TextColor.fromRgb(COL_LABEL & 0xFFFFFF)))));
-		ctx.drawString(this.font, title, x + PADDING, y + 9, 0xFFFFFFFF, false);
+		ctx.text(this.font, title, x + PADDING, y + 9, 0xFFFFFFFF, false);
 	}
 
-	private void drawSectionHeader(GuiGraphics ctx, int panelX, int y, String label) {
-		ctx.drawString(this.font, Component.literal(label).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_LABEL & 0xFFFFFF))),
+	private void drawSectionHeader(GuiGraphicsExtractor ctx, int panelX, int y, String label) {
+		ctx.text(this.font, Component.literal(label).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_LABEL & 0xFFFFFF))),
 				panelX + PADDING, y, 0xFFFFFFFF, false);
 		int textW = this.font.width(label);
 		int lineLeft = panelX + PADDING + textW + 6;
@@ -388,7 +388,7 @@ public class AISubMenuScreen extends Screen {
 		ctx.fill(lineLeft, y + 3, lineRight, y + 4, COL_DIVIDER);
 	}
 
-	private void drawOwnerRow(GuiGraphics ctx, int panelX, int y, AIState s) {
+	private void drawOwnerRow(GuiGraphicsExtractor ctx, int panelX, int y, AIState s) {
 		UUID self = Minecraft.getInstance().player == null ? null : Minecraft.getInstance().player.getUUID();
 		boolean ours = s.hasOwner() && s.ownerUUID().equals(self);
 		int dot;
@@ -404,18 +404,18 @@ public class AISubMenuScreen extends Screen {
 		drawChip(ctx, panelX + PADDING, y, dot, text, textColor);
 	}
 
-	private void drawAiRow(GuiGraphics ctx, int panelX, int y) {
+	private void drawAiRow(GuiGraphicsExtractor ctx, int panelX, int y) {
 		boolean on = !entity.isNoAi();
 		int dot = on ? COL_GREEN : COL_RED;
 		String text = on ? "AI active" : "AI disabled";
 		drawChip(ctx, panelX + PADDING, y, dot, text, COL_BODY);
 	}
 
-	private void drawJobRow(GuiGraphics ctx, int panelX, int y, AIState s) {
+	private void drawJobRow(GuiGraphicsExtractor ctx, int panelX, int y, AIState s) {
 		drawChip(ctx, panelX + PADDING, y, COL_AQUA, "Job: " + s.job().label(), COL_BODY);
 	}
 
-	private void drawMarkerRow(GuiGraphics ctx, int panelX, int y, String name, BlockPos pos) {
+	private void drawMarkerRow(GuiGraphicsExtractor ctx, int panelX, int y, String name, BlockPos pos) {
 		int dot = pos == null ? COL_MUTED : COL_GREEN;
 		String text;
 		int textColor;
@@ -429,7 +429,7 @@ public class AISubMenuScreen extends Screen {
 		drawChip(ctx, panelX + PADDING, y, dot, text, textColor);
 	}
 
-	private void drawWaypointRow(GuiGraphics ctx, int panelX, int y, AIState s) {
+	private void drawWaypointRow(GuiGraphicsExtractor ctx, int panelX, int y, AIState s) {
 		if (s.job() == Job.GUARD) {
 			int count = GuardJobExecutor.readPatrolPoints(s).length;
 			int dot = count >= 2 ? COL_GREEN : count == 1 ? COL_YELLOW : COL_MUTED;
@@ -440,7 +440,7 @@ public class AISubMenuScreen extends Screen {
 		}
 	}
 
-	private void drawPatrolRow(GuiGraphics ctx, int panelX, int y, AIState s) {
+	private void drawPatrolRow(GuiGraphicsExtractor ctx, int panelX, int y, AIState s) {
 		if (s.job() != Job.GUARD) return;
 		long[] points = GuardJobExecutor.readPatrolPoints(s);
 		int count = points.length;
@@ -459,7 +459,7 @@ public class AISubMenuScreen extends Screen {
 		}
 	}
 
-	private void drawRegionRow(GuiGraphics ctx, int panelX, int y, AIState s) {
+	private void drawRegionRow(GuiGraphicsExtractor ctx, int panelX, int y, AIState s) {
 		int dot;
 		String text;
 		int textColor;
@@ -473,9 +473,9 @@ public class AISubMenuScreen extends Screen {
 		drawChip(ctx, panelX + PADDING, y, dot, text, textColor);
 	}
 
-	private void drawChip(GuiGraphics ctx, int x, int y, int dotColor, String text, int textColor) {
+	private void drawChip(GuiGraphicsExtractor ctx, int x, int y, int dotColor, String text, int textColor) {
 		ctx.fill(x, y + 3, x + 4, y + 7, dotColor);
-		ctx.drawString(this.font,
+		ctx.text(this.font,
 				Component.literal(text).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(textColor & 0xFFFFFF))),
 				x + 10, y, 0xFFFFFFFF, false);
 	}
@@ -533,7 +533,7 @@ public class AISubMenuScreen extends Screen {
 
 	private void giveMarker(byte mode, byte slot) {
 		Network.getNetworkHandler().sendToServer(new GiveAIMarkerPacketC2S(entity.getId(), mode, slot));
-		Minecraft.getInstance().setScreen(null);
+		Minecraft.getInstance().gui.setScreen(null);
 	}
 
 	private boolean crafterActive() {
@@ -542,7 +542,7 @@ public class AISubMenuScreen extends Screen {
 
 	private void openTeach() {
 		Network.getNetworkHandler().sendToServer(new OpenCrafterLearnPacketC2S(entity.getId()));
-		Minecraft.getInstance().setScreen(null);
+		Minecraft.getInstance().gui.setScreen(null);
 	}
 
 	private void applyFilter() {

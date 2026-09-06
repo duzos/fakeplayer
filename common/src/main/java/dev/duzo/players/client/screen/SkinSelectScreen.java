@@ -11,7 +11,7 @@ import dev.duzo.players.network.c2s.SetSkinKeyPacketC2S;
 import dev.duzo.players.network.c2s.UploadSkinPacketC2S;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.PlainTextButton;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -64,7 +64,7 @@ public class SkinSelectScreen extends Screen {
 	}
 
 	@Override
-	public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float delta) {
+	public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
 	}
 
 	@Override
@@ -118,16 +118,16 @@ public class SkinSelectScreen extends Screen {
 	}
 
 	@Override
-	public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
+	public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
 		this.drawBackground(context);
 
 		Component currentText = Component.literal("Downloading skins...");
 		if (SkinGrabber.INSTANCE.hasDownloads() || this.getSelectedSkin() == null) {
-			context.drawString(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
+			context.text(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
 					(int) (top + (bgHeight * 0.5)), 0xFFFFFFFF, true);
 
 			currentText = Component.literal(SkinGrabber.INSTANCE.getDownloadsRemaining() + " skins remaining");
-			context.drawString(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
+			context.text(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
 					(int) (top + (bgHeight * 0.65)), 0xFFFFFFFF, true);
 
 			wasDownloading = true;
@@ -139,25 +139,25 @@ public class SkinSelectScreen extends Screen {
 			this.sizeCache = SkinGrabber.INSTANCE.getAllKeys().size();
 		}
 
-		super.render(context, mouseX, mouseY, delta);
+		super.extractRenderState(context, mouseX, mouseY, delta);
 
 		currentText = Component.literal(this.getSelectedSkin().length() > 11 ? this.getSelectedSkin().substring(0, 11) : this.getSelectedSkin());
-		context.drawString(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
+		context.text(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
 				(int) (top + (bgHeight * 0.5)), 0xFFFFFFFF, true);
 
 		this.renderSkin(context, (int) (left + (bgWidth * 0.5f)), (int) (top + (bgHeight * 0.45f)), mouseX, mouseY, this.getSelectedSkin());
 
 		currentText = Component.literal((index + 1) + "/" + sizeCache);
-		context.drawString(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
+		context.text(this.font, currentText, (int) (left + (bgWidth * 0.5f)) - this.font.width(currentText) / 2,
 				(int) (top + (bgHeight * 0.7)), 0xFFFFFFFF, true);
 
 		if (uploadStatus != null && System.currentTimeMillis() < uploadStatusUntil) {
 			Component statusText = Component.literal(uploadStatus);
-			context.drawString(this.font, statusText, (int) (left + (bgWidth * 0.5f)) - this.font.width(statusText) / 2,
+			context.text(this.font, statusText, (int) (left + (bgWidth * 0.5f)) - this.font.width(statusText) / 2,
 					top + 4, 0xFFFF5555, true);
 		}
 
-		context.drawString(this.font, HINT, left + 8, top + 12, 0xFFFFFFFF, false);
+		context.text(this.font, HINT, left + 8, top + 12, 0xFFFFFFFF, false);
 	}
 
 	private String getSelectedSkin() {
@@ -249,14 +249,14 @@ public class SkinSelectScreen extends Screen {
 		this.onClose();
 	}
 
-	private void drawBackground(GuiGraphics context) {
+	private void drawBackground(GuiGraphicsExtractor context) {
 		context.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, left, top, 0, 0, bgWidth, bgHeight, 256, 256);
 	}
 
-	private void renderSkin(GuiGraphics context, int x, int y, int mouseX, int mouseY, String key) {
+	private void renderSkin(GuiGraphicsExtractor context, int x, int y, int mouseX, int mouseY, String key) {
 		render.setSkin(new FakePlayerEntity.SkinData(key, key, SkinGrabber.SKIN_URL + "duzo"));
 
-		InventoryScreen.renderEntityInInventoryFollowsMouse(
+		InventoryScreen.extractEntityInInventoryFollowsMouse(
 				context,
 				x - 25, y - 58,
 				x + 25, y + 12,

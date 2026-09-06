@@ -10,7 +10,7 @@ import dev.duzo.players.network.c2s.ToggleFakePlayerFlagPacketC2S;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -47,10 +47,8 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 	private Boolean lastShiftDown;
 
 	public FakePlayerInventoryScreen(FakePlayerMenu menu, Inventory playerInventory, Component title) {
-		super(menu, playerInventory, title);
+		super(menu, playerInventory, title, FP_PANEL_W, 256);
 
-		this.imageWidth = FP_PANEL_W;
-		this.imageHeight = 256;
 		this.titleLabelX = 86;
 		this.titleLabelY = 30;
 	}
@@ -179,7 +177,7 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 	private void openSkinSelect() {
 		FakePlayerEntity entity = this.menu.getEntity();
 		if (entity == null) return;
-		Minecraft.getInstance().setScreen(new SkinSelectScreen(entity));
+		Minecraft.getInstance().gui.setScreen(new SkinSelectScreen(entity));
 	}
 
 	private void cyclePose() {
@@ -193,7 +191,7 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 		if (entity == null) return;
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.player != null) minecraft.player.closeContainer();
-		minecraft.setScreen(new AISubMenuScreen(entity));
+		minecraft.gui.setScreen(new AISubMenuScreen(entity));
 	}
 
 	private void toggleFlag(byte flag, boolean newValue) {
@@ -203,7 +201,7 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 	}
 
 	@Override
-	protected void renderBg(GuiGraphics ctx, float partialTick, int mouseX, int mouseY) {
+	public void extractBackground(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
 		int x = this.leftPos;
 		int y = this.topPos;
 
@@ -214,7 +212,7 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 
 		FakePlayerEntity entity = this.menu.getEntity();
 		if (entity != null) {
-			InventoryScreen.renderEntityInInventoryFollowsMouse(
+			InventoryScreen.extractEntityInInventoryFollowsMouse(
 					ctx,
 					x + 26, y + 8,
 					x + 75, y + 78,
@@ -228,9 +226,9 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 	}
 
 	@Override
-	protected void renderLabels(GuiGraphics ctx, int mouseX, int mouseY) {
+	protected void extractLabels(GuiGraphicsExtractor ctx, int mouseX, int mouseY) {
 		// Centred horizontally with the toggle row (x = 98..168, centre = 133)
 		int hintX = 133 - this.font.width(HINT) / 2;
-		ctx.drawString(this.font, HINT, hintX, 71, 0x404040, false);
+		ctx.text(this.font, HINT, hintX, 71, 0x404040, false);
 	}
 }

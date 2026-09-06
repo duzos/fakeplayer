@@ -29,7 +29,7 @@ public record OpenScreenPacketS2C(int id, CompoundTag data) implements CustomPac
 			try {
 				// Open screen
 				Screen screen = ScreenLookup.values()[ctx.message().id].supplier.apply(ctx.message().data);
-				Minecraft.getInstance().setScreen(screen);
+				Minecraft.getInstance().gui.setScreen(screen);
 			} catch (Exception ignored) {
 			}
 		}
