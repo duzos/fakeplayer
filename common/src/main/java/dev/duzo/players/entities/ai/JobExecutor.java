@@ -10,4 +10,7 @@ public interface JobExecutor {
 	void onResume(FakePlayerEntity entity);
 	CompoundTag serialize();
 	void deserialize(CompoundTag tag);
+
+	/** True while the main hand holds a visual placeholder rather than the fake's real item, so it must not be extractable. */
+	default boolean lockMainHand() { return false; }
 }
