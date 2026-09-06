@@ -132,7 +132,15 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 				}
 			}
 			if (!placed) {
-				placed = this.moveItemStackTo(stack, FP_STORAGE_START, FP_HOTBAR_END, false);
+				// moveItemStackTo's merge pass ignores mayPlace, so while the crafter has parked a
+				// placeholder in the main hand, this range must skip that slot entirely - merging a
+				// stack into it would be clobbered by the executor's next setItemSlot tick.
+				if (entity != null && entity.isMainHandLocked()) {
+					placed = this.moveItemStackTo(stack, FP_STORAGE_START, MAINHAND_INDEX, false);
+					if (!placed) placed = this.moveItemStackTo(stack, FP_HOTBAR_START, FP_HOTBAR_END, false);
+				} else {
+					placed = this.moveItemStackTo(stack, FP_STORAGE_START, FP_HOTBAR_END, false);
+				}
 			}
 			if (!placed) return ItemStack.EMPTY;
 		}
