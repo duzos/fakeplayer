@@ -32,21 +32,26 @@ jobs:
         run: ./gradlew -p fabric build
 
       - name: Publish FABRIC artifacts
-        uses: drtheodor/discord-webhook-upload-action@v0.2
-        continue-on-error: true
-        with:
-          url: ${{ secrets.DEV_BUILDS }}
-          username: FABRIC builds
-          avatar: 'https://wiki.tf2classic.com/w/images/b/b3/Engineer_BLU.png'
-          message_commit: '> :sparkles: [${commitMessage}](<${commitUrl}>) by [${authorName}](<${authorUrl}>)'
-          message_header: |
-            <:new1:1253371736510959636><:new2:1253371805734015006> New `${{ github.repository }}` dev build `#${{ github.run_number }}`:
-          file: |
-            fabric/build/libs/*.jar
-            !fabric/build/libs/*-sources.jar
-            !fabric/build/libs/*-dev.jar
-            !fabric/build/libs/*-javadoc.jar
-
+        env:
+          WEBHOOK: ${{ secrets.DEV_BUILDS }}
+          REPO: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+        run: |
+          set -euo pipefail
+          jar=$(ls fabric/build/libs/*.jar | grep -vE -- '-(sources|dev|javadoc)[.]jar$' | head -1)
+          test -n "$jar" || { echo "no jar in fabric/build/libs"; exit 1; }
+          echo "uploading $jar ($(du -h "$jar" | cut -f1))"
+          payload=$(jq -nc \
+            --arg u 'FABRIC builds' \
+            --arg a 'https://wiki.tf2classic.com/w/images/b/b3/Engineer_BLU.png' \
+            --arg repo "$REPO" \
+            --arg run "$RUN_NUMBER" \
+            --arg m "$COMMIT_MSG" \
+            --arg url "$COMMIT_URL" \
+            '{username: $u, avatar_url: $a, content: ("<:new1:1253371736510959636><:new2:1253371805734015006> New `\($repo)` dev build `#\($run)`:\n> :sparkles: [\($m)](<\($url)>)")}')
+          curl -sS --fail-with-body -X POST "$WEBHOOK" -F "payload_json=$payload" -F "files[0]=@$jar"
   forge:
     runs-on: ubuntu-latest
     permissions:
@@ -90,17 +95,23 @@ jobs:
         run: ./gradlew -p forge build
 
       - name: Publish FORGE artifacts
-        uses: drtheodor/discord-webhook-upload-action@v0.2
-        continue-on-error: true
-        with:
-          url: ${{ secrets.DEV_BUILDS }}
-          username: FORGE builds
-          avatar: 'https://wiki.tf2classic.com/w/images/b/b3/Engineer_RED.png'
-          message_commit: '> :sparkles: [${commitMessage}](<${commitUrl}>) by [${authorName}](<${authorUrl}>)'
-          message_header: |
-            <:new1:1253371736510959636><:new2:1253371805734015006> New `${{ github.repository }}` dev build `#${{ github.run_number }}`:
-          file: |
-            forge/build/libs/*.jar
-            !forge/build/libs/*-sources.jar
-            !forge/build/libs/*-dev.jar
-            !forge/build/libs/*-javadoc.jar
+        env:
+          WEBHOOK: ${{ secrets.DEV_BUILDS }}
+          REPO: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+        run: |
+          set -euo pipefail
+          jar=$(ls forge/build/libs/*.jar | grep -vE -- '-(sources|dev|javadoc)[.]jar$' | head -1)
+          test -n "$jar" || { echo "no jar in forge/build/libs"; exit 1; }
+          echo "uploading $jar ($(du -h "$jar" | cut -f1))"
+          payload=$(jq -nc \
+            --arg u 'FORGE builds' \
+            --arg a 'https://wiki.tf2classic.com/w/images/b/b3/Engineer_RED.png' \
+            --arg repo "$REPO" \
+            --arg run "$RUN_NUMBER" \
+            --arg m "$COMMIT_MSG" \
+            --arg url "$COMMIT_URL" \
+            '{username: $u, avatar_url: $a, content: ("<:new1:1253371736510959636><:new2:1253371805734015006> New `\($repo)` dev build `#\($run)`:\n> :sparkles: [\($m)](<\($url)>)")}')
+          curl -sS --fail-with-body -X POST "$WEBHOOK" -F "payload_json=$payload" -F "files[0]=@$jar"
