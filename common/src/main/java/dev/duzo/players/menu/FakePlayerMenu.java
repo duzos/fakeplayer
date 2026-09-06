@@ -67,12 +67,7 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 		}
 
 		// 32: main hand — first hotbar slot; locked while a job is parking a visual placeholder there
-		this.addSlot(new EquipmentBoundSlot(entity, EquipmentSlot.MAINHAND, 8, 142) {
-			@Override
-			public boolean mayPickup(Player player) {
-				return super.mayPickup(player) && (entity == null || !entity.isMainHandLocked());
-			}
-		});
+		this.addSlot(new MainHandSlot(entity, 8, 142));
 
 		// 33..40 hotbar 1..8 — backed by storage[27..34]
 		for (int col = 1; col < 9; col++) {
@@ -151,6 +146,21 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 		if (stack.getCount() == copy.getCount()) return ItemStack.EMPTY;
 		slot.onTake(player, stack);
 		return copy;
+	}
+
+	/** Named rather than anonymous: regular Forge 1.20.1 rejects anonymous subclasses of remapped types. */
+	private static class MainHandSlot extends EquipmentBoundSlot {
+		private final FakePlayerEntity owner;
+
+		MainHandSlot(FakePlayerEntity owner, int x, int y) {
+			super(owner, EquipmentSlot.MAINHAND, x, y);
+			this.owner = owner;
+		}
+
+		@Override
+		public boolean mayPickup(Player player) {
+			return super.mayPickup(player) && (owner == null || !owner.isMainHandLocked());
+		}
 	}
 
 	private static class EquipmentBoundSlot extends Slot {
