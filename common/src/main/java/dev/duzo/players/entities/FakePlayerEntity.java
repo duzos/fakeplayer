@@ -268,6 +268,11 @@ public class FakePlayerEntity extends PathfinderMob {
 	public void readAdditionalSaveData(ValueInput input) {
 		super.readAdditionalSaveData(input);
 
+		// super's read unconditionally replaces dropChances with the default (~8.5%) when the save
+		// predates guaranteed drops, and addAdditionalSaveData only writes the key when non-default,
+		// so it never self-heals; re-apply the guarantee every load instead.
+		for (EquipmentSlot slot : EquipmentSlot.values()) this.setGuaranteedDrop(slot);
+
 		this.dataCache = null;
 		this.aiCache = null;
 		this.nameCache = null;
