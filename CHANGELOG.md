@@ -16,3 +16,5 @@
 - Session markers now disappear when used in creative mode (#55), and the region preview box goes with them.
 - The filter syntax and every config option are now written up in the README (#55).
 - Recipes now load on 1.21.1 (#53). The datapack folder names and the recipe result field changed in 1.21, and this version was still using the 1.20 form, so the player egg and its parts had no recipes at all.
+- Fakes no longer lose their gear when they die (#54). The held tool and any armour were being destroyed most of the time on a player kill and always to lava or a fall; they now always drop. A fake also no longer swaps its own pickaxe for a weapon it happens to walk over.
+- Closed an item duplication exploit in the Crafter (#54). While it was laying out a recipe the ingredient in its hand could be taken repeatedly by anyone who opened its inventory, and the fake lost nothing in exchange.
