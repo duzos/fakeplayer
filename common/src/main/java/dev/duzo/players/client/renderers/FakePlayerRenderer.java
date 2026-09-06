@@ -77,5 +77,35 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 			}
 			super.renderArmWithItem(entity, itemStack, context, arm, poseStack, buffer, packedLight);
 		}
+
+		/** Vanilla {@code ItemInHandLayer.render} early-returns when both real hands are empty, so it
+		 *  never reaches {@link #renderArmWithItem} for the normal empty-handed crafter. Mirror vanilla's
+		 *  per-arm item selection here, but skip that early return whenever a display item is set: the
+		 *  substitution above happens inside renderArmWithItem, so real-hand items are still what's passed
+		 *  in below, and a fake that already holds something in its main hand is never double-rendered. */
+		@Override
+		public void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, FakePlayerEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch, float partialTicks) {
+			if (entity.getDisplayItem().isEmpty()) {
+				super.render(poseStack, buffer, packedLight, entity, limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch, partialTicks);
+				return;
+			}
+
+			boolean mainArmRight = entity.getMainArm() == HumanoidArm.RIGHT;
+			ItemStack mainHandItem = entity.getMainHandItem();
+			ItemStack offhandItem = entity.getOffhandItem();
+			ItemStack leftItem = mainArmRight ? offhandItem : mainHandItem;
+			ItemStack rightItem = mainArmRight ? mainHandItem : offhandItem;
+
+			poseStack.pushPose();
+			if (this.getParentModel().young) {
+				poseStack.translate(0.0F, 0.75F, 0.0F);
+				poseStack.scale(0.5F, 0.5F, 0.5F);
+			}
+
+			this.renderArmWithItem(entity, rightItem, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, HumanoidArm.RIGHT, poseStack, buffer, packedLight);
+			this.renderArmWithItem(entity, leftItem, ItemDisplayContext.THIRD_PERSON_LEFT_HAND, HumanoidArm.LEFT, poseStack, buffer, packedLight);
+
+			poseStack.popPose();
+		}
 	}
 }
