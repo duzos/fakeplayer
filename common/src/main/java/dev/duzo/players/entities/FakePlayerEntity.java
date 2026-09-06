@@ -309,7 +309,7 @@ public class FakePlayerEntity extends PathfinderMob {
 	// it's already holding/wearing for whatever it walks over - MoveTowardsItemsGoal/JobHelpers.vacuum
 	// handle deliberate collection into the inventory separately and don't go through this hook.
 	@Override
-	protected boolean canReplaceCurrentItem(ItemStack candidate, ItemStack existing, EquipmentSlot slot) {
+	protected boolean canReplaceCurrentItem(ItemStack candidate, ItemStack existing) {
 		return existing.isEmpty();
 	}
 
