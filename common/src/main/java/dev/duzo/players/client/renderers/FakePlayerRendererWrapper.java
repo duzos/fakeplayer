@@ -9,9 +9,12 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.HumanoidMobRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.state.PlayerRenderState;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 
 public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEntity, PlayerRenderState, FakePlayerModel> {
 	private final FakePlayerRenderer wide;
@@ -32,10 +35,27 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 	public void extractRenderState(FakePlayerEntity entity, PlayerRenderState state, float partialTick) {
 		super.extractRenderState(entity, state, partialTick);
 		HumanoidMobRenderer.extractHumanoidRenderState(entity, state, partialTick, this.itemModelResolver);
-		state.leftArmPose = entity.getItemHeldByArm(HumanoidArm.LEFT).isEmpty()
-			? HumanoidModel.ArmPose.EMPTY : HumanoidModel.ArmPose.ITEM;
-		state.rightArmPose = entity.getItemHeldByArm(HumanoidArm.RIGHT).isEmpty()
-			? HumanoidModel.ArmPose.EMPTY : HumanoidModel.ArmPose.ITEM;
+
+		// A job (e.g. the crafter placing an ingredient) can ask to show a display item in the main
+		// hand without ever touching the real MAINHAND equipment slot. Swap it in after the vanilla
+		// extraction above has already baked the real held items, so an empty display item just
+		// leaves the real held item showing.
+		boolean mainIsRight = state.mainArm == HumanoidArm.RIGHT;
+		ItemStack display = entity.getDisplayItem();
+		if (!display.isEmpty()) {
+			ItemDisplayContext context = mainIsRight ? ItemDisplayContext.THIRD_PERSON_RIGHT_HAND : ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
+			ItemStackRenderState target = mainIsRight ? state.rightHandItem : state.leftHandItem;
+			this.itemModelResolver.updateForLiving(target, display, context, entity);
+		}
+
+		// The main arm's pose must reflect the display item too, or an empty-handed crafter draws
+		// the swapped-in item with the arm still resting in the EMPTY pose.
+		boolean showsDisplay = !display.isEmpty();
+		state.leftArmPose = (!entity.getItemHeldByArm(HumanoidArm.LEFT).isEmpty() || (!mainIsRight && showsDisplay))
+			? HumanoidModel.ArmPose.ITEM : HumanoidModel.ArmPose.EMPTY;
+		state.rightArmPose = (!entity.getItemHeldByArm(HumanoidArm.RIGHT).isEmpty() || (mainIsRight && showsDisplay))
+			? HumanoidModel.ArmPose.ITEM : HumanoidModel.ArmPose.EMPTY;
+
 		if (state instanceof FakePlayerRenderState fake) {
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
