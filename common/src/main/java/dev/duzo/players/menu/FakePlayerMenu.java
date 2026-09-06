@@ -68,8 +68,13 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 			}
 		}
 
-		// 32: main hand — first hotbar slot
-		this.addSlot(new EquipmentBoundSlot(entity, EquipmentSlot.MAINHAND, 8, 142));
+		// 32: main hand — first hotbar slot; locked while a job is parking a visual placeholder there
+		this.addSlot(new EquipmentBoundSlot(entity, EquipmentSlot.MAINHAND, 8, 142) {
+			@Override
+			public boolean mayPickup(Player player) {
+				return super.mayPickup(player) && (entity == null || !entity.isMainHandLocked());
+			}
+		});
 
 		// 33..40 hotbar 1..8 — backed by storage[27..34]
 		for (int col = 1; col < 9; col++) {
@@ -110,7 +115,7 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 	@Override
 	public ItemStack quickMoveStack(Player player, int index) {
 		Slot slot = this.slots.get(index);
-		if (!slot.hasItem()) return ItemStack.EMPTY;
+		if (!slot.hasItem() || !slot.mayPickup(player)) return ItemStack.EMPTY;
 		ItemStack stack = slot.getItem();
 		ItemStack copy = stack.copy();
 
