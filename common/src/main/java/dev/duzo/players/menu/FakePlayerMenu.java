@@ -67,8 +67,8 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 			}
 		}
 
-		// 32: main hand — first hotbar slot; locked while a job is parking a visual placeholder there
-		this.addSlot(new MainHandSlot(entity, 8, 142));
+		// 32: main hand — first hotbar slot
+		this.addSlot(new EquipmentBoundSlot(entity, EquipmentSlot.MAINHAND, 8, 142));
 
 		// 33..40 hotbar 1..8 — backed by storage[27..34]
 		for (int col = 1; col < 9; col++) {
@@ -131,15 +131,7 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 				}
 			}
 			if (!placed) {
-				// moveItemStackTo's merge pass ignores mayPlace, so while the crafter has parked a
-				// placeholder in the main hand, this range must skip that slot entirely - merging a
-				// stack into it would be clobbered by the executor's next setItemSlot tick.
-				if (entity != null && entity.isMainHandLocked()) {
-					placed = this.moveItemStackTo(stack, FP_STORAGE_START, MAINHAND_INDEX, false);
-					if (!placed) placed = this.moveItemStackTo(stack, FP_HOTBAR_START, FP_HOTBAR_END, false);
-				} else {
-					placed = this.moveItemStackTo(stack, FP_STORAGE_START, FP_HOTBAR_END, false);
-				}
+				placed = this.moveItemStackTo(stack, FP_STORAGE_START, FP_HOTBAR_END, false);
 			}
 			if (!placed) return ItemStack.EMPTY;
 		}
@@ -153,28 +145,6 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 		if (stack.getCount() == copy.getCount()) return ItemStack.EMPTY;
 		slot.onTake(player, stack);
 		return copy;
-	}
-
-	/** Named rather than anonymous: regular Forge 1.20.1 rejects anonymous subclasses of remapped types. */
-	private static class MainHandSlot extends EquipmentBoundSlot {
-		private final FakePlayerEntity owner;
-
-		MainHandSlot(FakePlayerEntity owner, int x, int y) {
-			super(owner, EquipmentSlot.MAINHAND, x, y);
-			this.owner = owner;
-		}
-
-		@Override
-		public boolean mayPickup(Player player) {
-			return super.mayPickup(player) && (owner == null || !owner.isMainHandLocked());
-		}
-
-		@Override
-		public boolean mayPlace(ItemStack stack) {
-			// QUICK_CRAFT (drag-distribute) checks mayPlace, not mayPickup, and canItemQuickReplace
-			// alone lets it merge into the locked placeholder stack - block placement outright.
-			return owner == null || !owner.isMainHandLocked();
-		}
 	}
 
 	private static class EquipmentBoundSlot extends Slot {
