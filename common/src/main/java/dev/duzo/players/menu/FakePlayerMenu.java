@@ -168,6 +168,13 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 		public boolean mayPickup(Player player) {
 			return super.mayPickup(player) && (owner == null || !owner.isMainHandLocked());
 		}
+
+		@Override
+		public boolean mayPlace(ItemStack stack) {
+			// QUICK_CRAFT (drag-distribute) checks mayPlace, not mayPickup, and canItemQuickReplace
+			// alone lets it merge into the locked placeholder stack - block placement outright.
+			return owner == null || !owner.isMainHandLocked();
+		}
 	}
 
 	private static class EquipmentBoundSlot extends Slot {
