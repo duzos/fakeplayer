@@ -1,7 +1,6 @@
 package dev.duzo.players.client;
 
 import dev.duzo.players.Constants;
-import dev.duzo.players.client.renderers.FishingLineRenderer;
 import dev.duzo.players.client.renderers.SessionItemRenderer;
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
@@ -25,7 +24,8 @@ public class ClientBusEvents {
 
 	@SubscribeEvent
 	public static void onRenderLevel(RenderLevelStageEvent.AfterTranslucentBlocks e) {
+		// The fishing bobber/line are drawn by FakeFishingHookRenderer via the entity submit-node
+		// pipeline; only the region/waypoint/chest gizmo overlay needs this world-render hook.
 		SessionItemRenderer.render(e.getPoseStack());
-		FishingLineRenderer.render(e.getPoseStack());
 	}
 }

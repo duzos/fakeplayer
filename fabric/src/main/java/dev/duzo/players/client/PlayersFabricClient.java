@@ -2,7 +2,6 @@ package dev.duzo.players.client;
 
 import dev.duzo.players.client.renderers.FakeFishingHookRenderer;
 import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
-import dev.duzo.players.client.renderers.FishingLineRenderer;
 import dev.duzo.players.client.renderers.SessionItemRenderer;
 import dev.duzo.players.client.screen.FakeCrafterScreen;
 import dev.duzo.players.client.screen.FakePlayerInventoryScreen;
@@ -12,7 +11,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.gui.screens.MenuScreens;
 
 public class PlayersFabricClient implements ClientModInitializer {
@@ -26,9 +25,8 @@ public class PlayersFabricClient implements ClientModInitializer {
 		MenuScreens.register(FPMenus.CRAFTER_LEARN.get(), FakeCrafterScreen::new);
 		ClientTickEvents.END_CLIENT_TICK.register(PlayersCommonClient::tick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> PlayersCommonClient.onClientStopping());
-		WorldRenderEvents.AFTER_ENTITIES.register(ctx -> {
-			SessionItemRenderer.render(ctx.matrices());
-			FishingLineRenderer.render(ctx.matrices());
-		});
+		// The fishing bobber/line are drawn by FakeFishingHookRenderer via the entity submit-node
+		// pipeline; only the region/waypoint/chest gizmo overlay needs this world-render hook.
+		LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> SessionItemRenderer.render(ctx.poseStack()));
 	}
 }

@@ -20,7 +20,7 @@ import net.minecraft.world.phys.Vec3;
  * A thrown fishing bobber owned by a {@link FakePlayerEntity}. The fake is a PathfinderMob, not a
  * Player, so this is a standalone projectile rather than a vanilla FishingHook. Physics only: it
  * arcs out, settles on the water surface and bobs. The Fisherman executor drives cast/bite/reel
- * timing and removes it; visuals (line + bobber) are drawn by FishingLineRenderer.
+ * timing and removes it; visuals (line + bobber) are drawn by FakeFishingHookRenderer.
  */
 public class FakeFishingHook extends Projectile {
 	private static final EntityDataAccessor<Integer> DATA_OWNER_ID = SynchedEntityData.defineId(FakeFishingHook.class, EntityDataSerializers.INT);
