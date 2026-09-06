@@ -6,10 +6,14 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-public record SetAIFilterPacketC2S(int id, String tagName) {
+public record SetAIFilterPacketC2S(int id, String tagName) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("ai_set_filter");
+	public static final CustomPacketPayload.Type<SetAIFilterPacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, SetAIFilterPacketC2S> CODEC = CustomPacketPayload.codec(SetAIFilterPacketC2S::encode, SetAIFilterPacketC2S::decode);
 	private static final String DEFAULT_FILTER = "c:ores";
 	private static final int MAX_FILTER_LENGTH = 512;
 
@@ -28,6 +32,11 @@ public record SetAIFilterPacketC2S(int id, String tagName) {
 			s.setFilter(filter);
 			s.setJobState(new CompoundTag());
 		});
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

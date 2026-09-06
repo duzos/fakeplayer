@@ -6,10 +6,14 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-public record ToggleFakePlayerFlagPacketC2S(int id, byte flag, boolean value) {
+public record ToggleFakePlayerFlagPacketC2S(int id, byte flag, boolean value) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("toggle_fake_player_flag");
+	public static final CustomPacketPayload.Type<ToggleFakePlayerFlagPacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, ToggleFakePlayerFlagPacketC2S> CODEC = CustomPacketPayload.codec(ToggleFakePlayerFlagPacketC2S::encode, ToggleFakePlayerFlagPacketC2S::decode);
 
 	public static final byte FLAG_NO_AI = 0;
 	public static final byte FLAG_SLIM = 1;
@@ -35,6 +39,11 @@ public record ToggleFakePlayerFlagPacketC2S(int id, byte flag, boolean value) {
 			} catch (Exception ignored) {
 			}
 		}
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

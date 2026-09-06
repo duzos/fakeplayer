@@ -6,10 +6,14 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-public record ApplyFakePlayerSkinPacketC2S(int id, String name) {
+public record ApplyFakePlayerSkinPacketC2S(int id, String name) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("apply_fake_player_skin");
+	public static final CustomPacketPayload.Type<ApplyFakePlayerSkinPacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, ApplyFakePlayerSkinPacketC2S> CODEC = CustomPacketPayload.codec(ApplyFakePlayerSkinPacketC2S::encode, ApplyFakePlayerSkinPacketC2S::decode);
 
 	public static ApplyFakePlayerSkinPacketC2S decode(FriendlyByteBuf buf) {
 		return new ApplyFakePlayerSkinPacketC2S(buf.readInt(), buf.readUtf());
@@ -28,6 +32,11 @@ public record ApplyFakePlayerSkinPacketC2S(int id, String name) {
 			} catch (Exception ignored) {
 			}
 		}
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

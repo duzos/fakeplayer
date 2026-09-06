@@ -9,18 +9,27 @@ import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
-public record UploadSkinPacketC2S(int id, String key, byte[] data) {
+public record UploadSkinPacketC2S(int id, String key, byte[] data) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("upload_skin");
+	public static final CustomPacketPayload.Type<UploadSkinPacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, UploadSkinPacketC2S> CODEC = CustomPacketPayload.codec(UploadSkinPacketC2S::encode, UploadSkinPacketC2S::decode);
 
 	public static UploadSkinPacketC2S decode(FriendlyByteBuf buf) {
 		int id = buf.readInt();
 		String key = buf.readUtf();
 		byte[] data = buf.readByteArray(LocalSkinStore.MAX_BYTES + 1024);
 		return new UploadSkinPacketC2S(id, key, data);
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

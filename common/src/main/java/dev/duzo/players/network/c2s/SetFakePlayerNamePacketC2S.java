@@ -6,11 +6,15 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
-public record SetFakePlayerNamePacketC2S(int id, String name) {
+public record SetFakePlayerNamePacketC2S(int id, String name) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("set_fake_player_name");
+	public static final CustomPacketPayload.Type<SetFakePlayerNamePacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, SetFakePlayerNamePacketC2S> CODEC = CustomPacketPayload.codec(SetFakePlayerNamePacketC2S::encode, SetFakePlayerNamePacketC2S::decode);
 
 	public static SetFakePlayerNamePacketC2S decode(FriendlyByteBuf buf) {
 		return new SetFakePlayerNamePacketC2S(buf.readInt(), buf.readUtf());
@@ -28,6 +32,11 @@ public record SetFakePlayerNamePacketC2S(int id, String name) {
 			} catch (Exception ignored) {
 			}
 		}
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

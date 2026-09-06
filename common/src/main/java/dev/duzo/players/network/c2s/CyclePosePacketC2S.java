@@ -7,10 +7,14 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.FakePlayerEntity.PhysicalState;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-public record CyclePosePacketC2S(int id) {
+public record CyclePosePacketC2S(int id) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("cycle_pose");
+	public static final CustomPacketPayload.Type<CyclePosePacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, CyclePosePacketC2S> CODEC = CustomPacketPayload.codec(CyclePosePacketC2S::encode, CyclePosePacketC2S::decode);
 
 	public static CyclePosePacketC2S decode(FriendlyByteBuf buf) {
 		return new CyclePosePacketC2S(buf.readInt());
@@ -28,6 +32,11 @@ public record CyclePosePacketC2S(int id) {
 			} catch (Exception ignored) {
 			}
 		}
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

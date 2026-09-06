@@ -9,12 +9,16 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 import java.util.function.Function;
 
-public record OpenScreenPacketS2C(int id, CompoundTag data) {
+public record OpenScreenPacketS2C(int id, CompoundTag data) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("open_screen");
+	public static final CustomPacketPayload.Type<OpenScreenPacketS2C> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, OpenScreenPacketS2C> CODEC = CustomPacketPayload.codec(OpenScreenPacketS2C::encode, OpenScreenPacketS2C::decode);
 
 	public static OpenScreenPacketS2C decode(FriendlyByteBuf buf) {
 		return new OpenScreenPacketS2C(buf.readInt(), buf.readNbt());
@@ -29,6 +33,11 @@ public record OpenScreenPacketS2C(int id, CompoundTag data) {
 			} catch (Exception ignored) {
 			}
 		}
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

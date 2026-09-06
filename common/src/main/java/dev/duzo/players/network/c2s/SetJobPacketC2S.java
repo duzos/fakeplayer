@@ -7,10 +7,14 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.Job;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-public record SetJobPacketC2S(int id, int jobOrdinal) {
+public record SetJobPacketC2S(int id, int jobOrdinal) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("ai_set_job");
+	public static final CustomPacketPayload.Type<SetJobPacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, SetJobPacketC2S> CODEC = CustomPacketPayload.codec(SetJobPacketC2S::encode, SetJobPacketC2S::decode);
 
 	public static SetJobPacketC2S decode(FriendlyByteBuf buf) {
 		return new SetJobPacketC2S(buf.readInt(), buf.readInt());
@@ -29,6 +33,11 @@ public record SetJobPacketC2S(int id, int jobOrdinal) {
 			s.setRunning(false);
 			s.setJobState(new CompoundTag());
 		});
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

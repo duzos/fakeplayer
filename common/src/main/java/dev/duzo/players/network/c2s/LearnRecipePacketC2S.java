@@ -12,12 +12,16 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
-public record LearnRecipePacketC2S(int id) {
+public record LearnRecipePacketC2S(int id) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("learn_recipe");
+	public static final CustomPacketPayload.Type<LearnRecipePacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, LearnRecipePacketC2S> CODEC = CustomPacketPayload.codec(LearnRecipePacketC2S::encode, LearnRecipePacketC2S::decode);
 
 	public static LearnRecipePacketC2S decode(FriendlyByteBuf buf) {
 		return new LearnRecipePacketC2S(buf.readInt());
@@ -52,6 +56,11 @@ public record LearnRecipePacketC2S(int id) {
 			params.put("Recipe", recipe);
 			s.setJobParams(params);
 		});
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

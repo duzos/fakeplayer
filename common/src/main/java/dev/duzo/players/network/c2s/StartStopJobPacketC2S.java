@@ -6,10 +6,14 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-public record StartStopJobPacketC2S(int id, boolean run) {
+public record StartStopJobPacketC2S(int id, boolean run) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("ai_start_stop");
+	public static final CustomPacketPayload.Type<StartStopJobPacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, StartStopJobPacketC2S> CODEC = CustomPacketPayload.codec(StartStopJobPacketC2S::encode, StartStopJobPacketC2S::decode);
 
 	public static StartStopJobPacketC2S decode(FriendlyByteBuf buf) {
 		return new StartStopJobPacketC2S(buf.readInt(), buf.readBoolean());
@@ -39,6 +43,11 @@ public record StartStopJobPacketC2S(int id, boolean run) {
 		copy.remove("MiningProgress");
 		copy.remove("MiningStage");
 		return copy;
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

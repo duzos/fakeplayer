@@ -21,22 +21,22 @@ import dev.duzo.players.network.s2c.SkinDataPacketS2C;
 
 public class PlayersNetwork {
 	public static void init() {
-		Network.registerPacket(OpenScreenPacketS2C.LOCATION, OpenScreenPacketS2C.class, OpenScreenPacketS2C::encode, OpenScreenPacketS2C::decode, OpenScreenPacketS2C::handle);
-		Network.registerPacket(SetSkinKeyPacketC2S.LOCATION, SetSkinKeyPacketC2S.class, SetSkinKeyPacketC2S::encode, SetSkinKeyPacketC2S::decode, SetSkinKeyPacketC2S::handle);
-		Network.registerPacket(SetFakePlayerNamePacketC2S.LOCATION, SetFakePlayerNamePacketC2S.class, SetFakePlayerNamePacketC2S::encode, SetFakePlayerNamePacketC2S::decode, SetFakePlayerNamePacketC2S::handle);
-		Network.registerPacket(ApplyFakePlayerSkinPacketC2S.LOCATION, ApplyFakePlayerSkinPacketC2S.class, ApplyFakePlayerSkinPacketC2S::encode, ApplyFakePlayerSkinPacketC2S::decode, ApplyFakePlayerSkinPacketC2S::handle);
-		Network.registerPacket(CyclePosePacketC2S.LOCATION, CyclePosePacketC2S.class, CyclePosePacketC2S::encode, CyclePosePacketC2S::decode, CyclePosePacketC2S::handle);
-		Network.registerPacket(ToggleFakePlayerFlagPacketC2S.LOCATION, ToggleFakePlayerFlagPacketC2S.class, ToggleFakePlayerFlagPacketC2S::encode, ToggleFakePlayerFlagPacketC2S::decode, ToggleFakePlayerFlagPacketC2S::handle);
-		Network.registerPacket(UploadSkinPacketC2S.LOCATION, UploadSkinPacketC2S.class, UploadSkinPacketC2S::encode, UploadSkinPacketC2S::decode, UploadSkinPacketC2S::handle);
-		Network.registerPacket(RequestSkinDataPacketC2S.LOCATION, RequestSkinDataPacketC2S.class, RequestSkinDataPacketC2S::encode, RequestSkinDataPacketC2S::decode, RequestSkinDataPacketC2S::handle);
-		Network.registerPacket(SkinDataPacketS2C.LOCATION, SkinDataPacketS2C.class, SkinDataPacketS2C::encode, SkinDataPacketS2C::decode, SkinDataPacketS2C::handle);
-		Network.registerPacket(BondPacketC2S.LOCATION, BondPacketC2S.class, BondPacketC2S::encode, BondPacketC2S::decode, BondPacketC2S::handle);
-		Network.registerPacket(SetAIFilterPacketC2S.LOCATION, SetAIFilterPacketC2S.class, SetAIFilterPacketC2S::encode, SetAIFilterPacketC2S::decode, SetAIFilterPacketC2S::handle);
-		Network.registerPacket(SetJobPacketC2S.LOCATION, SetJobPacketC2S.class, SetJobPacketC2S::encode, SetJobPacketC2S::decode, SetJobPacketC2S::handle);
-		Network.registerPacket(StartStopJobPacketC2S.LOCATION, StartStopJobPacketC2S.class, StartStopJobPacketC2S::encode, StartStopJobPacketC2S::decode, StartStopJobPacketC2S::handle);
-		Network.registerPacket(GiveAIMarkerPacketC2S.LOCATION, GiveAIMarkerPacketC2S.class, GiveAIMarkerPacketC2S::encode, GiveAIMarkerPacketC2S::decode, GiveAIMarkerPacketC2S::handle);
-		Network.registerPacket(ClearPatrolPacketC2S.LOCATION, ClearPatrolPacketC2S.class, ClearPatrolPacketC2S::encode, ClearPatrolPacketC2S::decode, ClearPatrolPacketC2S::handle);
-		Network.registerPacket(OpenCrafterLearnPacketC2S.LOCATION, OpenCrafterLearnPacketC2S.class, OpenCrafterLearnPacketC2S::encode, OpenCrafterLearnPacketC2S::decode, OpenCrafterLearnPacketC2S::handle);
-		Network.registerPacket(LearnRecipePacketC2S.LOCATION, LearnRecipePacketC2S.class, LearnRecipePacketC2S::encode, LearnRecipePacketC2S::decode, LearnRecipePacketC2S::handle);
+		Network.registerPacket(OpenScreenPacketS2C.TYPE, OpenScreenPacketS2C.CODEC, OpenScreenPacketS2C::handle);
+		Network.registerPacket(SetSkinKeyPacketC2S.TYPE, SetSkinKeyPacketC2S.CODEC, SetSkinKeyPacketC2S::handle);
+		Network.registerPacket(SetFakePlayerNamePacketC2S.TYPE, SetFakePlayerNamePacketC2S.CODEC, SetFakePlayerNamePacketC2S::handle);
+		Network.registerPacket(ApplyFakePlayerSkinPacketC2S.TYPE, ApplyFakePlayerSkinPacketC2S.CODEC, ApplyFakePlayerSkinPacketC2S::handle);
+		Network.registerPacket(CyclePosePacketC2S.TYPE, CyclePosePacketC2S.CODEC, CyclePosePacketC2S::handle);
+		Network.registerPacket(ToggleFakePlayerFlagPacketC2S.TYPE, ToggleFakePlayerFlagPacketC2S.CODEC, ToggleFakePlayerFlagPacketC2S::handle);
+		Network.registerPacket(UploadSkinPacketC2S.TYPE, UploadSkinPacketC2S.CODEC, UploadSkinPacketC2S::handle);
+		Network.registerPacket(RequestSkinDataPacketC2S.TYPE, RequestSkinDataPacketC2S.CODEC, RequestSkinDataPacketC2S::handle);
+		Network.registerPacket(SkinDataPacketS2C.TYPE, SkinDataPacketS2C.CODEC, SkinDataPacketS2C::handle);
+		Network.registerPacket(BondPacketC2S.TYPE, BondPacketC2S.CODEC, BondPacketC2S::handle);
+		Network.registerPacket(SetAIFilterPacketC2S.TYPE, SetAIFilterPacketC2S.CODEC, SetAIFilterPacketC2S::handle);
+		Network.registerPacket(SetJobPacketC2S.TYPE, SetJobPacketC2S.CODEC, SetJobPacketC2S::handle);
+		Network.registerPacket(StartStopJobPacketC2S.TYPE, StartStopJobPacketC2S.CODEC, StartStopJobPacketC2S::handle);
+		Network.registerPacket(GiveAIMarkerPacketC2S.TYPE, GiveAIMarkerPacketC2S.CODEC, GiveAIMarkerPacketC2S::handle);
+		Network.registerPacket(ClearPatrolPacketC2S.TYPE, ClearPatrolPacketC2S.CODEC, ClearPatrolPacketC2S::handle);
+		Network.registerPacket(OpenCrafterLearnPacketC2S.TYPE, OpenCrafterLearnPacketC2S.CODEC, OpenCrafterLearnPacketC2S::handle);
+		Network.registerPacket(LearnRecipePacketC2S.TYPE, LearnRecipePacketC2S.CODEC, LearnRecipePacketC2S::handle);
 	}
 }

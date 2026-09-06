@@ -6,12 +6,16 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
-public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) {
+public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("ai_give_marker");
+	public static final CustomPacketPayload.Type<GiveAIMarkerPacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, GiveAIMarkerPacketC2S> CODEC = CustomPacketPayload.codec(GiveAIMarkerPacketC2S::encode, GiveAIMarkerPacketC2S::decode);
 
 	public GiveAIMarkerPacketC2S(int id, byte mode) {
 		this(id, mode, AIMarkerItem.CHEST_SLOT_DEPOSIT);
@@ -35,6 +39,11 @@ public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) {
 		if (!sender.getInventory().add(stack)) {
 			sender.drop(stack, false);
 		}
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

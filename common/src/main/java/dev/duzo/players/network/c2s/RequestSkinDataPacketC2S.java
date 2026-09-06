@@ -8,19 +8,28 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.api.LocalSkinStore;
 import dev.duzo.players.network.s2c.SkinDataPacketS2C;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.WeakHashMap;
 
-public record RequestSkinDataPacketC2S(String key) {
+public record RequestSkinDataPacketC2S(String key) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("request_skin_data");
+	public static final CustomPacketPayload.Type<RequestSkinDataPacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, RequestSkinDataPacketC2S> CODEC = CustomPacketPayload.codec(RequestSkinDataPacketC2S::encode, RequestSkinDataPacketC2S::decode);
 
 	private static final WeakHashMap<ServerPlayer, Long> LAST_SERVED = new WeakHashMap<>();
 	private static final long MIN_GAP_MS = 100L;
 
 	public static RequestSkinDataPacketC2S decode(FriendlyByteBuf buf) {
 		return new RequestSkinDataPacketC2S(buf.readUtf());
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {
