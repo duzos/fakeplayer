@@ -14,7 +14,6 @@ import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
@@ -69,13 +68,32 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 			super(parent, itemInHandRenderer);
 		}
 
+		/** Vanilla {@code ItemInHandLayer.render} early-returns when both real hands are empty, which is the
+		 *  normal case for a crafter (it never actually holds the ingredient, only displays it) - so this
+		 *  reimplements vanilla's per-arm dispatch, substituting the display item for the main-hand item
+		 *  whenever one is set. The off-hand path is left byte-for-byte identical to vanilla. */
 		@Override
-		protected void renderArmWithItem(LivingEntity entity, ItemStack itemStack, ItemDisplayContext context, HumanoidArm arm, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-			if (entity instanceof FakePlayerEntity fake && arm == fake.getMainArm()) {
-				ItemStack display = fake.getDisplayItem();
-				if (!display.isEmpty()) itemStack = display;
+		public void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, FakePlayerEntity entity, float limbSwing, float limbSwingAmount, float partialTicks, float ageInTicks, float netHeadYaw, float headPitch) {
+			ItemStack display = entity.getDisplayItem();
+			if (display.isEmpty()) {
+				super.render(poseStack, buffer, packedLight, entity, limbSwing, limbSwingAmount, partialTicks, ageInTicks, netHeadYaw, headPitch);
+				return;
 			}
-			super.renderArmWithItem(entity, itemStack, context, arm, poseStack, buffer, packedLight);
+
+			ItemStack offHandItem = entity.getOffhandItem();
+			boolean mainIsRight = entity.getMainArm() == HumanoidArm.RIGHT;
+			ItemStack rightArmItem = mainIsRight ? display : offHandItem;
+			ItemStack leftArmItem = mainIsRight ? offHandItem : display;
+
+			poseStack.pushPose();
+			if (getParentModel().young) {
+				float scale = 0.5f;
+				poseStack.translate(0, 0.75f, 0);
+				poseStack.scale(scale, scale, scale);
+			}
+			renderArmWithItem(entity, rightArmItem, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, HumanoidArm.RIGHT, poseStack, buffer, packedLight);
+			renderArmWithItem(entity, leftArmItem, ItemDisplayContext.THIRD_PERSON_LEFT_HAND, HumanoidArm.LEFT, poseStack, buffer, packedLight);
+			poseStack.popPose();
 		}
 	}
 }
