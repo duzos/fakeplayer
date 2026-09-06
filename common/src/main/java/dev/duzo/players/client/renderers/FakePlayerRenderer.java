@@ -15,12 +15,16 @@ import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
 import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
 import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.core.ClientAsset;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerSkin;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 
 public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, AvatarRenderState, FakePlayerModel> {
 	private final boolean slim;
@@ -67,6 +71,19 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 		}
 		if (!entity.isCustomNameVisible()) {
 			state.nameTag = null;
+		}
+
+		// A job (e.g. the crafter placing an ingredient) can ask to show a display item in the main
+		// hand without ever touching the real MAINHAND equipment slot. Swap it in after the vanilla
+		// extraction above has already baked the real held items, so an empty display item just
+		// leaves the real held item showing.
+		ItemStack display = entity.getDisplayItem();
+		if (!display.isEmpty()) {
+			boolean mainIsRight = state.mainArm == HumanoidArm.RIGHT;
+			ItemDisplayContext context = mainIsRight ? ItemDisplayContext.THIRD_PERSON_RIGHT_HAND : ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
+			ItemStackRenderState target = mainIsRight ? state.rightHandItemState : state.leftHandItemState;
+			this.itemModelResolver.updateForLiving(target, display, context, entity);
+			if (mainIsRight) state.rightHandItemStack = display; else state.leftHandItemStack = display;
 		}
 	}
 

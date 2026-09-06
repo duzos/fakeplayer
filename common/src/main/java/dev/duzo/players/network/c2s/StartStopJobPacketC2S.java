@@ -38,10 +38,6 @@ public record StartStopJobPacketC2S(int id, boolean run) {
 		copy.remove("ActiveStand");
 		copy.remove("MiningProgress");
 		copy.remove("MiningStage");
-		// never inherit a stash across a (re)start - onPause already restored the real hand item,
-		// so a stale HandStashed/HeldMainHand pair here would lock the slot with nothing to show for it.
-		copy.remove("HandStashed");
-		copy.remove("HeldMainHand");
 		return copy;
 	}
 

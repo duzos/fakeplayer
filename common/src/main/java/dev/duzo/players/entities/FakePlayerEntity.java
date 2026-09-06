@@ -61,6 +61,9 @@ public class FakePlayerEntity extends PathfinderMob {
 	private static final EntityDataAccessor<String> SKIN_URL = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
 	private static final EntityDataAccessor<Boolean> SLIM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<String> AI_STATE = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
+	// client-visual-only "what the job is placing" item, drawn in the main hand by the renderer;
+	// never affects the real MAINHAND equipment slot and does not need to survive a reload
+	private static final EntityDataAccessor<ItemStack> DISPLAY_ITEM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.ITEM_STACK);
 	private SkinData dataCache;
 	private AIState aiCache;
 	private Component nameCache;
@@ -127,9 +130,13 @@ public class FakePlayerEntity extends PathfinderMob {
 		return this.jobPaused;
 	}
 
-	/** True while the running job has parked a visual placeholder in the main hand that must not leave the fake. */
-	public boolean isMainHandLocked() {
-		return this.jobExecutor != null && this.jobExecutor.lockMainHand();
+	/** The item a job wants drawn in the main hand right now, or empty to show the real held item. */
+	public ItemStack getDisplayItem() {
+		return this.entityData.get(DISPLAY_ITEM);
+	}
+
+	public void setDisplayItem(ItemStack stack) {
+		this.entityData.set(DISPLAY_ITEM, stack.isEmpty() ? ItemStack.EMPTY : stack.copy());
 	}
 
 	private static final double FOLLOW_OWNER_RANGE_SQ = 32.0D * 32.0D;
@@ -333,6 +340,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		builder.define(SKIN_URL, defaultSkin.url());
 		builder.define(SLIM, false);
 		builder.define(AI_STATE, new AIState().toNbt().toString());
+		builder.define(DISPLAY_ITEM, ItemStack.EMPTY);
 	}
 
 	private void applySkin(SkinData skin) {
@@ -362,9 +370,6 @@ public class FakePlayerEntity extends PathfinderMob {
 
 	@Override
 	protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean dropExperience) {
-		// restore a job's stashed main hand before super's equipment-drop loop runs, otherwise it
-		// drops the fabricated placeholder and the real held tool is lost.
-		if (this.jobExecutor != null) this.jobExecutor.onPause(this);
 		super.dropCustomDeathLoot(level, source, dropExperience);
 
 		Containers.dropContents(this.level(), this, this.inventory);
