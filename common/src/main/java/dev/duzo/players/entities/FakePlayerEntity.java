@@ -123,6 +123,11 @@ public class FakePlayerEntity extends PathfinderMob {
 		return this.jobPaused;
 	}
 
+	/** True while the running job has parked a visual placeholder in the main hand that must not leave the fake. */
+	public boolean isMainHandLocked() {
+		return this.jobExecutor != null && this.jobExecutor.lockMainHand();
+	}
+
 	private static final double FOLLOW_OWNER_RANGE_SQ = 32.0D * 32.0D;
 
 	@Nullable
