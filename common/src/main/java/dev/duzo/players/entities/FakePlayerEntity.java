@@ -260,10 +260,9 @@ public class FakePlayerEntity extends PathfinderMob {
 	}
 
 	public void resetJobExecutor() {
-		// run the pause path (e.g. restoring a stashed main hand) before discarding the executor -
-		// otherwise stopping the job never fires onPause and the placeholder lock sticks. Flush after
-		// onPause runs so the persisted state matches what onPause just restored, not the stale
-		// mid-job state (a flush taken before onPause would still say the hand is stashed).
+		// run the pause path before discarding the executor - otherwise stopping the job never fires
+		// onPause at all. Flush after onPause runs so the persisted state matches what onPause just
+		// settled, not the stale mid-job state.
 		if (this.jobExecutor != null) {
 			this.jobExecutor.onPause(this);
 			this.flushJobState();
