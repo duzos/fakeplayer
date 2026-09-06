@@ -19,14 +19,15 @@ public record StartStopJobPacketC2S(int id, boolean run) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		if (ctx.sender() == null) return;
 		if (!(ctx.sender().serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
-		entity.flushJobState();
+		// reset first so the old executor's onPause (hand restore) runs and flushes before we touch
+		// jobState - flushing beforehand would persist the stale mid-job stash instead.
+		entity.resetJobExecutor();
 		entity.mutateAIState(s -> {
 			s.setRunning(ctx.message().run());
 			if (ctx.message().run()) {
 				s.setJobState(restartableJobState(s.jobState()));
 			}
 		});
-		entity.resetJobExecutor();
 	}
 
 	private static CompoundTag restartableJobState(CompoundTag state) {
@@ -37,6 +38,10 @@ public record StartStopJobPacketC2S(int id, boolean run) {
 		copy.remove("ActiveStand");
 		copy.remove("MiningProgress");
 		copy.remove("MiningStage");
+		// never inherit a stash across a (re)start - onPause already restored the real hand item,
+		// so a stale HandStashed/HeldMainHand pair here would lock the slot with nothing to show for it.
+		copy.remove("HandStashed");
+		copy.remove("HeldMainHand");
 		return copy;
 	}
 	public void encode(FriendlyByteBuf buf) {
