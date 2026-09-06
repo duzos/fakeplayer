@@ -19,8 +19,8 @@ public record StartStopJobPacketC2S(int id, boolean run) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		if (ctx.sender() == null) return;
 		if (!(ctx.sender().serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
-		// reset first so the old executor's onPause (hand restore) runs and flushes before we touch
-		// jobState - flushing beforehand would persist the stale mid-job stash instead.
+		// reset first so the old executor's onPause runs and gets flushed before we touch jobState -
+		// otherwise the persisted state would still reflect the stale mid-job data.
 		entity.resetJobExecutor();
 		entity.mutateAIState(s -> {
 			s.setRunning(ctx.message().run());
