@@ -21,8 +21,8 @@ public record SetJobPacketC2S(int id, int jobOrdinal) {
 		if (ctx.sender() == null) return;
 		if (!(ctx.sender().serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
 		Job job = Job.byOrdinal(ctx.message().jobOrdinal());
-		// let the old executor's pause path run (restoring any stashed hand item) before its state
-		// is wiped out below, otherwise switching jobs mid-craft silently drops the stashed tool.
+		// let the old executor's pause path run and be persisted before its state is replaced below,
+		// otherwise switching jobs mid-craft skips whatever cleanup onPause was supposed to do.
 		entity.resetJobExecutor();
 		entity.mutateAIState(s -> {
 			s.setJob(job);
