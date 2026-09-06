@@ -35,6 +35,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.Pose;
@@ -71,6 +72,9 @@ public class FakePlayerEntity extends PathfinderMob {
 
 	public FakePlayerEntity(EntityType<? extends FakePlayerEntity> type, Level level) {
 		super(type, level);
+		// vanilla's DropChances.DEFAULT only drops equipment ~8.5% of the time; the fake's gear should
+		// never be destroyed by death or lava just because it wasn't recently hit by a player.
+		for (EquipmentSlot slot : EquipmentSlot.values()) this.setGuaranteedDrop(slot);
 	}
 
 	public FakePlayerEntity(Level level) {
@@ -328,6 +332,14 @@ public class FakePlayerEntity extends PathfinderMob {
 	@Override
 	public boolean canPickUpLoot() {
 		return true;
+	}
+
+	// Let the fake pick up loot into empty slots (armor it lacks, an empty hand) but never swap out gear
+	// it's already holding/wearing for whatever it walks over - MoveTowardsItemsGoal/JobHelpers.vacuum
+	// handle deliberate collection into the inventory separately and don't go through this hook.
+	@Override
+	protected boolean canReplaceCurrentItem(ItemStack candidate, ItemStack existing, EquipmentSlot slot) {
+		return existing.isEmpty();
 	}
 
 	@Override
