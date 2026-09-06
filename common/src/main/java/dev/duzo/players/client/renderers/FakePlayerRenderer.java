@@ -77,5 +77,32 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 			}
 			super.renderArmWithItem(entity, itemStack, context, arm, poseStack, buffer, packedLight);
 		}
+
+		/** Vanilla {@code ItemInHandLayer.render} early-returns when both real hands are empty,
+		 *  which skips {@link #renderArmWithItem} entirely and hides an empty-handed crafter's
+		 *  display item. Mirror vanilla's per-arm item selection here so the early return only
+		 *  applies when there's truly nothing to show (no real item and no display item);
+		 *  renderArmWithItem still does the actual display-item substitution above. */
+		@Override
+		public void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, FakePlayerEntity entity, float limbSwing, float limbSwingAmount, float partialTicks, float ageInTicks, float netHeadYaw, float headPitch) {
+			if (entity.getDisplayItem().isEmpty()) {
+				super.render(poseStack, buffer, packedLight, entity, limbSwing, limbSwingAmount, partialTicks, ageInTicks, netHeadYaw, headPitch);
+				return;
+			}
+
+			boolean rightHanded = entity.getMainArm() == HumanoidArm.RIGHT;
+			ItemStack itemstack = rightHanded ? entity.getOffhandItem() : entity.getMainHandItem();
+			ItemStack itemstack1 = rightHanded ? entity.getMainHandItem() : entity.getOffhandItem();
+
+			poseStack.pushPose();
+			if (this.getParentModel().young) {
+				poseStack.translate(0.0F, 0.75F, 0.0F);
+				poseStack.scale(0.5F, 0.5F, 0.5F);
+			}
+
+			this.renderArmWithItem(entity, itemstack1, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, HumanoidArm.RIGHT, poseStack, buffer, packedLight);
+			this.renderArmWithItem(entity, itemstack, ItemDisplayContext.THIRD_PERSON_LEFT_HAND, HumanoidArm.LEFT, poseStack, buffer, packedLight);
+			poseStack.popPose();
+		}
 	}
 }
