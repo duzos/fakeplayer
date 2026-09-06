@@ -312,6 +312,9 @@ public class CrafterJobExecutor implements JobExecutor {
 	public void onResume(FakePlayerEntity entity) {}
 
 	@Override
+	public boolean lockMainHand() { return handStashed; }
+
+	@Override
 	public CompoundTag serialize() {
 		CompoundTag tag = new CompoundTag();
 		tag.putString("Phase", phase.name());
