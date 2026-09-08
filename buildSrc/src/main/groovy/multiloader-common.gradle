@@ -26,14 +26,18 @@ repositories {
         filter { includeGroupAndSubgroups('org.spongepowered') }
     }
     exclusiveContent {
+        // NeoForge mirrors the parchment data and is tried first on purpose: gradle treats a connect timeout
+        // as fatal for a repository rather than a miss, so an unreachable parchmentmc fails the build instead
+        // of falling through to the next one. Parchment's own maven stays as the fallback for anything not
+        // mirrored yet, which is a clean 404 and does fall through.
         forRepositories(
-                maven {
-                    name = 'ParchmentMC'
-                    url = 'https://maven.parchmentmc.org/'
-                },
                 maven {
                     name = "NeoForge"
                     url = 'https://maven.neoforged.net/releases'
+                },
+                maven {
+                    name = 'ParchmentMC'
+                    url = 'https://maven.parchmentmc.org/'
                 }
         )
         filter { includeGroup('org.parchmentmc.data') }
