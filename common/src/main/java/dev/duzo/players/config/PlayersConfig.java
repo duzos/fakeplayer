@@ -26,6 +26,9 @@ public class PlayersConfig {
 	public int guardRadius = 12;
 	/** What the miner does with mined blocks past the build reserve: "ground", "chest", or "void". */
 	public String minerSpoil = "ground";
+	/** How far a fake may path in one search, clamped to 16-2048. Costs server tick time to raise: the pathfinder
+	 * searches a cube of this radius and gets 16 nodes of budget per block of it. */
+	public double pathRange = 256.0;
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {
