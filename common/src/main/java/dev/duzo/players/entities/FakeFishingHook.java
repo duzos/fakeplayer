@@ -59,6 +59,11 @@ public class FakeFishingHook extends Projectile {
 		return this.entityData.get(DATA_OWNER_ID);
 	}
 
+	/** True once the bobber has settled in water. Until then there is nothing to catch. */
+	public boolean isBobbing() {
+		return this.state == State.BOBBING;
+	}
+
 	public boolean isBiting() {
 		return this.entityData.get(DATA_BITING);
 	}
@@ -106,7 +111,10 @@ public class FakeFishingHook extends Projectile {
 					this.setDeltaMovement(dm.multiply(0.3, 0.2, 0.3));
 					state = State.BOBBING;
 				} else if (this.horizontalCollision || this.onGround()) {
-					this.setDeltaMovement(Vec3.ZERO);
+					// Keep falling after clipping terrain. horizontalCollision is only recomputed by move(), so
+					// stopping dead here left the bobber frozen in mid-air and never reaching water at all.
+					this.setDeltaMovement(0.0, this.onGround() ? 0.0 : dm.y - 0.03, 0.0);
+					if (!this.onGround()) this.move(MoverType.SELF, this.getDeltaMovement());
 				} else {
 					this.setDeltaMovement(dm.scale(0.99).subtract(0, 0.03, 0));
 					this.move(MoverType.SELF, this.getDeltaMovement());
