@@ -41,7 +41,7 @@ import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.*;
-import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import dev.duzo.players.entities.ai.FakeHurtByTargetGoal;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.player.Player;
@@ -217,7 +217,8 @@ public class FakePlayerEntity extends PathfinderMob {
 				.add(Attributes.MAX_HEALTH, config.maxHealth)
 				.add(Attributes.MOVEMENT_SPEED, config.movementSpeed)
 				.add(Attributes.ATTACK_DAMAGE, config.attackDamage)
-				.add(Attributes.TEMPT_RANGE);
+				.add(Attributes.TEMPT_RANGE)
+				.add(Attributes.FOLLOW_RANGE, Math.max(16.0, Math.min(2048.0, config.pathRange)));
 	}
 
 	@Override
@@ -225,7 +226,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		this.goalSelector.addGoal(7, new HumanoidWaterAvoidingRandomStrollGoal(this, 1.0D));
 		this.goalSelector.addGoal(6, new RandomLookAroundGoal(this));
 		this.goalSelector.addGoal(5, new OpenDoorGoal(this, true));
-		this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
+		this.targetSelector.addGoal(1, new FakeHurtByTargetGoal(this));
 		this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.5D, true));
 		this.goalSelector.addGoal(2, new MoveTowardsItemsGoal(this, 1.0D, true));
 		this.goalSelector.addGoal(1, new TemptGoal(this, 1.0D, Ingredient.of(Items.REDSTONE_BLOCK, Items.REDSTONE_TORCH), false));
