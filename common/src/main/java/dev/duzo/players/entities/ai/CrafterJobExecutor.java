@@ -28,11 +28,18 @@ public class CrafterJobExecutor implements JobExecutor {
 	// Ticks per ingredient placed into the grid (0.1s at 20 tps).
 	private static final int PLACE_TICKS = 2;
 
+	// Consecutive unreachable walks before the crafter reports and waits, as the miner, farmer and lumberjack do.
+	private static final int MAX_PATH_FAIL = 3;
+	private static final int RETRY_WAIT_TICKS = 20 * 15;
+
 	private enum Phase { TO_SOURCE, PULL, TO_TABLE, CRAFT, TO_DEPOSIT, DUMP }
 
 	private Phase phase = Phase.TO_SOURCE;
 	private int craftIndex;
 	private int craftTimer = PLACE_TICKS;
+	private int pathFails;
+	private long waitUntil;
+	private String lastBlocker = "";
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
@@ -52,6 +59,8 @@ public class CrafterJobExecutor implements JobExecutor {
 		ItemStack out = readOut(recipe, entity);
 		if (out.isEmpty()) return;
 
+		if (level.getGameTime() < waitUntil) return; // reported an unreachable marker, waiting before retrying
+
 		SimpleContainer inv = entity.getInventory();
 
 		// Only the source/deposit polling phases hold a container open; everything else closes it.
@@ -59,7 +68,7 @@ public class CrafterJobExecutor implements JobExecutor {
 
 		switch (phase) {
 			case TO_SOURCE -> {
-				if (JobHelpers.walkTo(entity, source, SPEED) == JobHelpers.WalkResult.ARRIVED) phase = Phase.PULL;
+				if (walk(level, entity, source, "the source container")) phase = Phase.PULL;
 			}
 			case PULL -> {
 				Container src = JobHelpers.containerAt(level, source);
@@ -69,7 +78,7 @@ public class CrafterJobExecutor implements JobExecutor {
 					if (hasOutputs(inv, need)) phase = Phase.TO_DEPOSIT;
 					return;
 				}
-				if (entity.blockPosition().distSqr(source) > JobHelpers.ARRIVE_SQR) { JobHelpers.closeContainer(level, entity); phase = Phase.TO_SOURCE; return; }
+				if (!JobHelpers.atTarget(entity, source)) { JobHelpers.closeContainer(level, entity); phase = Phase.TO_SOURCE; return; }
 				if (!JobHelpers.pollContainer(level, entity, source)) return; // open + pause ~1s before pulling
 				int moved = JobHelpers.inventoryFull(entity) ? 0 : pullNeeded(src, inv, need);
 				if (moved == 0) {
@@ -79,7 +88,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				}
 			}
 			case TO_TABLE -> {
-				if (JobHelpers.walkTo(entity, table, SPEED) == JobHelpers.WalkResult.ARRIVED) {
+				if (walk(level, entity, table, "the crafting table")) {
 					if (!craftingTableNear(level, table)) { entity.getNavigation().stop(); return; } // no table here: idle
 					craftIndex = 0;
 					craftTimer = PLACE_TICKS;
@@ -87,7 +96,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				}
 			}
 			case CRAFT -> {
-				if (entity.blockPosition().distSqr(table) > JobHelpers.ARRIVE_SQR) { phase = Phase.TO_TABLE; return; }
+				if (!JobHelpers.atTarget(entity, table)) { phase = Phase.TO_TABLE; return; }
 				if (!hasFullSet(inv, need)) { entity.setDisplayItem(ItemStack.EMPTY); phase = Phase.TO_DEPOSIT; return; }
 				if (--craftTimer > 0) return;
 				if (craftIndex < placeOrder.size()) {
@@ -112,17 +121,39 @@ public class CrafterJobExecutor implements JobExecutor {
 				}
 			}
 			case TO_DEPOSIT -> {
-				if (JobHelpers.walkTo(entity, deposit, SPEED) == JobHelpers.WalkResult.ARRIVED) phase = Phase.DUMP;
+				if (walk(level, entity, deposit, "the deposit container")) phase = Phase.DUMP;
 			}
 			case DUMP -> {
 				Container dst = JobHelpers.containerAt(level, deposit);
 				if (dst == null) { JobHelpers.closeContainer(level, entity); phase = Phase.TO_SOURCE; return; }
-				if (entity.blockPosition().distSqr(deposit) > JobHelpers.ARRIVE_SQR) { JobHelpers.closeContainer(level, entity); phase = Phase.TO_DEPOSIT; return; }
+				if (!JobHelpers.atTarget(entity, deposit)) { JobHelpers.closeContainer(level, entity); phase = Phase.TO_DEPOSIT; return; }
 				if (!JobHelpers.pollContainer(level, entity, deposit)) return; // open + pause ~1s before depositing
 				int moved = dumpOutputs(inv, dst, need);
 				if (moved == 0) phase = Phase.TO_SOURCE;
 			}
 		}
+	}
+
+	/**
+	 * One leg of a walk. True once arrived. An unreachable target is reported and waited out rather than repathed
+	 * every tick, which at a high pathRange is an expensive search to repeat.
+	 */
+	private boolean walk(ServerLevel level, FakePlayerEntity entity, BlockPos target, String what) {
+		JobHelpers.WalkResult result = JobHelpers.walkTo(entity, target, SPEED);
+		if (result == JobHelpers.WalkResult.ARRIVED) {
+			pathFails = 0;
+			lastBlocker = "";
+			return true;
+		}
+		if (result == JobHelpers.WalkResult.UNREACHABLE && ++pathFails >= MAX_PATH_FAIL) {
+			pathFails = 0;
+			entity.getNavigation().stop();
+			String message = "crafter: cannot reach " + what;
+			if (!message.equals(lastBlocker)) entity.sendChat(message + " - waiting 15s before retry");
+			lastBlocker = message;
+			waitUntil = level.getGameTime() + RETRY_WAIT_TICKS;
+		}
+		return false;
 	}
 
 	/** A crafting table at, or directly adjacent to, the marked spot. */
