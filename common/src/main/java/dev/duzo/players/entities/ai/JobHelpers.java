@@ -91,14 +91,19 @@ public final class JobHelpers {
 
 	public enum WalkResult { ARRIVED, MOVING, UNREACHABLE }
 
-	// FOLLOW_RANGE (16 blocks, see Mob.createMobAttributes) bounds every path PathNavigation computes, so a
-	// destination further than that returns a partial (canReach() == false) path as a matter of course. Treat that
-	// as progress and walk it in stages; only flag UNREACHABLE when successive completed legs stop closing the gap.
-	private static final double MIN_LEG_PROGRESS = 2.0; // blocks a completed leg must close to count as progress
-	private static final int STALE_LEG_LIMIT = 1;       // completed legs in a row with no progress before UNREACHABLE
+	// FOLLOW_RANGE (the pathRange config) bounds every path PathNavigation computes, so a destination beyond it
+	// returns a partial (canReach() == false) path as a matter of course. Treat that as progress and walk it in
+	// stages; only flag UNREACHABLE when successive completed legs stop closing the gap.
+	private static final double MIN_LEG_PROGRESS = 1.0; // blocks a completed leg must close to count as progress
+	private static final int STALE_LEG_LIMIT = 3;       // completed legs in a row with no progress before UNREACHABLE
+
+	// A failed search costs 16 nodes of budget per block of pathRange, so a fake that cannot get anywhere must not
+	// recompute every tick. Report failure from the cooldown instead of pathing again.
+	private static final int FAIL_COOLDOWN_TICKS = 40;
 
 	private record Progress(BlockPos dest, double lastDist, int staleLegs) {}
 	private static final Map<UUID, Progress> PROGRESS = new HashMap<>();
+	private static final Map<UUID, Long> RETRY_AFTER = new HashMap<>();
 
 	/**
 	 * Walk toward a walkable neighbour of target (or target itself if none is found). Returns ARRIVED once within
@@ -107,15 +112,26 @@ public final class JobHelpers {
 	 */
 	public static WalkResult walkTo(FakePlayerEntity e, BlockPos target, double speed) {
 		BlockPos dest = standableNeighbor((ServerLevel) e.level(), target);
-		BlockPos cur = e.blockPosition();
-		double dx = cur.getX() - dest.getX(), dz = cur.getZ() - dest.getZ();
-		if (dx * dx + dz * dz <= ARRIVE_SQR && Math.abs(cur.getY() - dest.getY()) <= 2) {
+		if (atTarget(e, target)) {
 			e.getNavigation().stop();
 			PROGRESS.remove(e.getUUID());
+			RETRY_AFTER.remove(e.getUUID());
 			return WalkResult.ARRIVED;
 		}
 		if (!e.getNavigation().isDone()) return WalkResult.MOVING;
 		return moveToChecked(e, dest.getX() + 0.5, dest.getY(), dest.getZ() + 0.5, speed) ? WalkResult.MOVING : WalkResult.UNREACHABLE;
+	}
+
+	/**
+	 * The arrival test {@link #walkTo} itself uses: within {@link #ARRIVE_SQR} horizontally of the standable spot
+	 * it actually walks to, and no more than two blocks above or below it. Phase guards that re-check arrival must
+	 * use this rather than a direct distance to target, or they disagree with walkTo and livelock against it.
+	 */
+	public static boolean atTarget(FakePlayerEntity e, BlockPos target) {
+		BlockPos dest = standableNeighbor((ServerLevel) e.level(), target);
+		BlockPos cur = e.blockPosition();
+		double dx = cur.getX() - dest.getX(), dz = cur.getZ() - dest.getZ();
+		return dx * dx + dz * dz <= ARRIVE_SQR && Math.abs(cur.getY() - dest.getY()) <= 2;
 	}
 
 	private static BlockPos standableNeighbor(ServerLevel level, BlockPos target) {
@@ -136,25 +152,38 @@ public final class JobHelpers {
 	 * multi-leg travel beyond FOLLOW_RANGE work at all - so it's always followed. Real unreachability is instead
 	 * caught by tracking distance-to-destination across completed legs: once a leg finishes without closing at
 	 * least {@link #MIN_LEG_PROGRESS} blocks, {@link #STALE_LEG_LIMIT} times in a row for the same destination,
-	 * this reports failure instead of computing yet another going-nowhere path.
+	 * this reports failure instead of computing yet another going-nowhere path, and keeps reporting it without
+	 * searching again until {@link #FAIL_COOLDOWN_TICKS} have passed.
 	 */
 	public static boolean moveToChecked(FakePlayerEntity e, double x, double y, double z, double speed) {
 		BlockPos dest = BlockPos.containing(x, y, z);
 		if (!e.getNavigation().isDone()) return true;
+
+		long now = e.level().getGameTime();
+		Long retryAfter = RETRY_AFTER.get(e.getUUID());
+		if (retryAfter != null) {
+			if (now < retryAfter) return false;
+			RETRY_AFTER.remove(e.getUUID());
+		}
 
 		double dist = Math.sqrt(e.blockPosition().distSqr(dest));
 		Progress prior = PROGRESS.get(e.getUUID());
 		int staleLegs = 0;
 		if (prior != null && prior.dest.equals(dest)) {
 			staleLegs = (prior.lastDist - dist) >= MIN_LEG_PROGRESS ? 0 : prior.staleLegs + 1;
-			if (staleLegs > STALE_LEG_LIMIT) { PROGRESS.remove(e.getUUID()); return false; }
+			if (staleLegs > STALE_LEG_LIMIT) { fail(e, now); return false; }
 		}
 
 		Path path = e.getNavigation().createPath(dest, 1);
-		if (path == null) { PROGRESS.remove(e.getUUID()); return false; }
+		if (path == null) { fail(e, now); return false; }
 		e.getNavigation().moveTo(path, speed);
 		PROGRESS.put(e.getUUID(), new Progress(dest.immutable(), dist, staleLegs));
 		return true;
+	}
+
+	private static void fail(FakePlayerEntity e, long now) {
+		PROGRESS.remove(e.getUUID());
+		RETRY_AFTER.put(e.getUUID(), now + FAIL_COOLDOWN_TICKS);
 	}
 
 	public static Container containerAt(ServerLevel level, BlockPos pos) {
