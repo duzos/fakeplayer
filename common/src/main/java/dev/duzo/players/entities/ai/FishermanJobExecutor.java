@@ -7,8 +7,10 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
@@ -19,7 +21,10 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
@@ -83,6 +88,15 @@ public class FishermanJobExecutor implements JobExecutor {
 			}
 			case WAIT -> {
 				if (activeHook == null || !activeHook.isAlive()) { phase = Phase.CAST; return; }
+				if (!activeHook.isBobbing()) {
+					// Clipped terrain or landed short: there is no catch to be had, so recast rather than reel
+					// loot out of dry land.
+					if (level.getGameTime() >= waitUntil) {
+						clearHook();
+						phase = Phase.CAST;
+					}
+					return;
+				}
 				if (level.getGameTime() >= waitUntil) {
 					activeHook.setBiting(true);
 					Vec3 b = activeHook.position();
@@ -94,6 +108,13 @@ public class FishermanJobExecutor implements JobExecutor {
 			}
 			case BITE -> { if (level.getGameTime() >= biteUntil) phase = Phase.REEL; }
 			case REEL -> {
+				if (activeHook == null || !activeHook.isAlive()) {
+					// No bobber to reel in. Rolling anyway would fall back to the waypoint, which is the solid
+					// block the fisherman stands on, and deny treasure outright.
+					clearHook();
+					phase = Phase.CAST;
+					return;
+				}
 				entity.swing(InteractionHand.MAIN_HAND);
 				Vec3 from = activeHook != null ? activeHook.position() : Vec3.atCenterOf(spot);
 				for (ItemStack drop : rollCatch(level, entity, spot)) flingCatch(level, entity, from, drop);
@@ -174,8 +195,10 @@ public class FishermanJobExecutor implements JobExecutor {
 		return null;
 	}
 
+	/** Source water only. Flowing water never satisfies the open water test, so aiming at it silently denies treasure. */
 	private boolean isWaterSurface(ServerLevel level, BlockPos pos) {
-		return level.getFluidState(pos).is(FluidTags.WATER) && level.getBlockState(pos.above()).isAir();
+		return level.getFluidState(pos).is(FluidTags.WATER) && level.getFluidState(pos).isSource()
+				&& level.getBlockState(pos.above()).isAir();
 	}
 
 	private void ensureRod(FakePlayerEntity e) {
@@ -218,14 +241,78 @@ public class FishermanJobExecutor implements JobExecutor {
 	}
 
 	private List<ItemStack> rollCatch(ServerLevel level, FakePlayerEntity e, BlockPos spot) {
-		LootTable table = level.getServer().getLootData().getLootTable(BuiltInLootTables.FISHING);
 		int luck = enchant(e, Enchantments.FISHING_LUCK);
+		BlockPos bobber = activeHook != null ? activeHook.blockPosition() : spot;
+		// The top-level gameplay/fishing table gates treasure behind a fishing_hook predicate, and our bobber is
+		// a Projectile rather than a vanilla FishingHook, so that condition can never pass. Pick the sub-table
+		// with vanilla's own weights instead and roll it directly.
+		ResourceLocation pool = pickPool(level.getRandom(), luck, isOpenWater(level, bobber));
+		LootTable table = level.getServer().getLootData().getLootTable(pool);
 		LootParams params = new LootParams.Builder(level)
-			.withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(spot))
+			.withParameter(LootContextParams.ORIGIN, activeHook != null ? activeHook.position() : Vec3.atCenterOf(spot))
 			.withParameter(LootContextParams.TOOL, rod(e))
 			.withLuck(luck)
 			.create(LootContextParamSets.FISHING);
 		return table.getRandomItems(params);
+	}
+
+	/** Vanilla's own entry weights and quality: junk 10/-2, treasure 5/+2, fish 85/-1, treasure open water only. */
+	private ResourceLocation pickPool(RandomSource random, int luck, boolean openWater) {
+		int junk = entryWeight(10, -2, luck);
+		int treasure = openWater ? entryWeight(5, 2, luck) : 0;
+		int fish = entryWeight(85, -1, luck);
+		int total = junk + treasure + fish;
+		if (total <= 0) return BuiltInLootTables.FISHING_FISH;
+		int roll = random.nextInt(total);
+		if (roll < junk) return BuiltInLootTables.FISHING_JUNK;
+		if (roll < junk + treasure) return BuiltInLootTables.FISHING_TREASURE;
+		return BuiltInLootTables.FISHING_FISH;
+	}
+
+	private int entryWeight(int weight, int quality, int luck) {
+		return Math.max(0, weight + quality * luck);
+	}
+
+	private enum WaterCell { ABOVE, INSIDE, INVALID }
+
+	/**
+	 * Vanilla's open water test (FishingHook.calculateOpenWater): the 5x5 layers from one below the bobber to two
+	 * above must each be uniformly water or uniformly air, water first, so a roof or a wall rules the spot out.
+	 * Lily pads count as air and waterlogged plants count as water, exactly as vanilla judges them.
+	 */
+	private boolean isOpenWater(ServerLevel level, BlockPos bobber) {
+		WaterCell previous = WaterCell.INVALID;
+		for (int dy = -1; dy <= 2; dy++) {
+			WaterCell layer = layerAt(level, bobber.offset(0, dy, 0));
+			switch (layer) {
+				case ABOVE -> { if (previous == WaterCell.INVALID) return false; }
+				case INSIDE -> { if (previous == WaterCell.ABOVE) return false; }
+				case INVALID -> { return false; }
+			}
+			previous = layer;
+		}
+		return true;
+	}
+
+	/** One 5x5 layer, INVALID unless every cell in it agrees. */
+	private WaterCell layerAt(ServerLevel level, BlockPos center) {
+		WaterCell result = null;
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dz = -2; dz <= 2; dz++) {
+				WaterCell cell = cellAt(level, center.offset(dx, 0, dz));
+				if (result == null) result = cell;
+				else if (result != cell) return WaterCell.INVALID;
+			}
+		}
+		return result == null ? WaterCell.INVALID : result;
+	}
+
+	private WaterCell cellAt(ServerLevel level, BlockPos pos) {
+		BlockState state = level.getBlockState(pos);
+		if (state.isAir() || state.is(Blocks.LILY_PAD)) return WaterCell.ABOVE;
+		FluidState fluid = state.getFluidState();
+		return fluid.is(FluidTags.WATER) && fluid.isSource() && state.getCollisionShape(level, pos).isEmpty()
+				? WaterCell.INSIDE : WaterCell.INVALID;
 	}
 
 	private ItemStack rod(FakePlayerEntity e) {
