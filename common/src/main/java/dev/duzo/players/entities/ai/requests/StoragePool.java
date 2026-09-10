@@ -7,12 +7,20 @@ import net.minecraft.world.Container;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/** The containers a Quartermaster treats as one logical pool, stored like Guard's patrol points. */
+/**
+ * The containers a Quartermaster treats as one logical pool, stored like Guard's patrol points.
+ *
+ * <p>Read by the client screen as well as the server, hence public, but not an addon surface:
+ * {@code toggle} rewrites any fake's pool with no ownership check. Use
+ * {@code FakePlayerRequests.poolOf} instead.
+ */
+@ApiStatus.Internal
 public final class StoragePool {
 	private static final String TAG_POOL = "Pool";
 
