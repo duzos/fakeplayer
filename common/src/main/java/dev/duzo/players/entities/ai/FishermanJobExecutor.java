@@ -1,6 +1,7 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakeFishingHook;
+import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -42,6 +43,7 @@ public class FishermanJobExecutor implements JobExecutor {
 	private static final double VACUUM_RADIUS = 2.5;
 
 	private Phase phase = Phase.TO_SPOT;
+	private int requestCooldown;
 	private int caught = 0;
 	private long waitUntil = 0L;
 	private long biteUntil = 0L;
@@ -73,7 +75,15 @@ public class FishermanJobExecutor implements JobExecutor {
 				}
 			}
 			case CAST -> {
-				if (rod(entity).isEmpty()) return; // no rod anywhere: idle
+				if (rod(entity).isEmpty()) {
+					// raise() scans for a quartermaster before it can dedupe, so ask about once a
+					// second rather than paying that scan every tick while blocked
+					if (--requestCooldown <= 0) {
+						requestCooldown = 20;
+						FakePlayerRequests.raise(entity, new ItemStack(Items.FISHING_ROD), FakePlayerRequests.PRIORITY_FAKE);
+					}
+					return;
+				}
 				BlockPos water = findCastTarget(level, spot, entity);
 				if (water == null) return; // no water near the waypoint: idle
 				double surfaceY = water.getY() + 0.9;
