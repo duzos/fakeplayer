@@ -3,6 +3,8 @@ package dev.duzo.players.core;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.GuardJobExecutor;
 import dev.duzo.players.entities.ai.Job;
+import dev.duzo.players.entities.ai.requests.PoolIndex;
+import dev.duzo.players.entities.ai.requests.StoragePool;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -31,6 +33,7 @@ public class AIMarkerItem extends Item {
 	public static final byte PURPOSE_WAYPOINT = 0;
 	public static final byte PURPOSE_REGION = 1;
 	public static final byte PURPOSE_CHEST_PICKER = 2;
+	public static final byte PURPOSE_POOL = 3;
 
 	public static final byte CHEST_SLOT_DEPOSIT = 0;
 	public static final byte CHEST_SLOT_SOURCE = 1;
@@ -109,6 +112,7 @@ public class AIMarkerItem extends Item {
 			case PURPOSE_WAYPOINT -> "WAYPOINT";
 			case PURPOSE_REGION -> "REGION";
 			case PURPOSE_CHEST_PICKER -> "CHEST_PICKER";
+			case PURPOSE_POOL -> "POOL";
 			default -> "UNKNOWN";
 		};
 	}
@@ -130,6 +134,7 @@ public class AIMarkerItem extends Item {
 			case "WAYPOINT" -> PURPOSE_WAYPOINT;
 			case "REGION" -> PURPOSE_REGION;
 			case "CHEST_PICKER" -> PURPOSE_CHEST_PICKER;
+			case "POOL" -> PURPOSE_POOL;
 			default -> -1;
 		};
 	}
@@ -139,6 +144,7 @@ public class AIMarkerItem extends Item {
 			case PURPOSE_WAYPOINT -> "Waypoint Marker";
 			case PURPOSE_REGION -> "Region Marker";
 			case PURPOSE_CHEST_PICKER -> chestSlot == CHEST_SLOT_SOURCE ? "Source Marker" : "Deposit Marker";
+			case PURPOSE_POOL -> "Storage Pool Marker";
 			default -> "AI Marker";
 		};
 	}
@@ -229,6 +235,22 @@ public class AIMarkerItem extends Item {
 				}
 				silentlyConsume(player, stack);
 			}
+			case PURPOSE_POOL -> {
+				if (!StoragePool.isPoolable(level, pos)) {
+					player.displayClientMessage(Component.literal("Right-click a chest or barrel.").withStyle(ChatFormatting.RED), true);
+					return InteractionResult.FAIL;
+				}
+				BlockPos commit = pos.immutable();
+				boolean[] added = {false};
+				entity.mutateAIState(s -> added[0] = StoragePool.toggle(s, commit));
+				PoolIndex.markDirty(level, entity.getUUID());
+				player.displayClientMessage(Component.literal(added[0]
+								? "Container added to the pool."
+								: "Container removed from the pool.")
+						.withStyle(added[0] ? ChatFormatting.GREEN : ChatFormatting.YELLOW), true);
+				// not consumed, so one marker marks a whole storeroom
+				bumpExpiry(stack, level.getGameTime());
+			}
 		}
 
 		return InteractionResult.CONSUME;
@@ -278,6 +300,7 @@ public class AIMarkerItem extends Item {
 			case PURPOSE_CHEST_PICKER -> tag.getByte(TAG_CHEST_SLOT) == CHEST_SLOT_SOURCE
 					? "Right-click a container to set source target."
 					: "Right-click a container to set deposit target.";
+			case PURPOSE_POOL -> "Right-click containers to add them to the pool, again to remove.";
 			default -> "";
 		};
 		if (!hint.isEmpty()) {

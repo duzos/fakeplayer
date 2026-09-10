@@ -184,7 +184,7 @@ public final class SessionItemMarkerRenderer {
 			byte raw = AIMarkerItem.purposeOf(stack);
 			return switch (raw) {
 				case AIMarkerItem.PURPOSE_WAYPOINT -> WAYPOINT;
-				case AIMarkerItem.PURPOSE_CHEST_PICKER -> CHEST_PICKER;
+				case AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.PURPOSE_POOL -> CHEST_PICKER;
 				case AIMarkerItem.PURPOSE_REGION -> REGION;
 				default -> null;
 			};

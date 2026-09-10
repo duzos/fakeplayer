@@ -36,6 +36,7 @@ import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity.RemovalReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
@@ -393,6 +394,27 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.flushJobState();
 		nbt.put("AIState", this.entityData.get(AI_STATE));
 		nbt.put("Inventory", this.inventory.createTag(this.registryAccess()));
+	}
+
+	/**
+	 * The live executor, or null if this fake has not ticked its job yet. Never use this to decide
+	 * whether another fake is alive or assigned: it is null for a whole tick after a reload and
+	 * entity tick order is arbitrary. Read AIState for that.
+	 */
+	@Nullable
+	public JobExecutor activeJobExecutor() {
+		return this.jobExecutor;
+	}
+
+	@Override
+	public void remove(RemovalReason reason) {
+		// also fires on chunk unload and dimension change, which is what keeps the cache bounded;
+		// a rebuilt index costs one rescan. On CHANGED_DIMENSION level() is still the old level,
+		// so the key forgotten is the right one.
+		if (this.level() instanceof ServerLevel level) {
+			dev.duzo.players.entities.ai.requests.PoolIndex.forget(level, this.getUUID());
+		}
+		super.remove(reason);
 	}
 
 	public void flushJobState() {
