@@ -2,85 +2,18 @@ name: Publish (Modrinth + CurseForge)
 
 on:
   workflow_dispatch:
-  release:
-    types: [ published ]
+    inputs:
+      dry_run:
+        description: 'Upload nothing, just prove the build and config'
+        type: boolean
+        default: false
 
 jobs:
-  fabric:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
-        with:
-          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Build Fabric
-        run: ./gradlew -p fabric build
-
-      - name: Publish Fabric (Modrinth + CurseForge + Discord)
-        run: ./gradlew :fabric:publishMods
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-
-  forge:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
-        with:
-          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Restore DataGen cache
-        id: cache-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: forge/src/generated
-          key: datagen-${{ github.run_id }}
-          restore-keys:
-            datagen-
-
-      - name: Run DataGen
-        run: ./gradlew -p forge Data
-        continue-on-error: true
-
-      - name: Save DataGen cache
-        uses: actions/cache/save@v4
-        with:
-          path: forge/src/generated
-          key: ${{ steps.cache-restore.outputs.cache-primary-key }}
-
-      - name: Build Forge
-        run: ./gradlew -p forge build
-
-      - name: Publish NeoForge (Modrinth + CurseForge + Discord)
-        run: ./gradlew :forge:publishMods
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+  publish:
+    uses: duzos/mod-ci/.github/workflows/publish.yml@v1
+    secrets: inherit
+    with:
+      targets: '[{"project":"fabric"},{"project":"forge","datagen":true}]'
+      java: '17'
+      task: 'publishMods'
+      dry_run: ${{ inputs.dry_run || false }}
