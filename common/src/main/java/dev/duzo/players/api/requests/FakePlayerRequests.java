@@ -134,10 +134,9 @@ public final class FakePlayerRequests {
 	/**
 	 * Raise on behalf of a fake player, delivered into its inventory.
 	 *
-	 * <p>Never returns null, but check {@link RaisedRequest#ok()} rather than
-	 * {@link RaiseResult#ok()} before touching {@link RaisedRequest#request()}: an
-	 * {@link RaiseResult#ALREADY_OPEN} result can carry a null request in the window after a reload
-	 * where the holding Quartermaster's board is persisted but not yet live.
+	 * <p>Never returns null. {@link RaisedRequest#request()} is non-null exactly when
+	 * {@link RaiseResult#hasRequest()} is true, which excludes
+	 * {@link RaiseResult#HOLDER_NOT_READY} (a holder that has not ticked since a reload).
 	 */
 	public static RaisedRequest raise(FakePlayerEntity requester, ItemStack want, int priority) {
 		if (want.isEmpty() || !(requester.level() instanceof ServerLevel level)) {
@@ -165,7 +164,7 @@ public final class FakePlayerRequests {
 		// dedupe across every reachable board, using the persisted snapshot so a Quartermaster that
 		// has not ticked since a reload is still seen: otherwise two boards serve one ask and the
 		// pool is drawn twice
-		FakePlayerEntity holder = RequestRouting.holderOfOpen(level, requester, owner, key);
+		FakePlayerEntity holder = RequestRouting.holderOfOpen(level, owner, key);
 		if (holder != null) {
 			RequestBoard board = RequestRouting.boardOf(holder);
 			ItemRequest open = board == null ? null : board.findOpen(key);
@@ -175,9 +174,9 @@ public final class FakePlayerRequests {
 				INSTANCE.fireStageChange(holder, open, from);
 				return new RaisedRequest(RaiseResult.ALREADY_OPEN, holder, open);
 			}
-			// the holder is known but not ticking yet, so it cannot be topped up this tick.
-			// report it as already open rather than posting a duplicate elsewhere.
-			return new RaisedRequest(RaiseResult.ALREADY_OPEN, holder, null);
+			// known holder that has not ticked, so it cannot be topped up this tick. A distinct
+			// result, because callers must not dereference request() here.
+			return new RaisedRequest(RaiseResult.HOLDER_NOT_READY, holder, null);
 		}
 
 		FakePlayerEntity quartermaster = RequestRouting.nearestCapable(level, requester, owner, key.item());
@@ -195,12 +194,12 @@ public final class FakePlayerRequests {
 
 	/** The open request with this key on any reachable board, or null. */
 	@Nullable
-	public static RaisedRequest findOpen(ServerLevel level, Entity near, UUID owner, RequestKey key) {
-		FakePlayerEntity holder = RequestRouting.holderOfOpen(level, near, owner, key);
+	public static RaisedRequest findOpen(ServerLevel level, UUID owner, RequestKey key) {
+		FakePlayerEntity holder = RequestRouting.holderOfOpen(level, owner, key);
 		if (holder == null) return null;
 		RequestBoard board = RequestRouting.boardOf(holder);
 		ItemRequest open = board == null ? null : board.findOpen(key);
-		return new RaisedRequest(RaiseResult.ALREADY_OPEN, holder, open);
+		return new RaisedRequest(open == null ? RaiseResult.HOLDER_NOT_READY : RaiseResult.ALREADY_OPEN, holder, open);
 	}
 
 	/**
@@ -218,8 +217,8 @@ public final class FakePlayerRequests {
 	}
 
 	/** Cancel by key wherever it is open. */
-	public static boolean cancel(ServerLevel level, Entity near, UUID owner, RequestKey key) {
-		FakePlayerEntity holder = RequestRouting.holderOfOpen(level, near, owner, key);
+	public static boolean cancel(ServerLevel level, UUID owner, RequestKey key) {
+		FakePlayerEntity holder = RequestRouting.holderOfOpen(level, owner, key);
 		return holder != null && cancel(holder, key);
 	}
 
@@ -230,6 +229,16 @@ public final class FakePlayerRequests {
 	public static List<ItemRequest> outstanding(FakePlayerEntity quartermaster) {
 		RequestBoard board = RequestRouting.boardOf(quartermaster);
 		return board == null ? List.of() : board.open();
+	}
+
+	/**
+	 * Every request on a Quartermaster's board including terminal ones, which is what a dashboard
+	 * needs: {@link #outstanding} deliberately omits shortfalls, and those are the interesting rows.
+	 * Empty when the Quartermaster has not ticked; see {@link #hasLiveBoard}.
+	 */
+	public static List<ItemRequest> allRequests(FakePlayerEntity quartermaster) {
+		RequestBoard board = RequestRouting.boardOf(quartermaster);
+		return board == null ? List.of() : board.all();
 	}
 
 	/** Whether this Quartermaster has ticked its job and so has a live board to read. */
@@ -262,6 +271,36 @@ public final class FakePlayerRequests {
 	/** How many of an item a Quartermaster's pool currently holds. */
 	public static int stock(ServerLevel level, FakePlayerEntity quartermaster, ResourceLocation item) {
 		return PoolIndex.of(level, quartermaster).count(item);
+	}
+
+	/**
+	 * Take up to {@code count} of an item out of a Quartermaster's pool, for a {@link Resolver} that
+	 * needs to consume ingredients. Returns what it actually removed, which may be less than asked.
+	 *
+	 * <p>The counterpart to {@link #deposit}. Without it a crafting resolver would have to reach
+	 * outside this package for the container lookup, which is exactly what these two helpers exist
+	 * to avoid.
+	 */
+	public static List<ItemStack> withdraw(ServerLevel level, FakePlayerEntity quartermaster, ResourceLocation item, int count) {
+		List<ItemStack> taken = new ArrayList<>();
+		int owed = Math.max(0, count);
+		for (BlockPos pos : poolOf(quartermaster)) {
+			if (owed <= 0) break;
+			Container container = JobHelpers.containerAt(level, pos);
+			if (container == null) continue;
+			for (int slot = 0; slot < container.getContainerSize() && owed > 0; slot++) {
+				ItemStack stack = container.getItem(slot);
+				if (stack.isEmpty()) continue;
+				if (!BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(item)) continue;
+				ItemStack split = stack.split(Math.min(owed, stack.getCount()));
+				owed -= split.getCount();
+				taken.add(split);
+				if (stack.isEmpty()) container.setItem(slot, ItemStack.EMPTY);
+				container.setChanged();
+			}
+		}
+		if (!taken.isEmpty()) PoolIndex.markDirty(level, quartermaster.getUUID());
+		return taken;
 	}
 
 	/**

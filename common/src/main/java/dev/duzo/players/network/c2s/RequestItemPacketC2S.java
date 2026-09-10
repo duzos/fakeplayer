@@ -11,7 +11,7 @@ import dev.duzo.players.entities.ai.Job;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -19,7 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Optional;
 
 public record RequestItemPacketC2S(int id, String item, int count) {
-	public static final Identifier LOCATION = PlayersCommon.id("ai_request_item");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_request_item");
 	private static final int MAX_ITEM_LENGTH = 256;
 
 	public static RequestItemPacketC2S decode(FriendlyByteBuf buf) {
@@ -35,7 +35,7 @@ public record RequestItemPacketC2S(int id, String item, int count) {
 		// request itself goes to the nearest stocked one, so a small pool does not shadow a big one
 		if (entity.getAIState().job() != Job.QUARTERMASTER) return;
 
-		Identifier id = Identifier.tryParse(ctx.message().item().trim());
+		ResourceLocation id = ResourceLocation.tryParse(ctx.message().item().trim());
 		Optional<Item> found = id == null ? Optional.empty() : BuiltInRegistries.ITEM.getOptional(id);
 		if (found.isEmpty()) {
 			sender.sendSystemMessage(Component.literal("No such item: " + ctx.message().item()));
@@ -48,6 +48,8 @@ public record RequestItemPacketC2S(int id, String item, int count) {
 		switch (raised.result()) {
 			case RAISED -> sender.sendSystemMessage(Component.literal("Requested " + count + " x " + id));
 			case ALREADY_OPEN -> sender.sendSystemMessage(Component.literal("Already on the way: " + id));
+			case HOLDER_NOT_READY -> sender.sendSystemMessage(
+					Component.literal("Already on the way: " + id + " (that quartermaster is still waking up)"));
 			case NO_QUARTERMASTER -> sender.sendSystemMessage(
 					Component.literal("No quartermaster of yours in range has a storage pool marked."));
 			case BOARD_FULL -> sender.sendSystemMessage(
