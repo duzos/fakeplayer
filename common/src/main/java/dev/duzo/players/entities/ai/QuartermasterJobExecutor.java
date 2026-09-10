@@ -82,15 +82,16 @@ public class QuartermasterJobExecutor implements JobExecutor {
 		String liar = null;
 		if (have < request.remaining()) {
 			for (FakePlayerRequests.Resolver resolver : FakePlayerRequests.INSTANCE.resolverChain()) {
+				// rebuild BEFORE the call as well as after, or the two readings are on different
+				// bases and a stale-high index frames an honest resolver as over-reporting
+				PoolIndex.markDirty(level, entity.getUUID());
+				int before = PoolIndex.of(level, entity).count(request.key().item());
 				int claimed = Math.max(0, resolver.deposit(entity, request));
 				// unconditionally, because a resolver that deposits correctly but returns 0 would
 				// otherwise stay invisible until the next interval rebuild
 				PoolIndex.markDirty(level, entity.getUUID());
-				int after = PoolIndex.of(level, entity).count(request.key().item());
-				// only accuse a resolver that claimed something: `after - have` goes negative when the
-				// index was stale high, which would otherwise frame an honest zero
-				if (claimed > 0 && claimed > after - have) liar = resolver.name();
-				have = after;
+				have = PoolIndex.of(level, entity).count(request.key().item());
+				if (claimed > 0 && claimed > have - before) liar = resolver.name();
 				if (have >= request.remaining()) break;
 			}
 		}
@@ -109,8 +110,16 @@ public class QuartermasterJobExecutor implements JobExecutor {
 		}
 		board.clearLatch(request.key(), "norunner");
 
+		// a refused receipt leaves the runner unmarked while the request says DISPATCHED, which is
+		// exactly the double-assignment window Haul exists to close
+		if (!Haul.write(runner, entity.getUUID(), request.key().item(), now)) {
+			request.noteFailure();
+			request.setRetryAfter(now + BACKOFF_TICKS);
+			announce(level, entity, request, "haulfailed", "could not hand a runner its delivery orders");
+			return;
+		}
+
 		RequestStage from = request.stage();
-		Haul.write(runner, entity.getUUID(), request.key().item(), now);
 		request.assignTo(runner.getUUID(), now);
 		request.setStage(RequestStage.DISPATCHED);
 		request.setShortfallReason(null);
@@ -146,9 +155,13 @@ public class QuartermasterJobExecutor implements JobExecutor {
 		}
 	}
 
-	/** Called by a Runner that gave up a leg, so the request backs off instead of re-dispatching at once. */
-	public void noteRunnerFailure(ServerLevel level, FakePlayerEntity entity, ItemRequest request, long now, String reason) {
-		RequestStage from = request.stage();
+	/**
+	 * Called by a Runner that gave up a leg, so the request backs off instead of re-dispatching at
+	 * once. {@code from} is passed in because the caller has already moved the stage off DISPATCHED,
+	 * and re-reading it here would make the listener event a no-op.
+	 */
+	public void noteRunnerFailure(ServerLevel level, FakePlayerEntity entity, ItemRequest request,
+	                              long now, RequestStage from, String reason) {
 		request.noteFailure();
 		request.setRetryAfter(now + BACKOFF_TICKS);
 		if (request.failures() >= MAX_FAILURES) {
