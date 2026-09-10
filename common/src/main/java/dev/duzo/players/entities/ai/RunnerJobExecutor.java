@@ -10,6 +10,7 @@ import dev.duzo.players.entities.ai.requests.PoolIndex;
 import dev.duzo.players.entities.ai.requests.RequestBoard;
 import dev.duzo.players.entities.ai.requests.RequestRouting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -284,9 +285,10 @@ public class RunnerJobExecutor implements JobExecutor {
 			if (owed <= 0) break;
 			Container container = JobHelpers.containerAt(qmLevel, pos);
 			if (container == null) continue;
-			// as in PoolIndex.rebuild: a pooled chest may since have become a furnace, whose fuel
-			// and output slots are not storage and are invisible to every read path
-			if (container instanceof net.minecraft.world.WorldlyContainer) continue;
+			// A pooled chest may since have become a furnace, whose fuel and output slots are not
+			// storage and are invisible to every read path. Insert with a real direction so the
+			// sided check is honoured rather than skipping it and dropping the goods on the floor.
+			Direction side = container instanceof net.minecraft.world.WorldlyContainer ? Direction.UP : null;
 			for (int slot = 0; slot < inv.getContainerSize() && owed > 0; slot++) {
 				ItemStack stack = inv.getItem(slot);
 				if (stack.isEmpty()) continue;
@@ -295,7 +297,7 @@ public class RunnerJobExecutor implements JobExecutor {
 				int before = give.getCount();
 				// HopperBlockEntity.addItem mutates, and on the partial-merge branch returns the
 				// same object, so diff against a captured count and hand it a copy
-				ItemStack leftover = HopperBlockEntity.addItem(null, container, give.copy(), null);
+				ItemStack leftover = HopperBlockEntity.addItem(null, container, give.copy(), side);
 				int moved = before - leftover.getCount();
 				owed -= moved;
 				if (moved < before) stack.grow(before - moved);
