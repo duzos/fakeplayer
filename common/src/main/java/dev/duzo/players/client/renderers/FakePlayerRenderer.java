@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import dev.duzo.players.client.model.FakePlayerModel;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.client.model.HumanoidArmorModel;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -16,7 +17,12 @@ import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.client.renderer.entity.state.PlayerRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, PlayerRenderState, FakePlayerModel> {
 	private final boolean slim;
@@ -56,6 +62,46 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 		if (!entity.isCustomNameVisible()) {
 			state.nameTag = null;
 		}
+	}
+
+	// AvatarRenderer's equivalent is private and takes an Avatar, which a fake is not, so it is mirrored here.
+	static HumanoidModel.ArmPose armPose(FakePlayerEntity entity, HumanoidArm arm) {
+		ItemStack main = entity.getItemInHand(InteractionHand.MAIN_HAND);
+		ItemStack off = entity.getItemInHand(InteractionHand.OFF_HAND);
+		HumanoidModel.ArmPose mainPose = poseFor(entity, main, InteractionHand.MAIN_HAND);
+		HumanoidModel.ArmPose offPose = poseFor(entity, off, InteractionHand.OFF_HAND);
+
+		// a two-handed pose owns both arms, so the other one just holds or is empty
+		if (mainPose.isTwoHanded()) {
+			offPose = off.isEmpty() ? HumanoidModel.ArmPose.EMPTY : HumanoidModel.ArmPose.ITEM;
+		}
+
+		return arm == entity.getMainArm() ? mainPose : offPose;
+	}
+
+	private static HumanoidModel.ArmPose poseFor(FakePlayerEntity entity, ItemStack stack, InteractionHand hand) {
+		if (stack.isEmpty()) return HumanoidModel.ArmPose.EMPTY;
+
+		if (!entity.swinging && stack.is(Items.CROSSBOW) && CrossbowItem.isCharged(stack)) {
+			return HumanoidModel.ArmPose.CROSSBOW_HOLD;
+		}
+
+		if (entity.getUsedItemHand() == hand && entity.getUseItemRemainingTicks() > 0) {
+			return switch (stack.getUseAnimation()) {
+				case BLOCK -> HumanoidModel.ArmPose.BLOCK;
+				case BOW -> HumanoidModel.ArmPose.BOW_AND_ARROW;
+				// this branch's ItemUseAnimation has no TRIDENT constant - both a trident throw and a
+				// spear windup report SPEAR, and the matching model pose is THROW_SPEAR, not THROW_TRIDENT
+				case SPEAR -> HumanoidModel.ArmPose.THROW_SPEAR;
+				case CROSSBOW -> HumanoidModel.ArmPose.CROSSBOW_CHARGE;
+				case SPYGLASS -> HumanoidModel.ArmPose.SPYGLASS;
+				case TOOT_HORN -> HumanoidModel.ArmPose.TOOT_HORN;
+				case BRUSH -> HumanoidModel.ArmPose.BRUSH;
+				default -> HumanoidModel.ArmPose.ITEM;
+			};
+		}
+
+		return HumanoidModel.ArmPose.ITEM;
 	}
 
 	@Override

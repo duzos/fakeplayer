@@ -49,14 +49,12 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 		}
 
 		// The main arm's pose also has to reflect the display item, or an empty-handed crafter would
-		// draw the ingredient with its arm hanging as if it were holding nothing.
-		HumanoidArm offArm = mainIsRight ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
-		boolean mainArmHoldsItem = !entity.getItemHeldByArm(state.mainArm).isEmpty() || !display.isEmpty();
-		boolean offArmHoldsItem = !entity.getItemHeldByArm(offArm).isEmpty();
-		HumanoidModel.ArmPose mainPose = mainArmHoldsItem ? HumanoidModel.ArmPose.ITEM : HumanoidModel.ArmPose.EMPTY;
-		HumanoidModel.ArmPose offPose = offArmHoldsItem ? HumanoidModel.ArmPose.ITEM : HumanoidModel.ArmPose.EMPTY;
-		state.rightArmPose = mainIsRight ? mainPose : offPose;
-		state.leftArmPose = mainIsRight ? offPose : mainPose;
+		// draw the ingredient with its arm hanging as if it were holding nothing. An item-use pose
+		// (drawing a bow, charging a crossbow, winding up a trident) has to win over that plain
+		// "holding something" pose, or the fake shoots with its arms down.
+		boolean mainHandHasDisplay = !display.isEmpty();
+		state.leftArmPose = resolveArmPose(entity, HumanoidArm.LEFT, !mainIsRight && mainHandHasDisplay);
+		state.rightArmPose = resolveArmPose(entity, HumanoidArm.RIGHT, mainIsRight && mainHandHasDisplay);
 		if (state instanceof FakePlayerRenderState fake) {
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
@@ -70,6 +68,16 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 		if (!entity.isCustomNameVisible()) {
 			state.nameTag = null;
 		}
+	}
+
+	// An item-use pose wins over the plain "holding something" pose; everything else keeps the old
+	// behaviour, including the display item a job shows without touching the real equipment slot.
+	private static HumanoidModel.ArmPose resolveArmPose(FakePlayerEntity entity, HumanoidArm arm, boolean hasDisplayItem) {
+		HumanoidModel.ArmPose pose = FakePlayerRenderer.armPose(entity, arm);
+		if (pose != HumanoidModel.ArmPose.EMPTY && pose != HumanoidModel.ArmPose.ITEM) return pose;
+
+		return hasDisplayItem || !entity.getItemHeldByArm(arm).isEmpty()
+			? HumanoidModel.ArmPose.ITEM : HumanoidModel.ArmPose.EMPTY;
 	}
 
 	@Override
