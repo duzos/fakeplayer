@@ -172,8 +172,11 @@ public final class RequestRouting {
 		}
 		// running() is AIState too, and a stopped runner never ticks, so it can neither finish the
 		// delivery nor release its own Haul. Without this the request and the cargo strand forever.
-		if (runner.getAIState().job() != Job.RUNNER || !runner.getAIState().running()
-				|| runner.isJobPaused()) {
+		// running() covers stopped, which strands the dispatch because a stopped runner never ticks
+		// again on its own. jobPaused is deliberately NOT checked: it is true whenever the owner
+		// merely has the fake's menu open, and treating that as a fault would requeue the request
+		// and charge a failure for an everyday UI action. A pause ends by itself.
+		if (runner.getAIState().job() != Job.RUNNER || !runner.getAIState().running()) {
 			return AssignmentFault.RE_JOBBED;
 		}
 		Haul haul = Haul.of(runner.getAIState());
