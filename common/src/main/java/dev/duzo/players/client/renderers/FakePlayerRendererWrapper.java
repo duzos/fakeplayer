@@ -44,10 +44,8 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 		boolean mainIsRight = state.mainArm == HumanoidArm.RIGHT;
 		boolean mainHandHasDisplay = !display.isEmpty();
 
-		state.leftArmPose = (!mainIsRight && mainHandHasDisplay) || !entity.getItemHeldByArm(HumanoidArm.LEFT).isEmpty()
-			? HumanoidModel.ArmPose.ITEM : HumanoidModel.ArmPose.EMPTY;
-		state.rightArmPose = (mainIsRight && mainHandHasDisplay) || !entity.getItemHeldByArm(HumanoidArm.RIGHT).isEmpty()
-			? HumanoidModel.ArmPose.ITEM : HumanoidModel.ArmPose.EMPTY;
+		state.leftArmPose = resolveArmPose(entity, HumanoidArm.LEFT, !mainIsRight && mainHandHasDisplay);
+		state.rightArmPose = resolveArmPose(entity, HumanoidArm.RIGHT, mainIsRight && mainHandHasDisplay);
 
 		// A job (e.g. the crafter placing an ingredient) can ask to show a display item in the main
 		// hand without ever touching the real MAINHAND equipment slot. Swap it in after the vanilla
@@ -81,6 +79,17 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 		if (!entity.isCustomNameVisible()) {
 			state.nameTag = null;
 		}
+	}
+
+	// An item-use pose (drawing a bow, charging a crossbow, winding up a trident) has to win over the plain
+	// "holding something" pose, or the fake shoots with its arms down. Everything else keeps the old behaviour,
+	// including the display item a job shows without touching the real equipment slot.
+	private static HumanoidModel.ArmPose resolveArmPose(FakePlayerEntity entity, HumanoidArm arm, boolean hasDisplayItem) {
+		HumanoidModel.ArmPose pose = FakePlayerRenderer.armPose(entity, arm);
+		if (pose != HumanoidModel.ArmPose.EMPTY && pose != HumanoidModel.ArmPose.ITEM) return pose;
+
+		return hasDisplayItem || !entity.getItemHeldByArm(arm).isEmpty()
+			? HumanoidModel.ArmPose.ITEM : HumanoidModel.ArmPose.EMPTY;
 	}
 
 	@Override
