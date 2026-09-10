@@ -58,6 +58,20 @@ public final class RequestBoard {
 	}
 
 	/**
+	 * Take an existing request onto this board, keeping its identity, its delivered tally and its
+	 * failure history. Used to move a shortfall to a Quartermaster that can actually fill it.
+	 *
+	 * @return false when the board is at capacity, in which case nothing was added.
+	 */
+	public boolean adopt(ItemRequest request, int cap) {
+		if (find(request.key()) != null) return true;
+		if (requests.size() >= cap) return false;
+		requests.add(request);
+		requests.sort(ORDER);
+		return true;
+	}
+
+	/**
 	 * Top up an existing request and put it back in play if it had gone terminal.
 	 *
 	 * <p>Revived in place rather than replaced: forget+add would wipe this key's latches and its
