@@ -163,9 +163,17 @@ public class RunnerJobExecutor implements JobExecutor {
 		source = null;
 		Entity target = requesterOf(level, request);
 		if (target == null) {
+			// a requester in another dimension, or briefly logged out, is unobservable rather than
+			// gone: charging failures here put the request on an endless collect/fail/notify
+			// treadmill. Hold the cargo and wait out the orphan window instead.
+			if (level.getGameTime() - haul.since() <= RequestRouting.ORPHAN_TICKS) {
+				entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
+				return;
+			}
 			fail(level, entity, qm, qmLevel, haul, request, "cannot find the requester");
 			return;
 		}
+		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 
 		if (!JobHelpers.atTarget(entity, target.blockPosition())) {
 			entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
@@ -249,7 +257,7 @@ public class RunnerJobExecutor implements JobExecutor {
 		request.setStage(RequestStage.PENDING);
 		if (qm.activeJobExecutor() instanceof QuartermasterJobExecutor executor) {
 			// owns the transition and fires the event, so this method must not fire a second one
-			executor.noteRunnerFailure(qmLevel, qm, request, level.getGameTime(), reason);
+			executor.noteRunnerFailure(qmLevel, qm, request, level.getGameTime(), from, reason);
 		} else {
 			FakePlayerRequests.INSTANCE.fireStageChange(qm, request, from);
 		}

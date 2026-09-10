@@ -263,10 +263,7 @@ public class AISubMenuScreen extends Screen {
 		filterButton.visible = false;
 		filterEdit.visible = false;
 		filterToggle.visible = false;
-		if (filterEdit.isFocused()) filterEdit.setFocused(false);
 		poolButton.visible = false;
-		// dropping focus with visibility, or a hidden box keeps taking keystrokes and swallows ESC
-		if (requestEdit.isFocused()) requestEdit.setFocused(false);
 		requestEdit.visible = false;
 		requestButton.visible = false;
 		List<Row> rows = rowsFor(s.job());
@@ -530,6 +527,10 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	// every visible edit box, so a newly added one is not silently starved of keystrokes
+	// Gating on `visible` is what stops a hidden box eating keystrokes. Do NOT also call
+	// box.setFocused(false) from relayout: relayout runs every tick, and Screen.setFocused
+	// early-returns when the box is already focused, so the screen's focus pointer is left
+	// dangling at a box that reports unfocused and can never be focused again.
 	private List<EditBox> editBoxes() {
 		List<EditBox> boxes = new java.util.ArrayList<>(2);
 		if (filterEdit != null && filterEdit.visible) boxes.add(filterEdit);
