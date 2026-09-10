@@ -655,6 +655,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		if (snbt.length() > AI_STATE_MAX_CHARS) {
 			Constants.LOG.error("Refusing to store a {}-char AIState for {}: over the {} sync limit",
 					snbt.length(), this.getUUID(), AI_STATE_MAX_CHARS);
+			// callers that mutated the cached object in place must not keep reading it back
+			this.aiCache = null;
 			return false;
 		}
 		this.entityData.set(AI_STATE, snbt);
