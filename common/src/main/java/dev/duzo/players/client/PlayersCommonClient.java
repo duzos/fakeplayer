@@ -12,6 +12,7 @@ public class PlayersCommonClient {
 
 	public static void tick(Minecraft client) {
 		SkinGrabber.INSTANCE.tick();
+		FPKeybinds.tick(client);
 	}
 
 	public static void openSelectScreen(FakePlayerEntity entity) {
