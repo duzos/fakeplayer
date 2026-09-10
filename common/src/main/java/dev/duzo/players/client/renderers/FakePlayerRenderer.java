@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import dev.duzo.players.client.model.FakePlayerModel;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.client.model.HumanoidArmorModel;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -13,9 +14,12 @@ import net.minecraft.client.renderer.entity.layers.*;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, FakePlayerModel> {
 	public FakePlayerRenderer(EntityRendererProvider.Context context, boolean slim) {
@@ -30,6 +34,12 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 
 	@Override
 	public void render(FakePlayerEntity entity, float pEntityYaw, float pPartialTicks, PoseStack matrices, MultiBufferSource pBuffer, int pPackedLight) {
+		// arm poses live on the model here (no render state on this version), and this renderer is rebuilt
+		// every frame by the wrapper, so its default HumanoidModel.ArmPose.EMPTY needs setting each time -
+		// otherwise a fake drawing a bow / charging a crossbow / winding up a trident shows arms down
+		this.getModel().rightArmPose = armPose(entity, HumanoidArm.RIGHT);
+		this.getModel().leftArmPose = armPose(entity, HumanoidArm.LEFT);
+
 		matrices.pushPose();
 		if (entity.isBaby()) {
 			matrices.scale(0.5f, 0.5f, 0.5f);
@@ -58,6 +68,47 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 		}
 
 		super.renderNameTag(entity, name, stack, buffer, packedLight, partialTick);
+	}
+
+	// No AvatarRenderState on this version - poses are set directly on the model in render() above, using
+	// this same lookup. Mirrors AvatarRenderer's equivalent, which is private and takes an Avatar (a fake is
+	// not one).
+	static HumanoidModel.ArmPose armPose(FakePlayerEntity entity, HumanoidArm arm) {
+		ItemStack main = entity.getItemInHand(InteractionHand.MAIN_HAND);
+		ItemStack off = entity.getItemInHand(InteractionHand.OFF_HAND);
+		HumanoidModel.ArmPose mainPose = poseFor(entity, main, InteractionHand.MAIN_HAND);
+		HumanoidModel.ArmPose offPose = poseFor(entity, off, InteractionHand.OFF_HAND);
+
+		// a two-handed pose owns both arms, so the other one just falls back to empty (this version never
+		// gave a plain held item its own arm-raise pose, so there is no ITEM fallback to preserve here)
+		if (mainPose.isTwoHanded()) {
+			offPose = HumanoidModel.ArmPose.EMPTY;
+		}
+
+		return arm == entity.getMainArm() ? mainPose : offPose;
+	}
+
+	private static HumanoidModel.ArmPose poseFor(FakePlayerEntity entity, ItemStack stack, InteractionHand hand) {
+		if (stack.isEmpty()) return HumanoidModel.ArmPose.EMPTY;
+
+		if (!entity.swinging && stack.is(Items.CROSSBOW) && CrossbowItem.isCharged(stack)) {
+			return HumanoidModel.ArmPose.CROSSBOW_HOLD;
+		}
+
+		if (entity.getUsedItemHand() == hand && entity.getUseItemRemainingTicks() > 0) {
+			return switch (stack.getUseAnimation()) {
+				case BLOCK -> HumanoidModel.ArmPose.BLOCK;
+				case BOW -> HumanoidModel.ArmPose.BOW_AND_ARROW;
+				case SPEAR -> HumanoidModel.ArmPose.THROW_SPEAR;
+				case CROSSBOW -> HumanoidModel.ArmPose.CROSSBOW_CHARGE;
+				case SPYGLASS -> HumanoidModel.ArmPose.SPYGLASS;
+				case TOOT_HORN -> HumanoidModel.ArmPose.TOOT_HORN;
+				case BRUSH -> HumanoidModel.ArmPose.BRUSH;
+				default -> HumanoidModel.ArmPose.EMPTY;
+			};
+		}
+
+		return HumanoidModel.ArmPose.EMPTY;
 	}
 
 	/** Swaps in a job's display item for the arm matching the entity's main hand, without ever

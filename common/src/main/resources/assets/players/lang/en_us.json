@@ -16,5 +16,7 @@
   "players.upload.error.size": "Skin file too large (32 KB max).",
   "players.upload.error.dimensions": "Skin must be 64x64 or 64x32 PNG.",
   "players.upload.error.format": "File is not a valid PNG.",
-  "players.upload.error.empty": "Skin file is empty."
+  "players.upload.error.empty": "Skin file is empty.",
+  "key.category.players.main": "Fake Players",
+  "key.players.open_menu": "Open Fake Player Menu"
 }
