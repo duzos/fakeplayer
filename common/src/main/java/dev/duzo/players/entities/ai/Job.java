@@ -12,7 +12,9 @@ public enum Job {
 	LUMBERJACK("Lumberjack"),
 	FISHERMAN("Fisherman"),
 	FARMER("Farmer"),
-	CRAFTER("Crafter");
+	CRAFTER("Crafter"),
+	QUARTERMASTER("Quartermaster"),
+	RUNNER("Runner");
 
 	private final String label;
 

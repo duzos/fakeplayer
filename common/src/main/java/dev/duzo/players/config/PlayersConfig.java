@@ -29,6 +29,16 @@ public class PlayersConfig {
 	/** How far a fake may path in one search, clamped to 16-2048. Costs server tick time to raise: the pathfinder
 	 * searches a cube of this radius and gets 16 nodes of budget per block of it. */
 	public double pathRange = 256.0;
+	/** How far a blocked fake looks for a Quartermaster, and a Quartermaster for a Runner. */
+	public double requestRadius = 64.0;
+	/** Ticks between pool index revalidations. Players and hoppers can touch pool chests, so the
+	 * dirty flag alone is not enough to keep counts exact. */
+	public int requestIndexInterval = 100;
+	/** Cap on total requests one Quartermaster holds. The board shares a synced string capped at
+	 * 32767 characters, so this cannot be raised without bound. */
+	public int requestMaxPerQuartermaster = 64;
+	/** Seconds before a shortfalled request is retried against the pool. */
+	public int requestShortfallRetrySeconds = 15;
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {
@@ -53,11 +63,13 @@ public class PlayersConfig {
 				save(gson);
 			} else {
 				INSTANCE = new PlayersConfig();
+				validate();
 				save(gson);
 			}
 		} catch (IOException e) {
 			Constants.LOG.error("Failed to load players.json, using defaults", e);
 			INSTANCE = new PlayersConfig();
+			validate();
 		}
 	}
 
@@ -67,6 +79,17 @@ public class PlayersConfig {
 					INSTANCE.minerSpoil, MINER_SPOIL_VALUES);
 			INSTANCE.minerSpoil = "ground";
 		}
+		if (INSTANCE.requestRadius < 8.0 || INSTANCE.requestRadius > 256.0) {
+			Constants.LOG.warn("players.json: requestRadius {} out of range 8-256, falling back to 64", INSTANCE.requestRadius);
+			INSTANCE.requestRadius = 64.0;
+		}
+		if (INSTANCE.requestIndexInterval < 20) INSTANCE.requestIndexInterval = 20;
+		if (INSTANCE.requestMaxPerQuartermaster < 1 || INSTANCE.requestMaxPerQuartermaster > 64) {
+			Constants.LOG.warn("players.json: requestMaxPerQuartermaster {} out of range 1-64, falling back to 64",
+					INSTANCE.requestMaxPerQuartermaster);
+			INSTANCE.requestMaxPerQuartermaster = 64;
+		}
+		if (INSTANCE.requestShortfallRetrySeconds < 1) INSTANCE.requestShortfallRetrySeconds = 15;
 	}
 
 	private static void save(Gson gson) {
