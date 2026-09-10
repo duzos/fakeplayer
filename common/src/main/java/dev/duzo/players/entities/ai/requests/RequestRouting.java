@@ -9,9 +9,11 @@ import dev.duzo.players.entities.ai.JobExecutor;
 import dev.duzo.players.entities.ai.QuartermasterJobExecutor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -90,9 +92,19 @@ public final class RequestRouting {
 		return null;
 	}
 
+	private record OwnerScan(ResourceKey<Level> level, UUID owner, long tick) {}
+
+	// getAllEntities walks every loaded entity, and holderOf is reached from raise(), cancel() and
+	// an unthrottled packet. Memoized for the tick it was built on: server-thread only, and one
+	// entry is enough because callers ask about one owner at a time.
+	@Nullable private static OwnerScan lastScanKey;
+	private static List<FakePlayerEntity> lastScan = List.of();
+
 	/** Every loaded Quartermaster in this level belonging to the owner, regardless of distance. */
 	public static List<FakePlayerEntity> allQuartermastersOf(ServerLevel level, @Nullable UUID owner) {
 		if (owner == null) return List.of();
+		OwnerScan want = new OwnerScan(level.dimension(), owner, level.getGameTime());
+		if (want.equals(lastScanKey)) return lastScan;
 		List<FakePlayerEntity> found = new ArrayList<>();
 		for (Entity entity : level.getAllEntities()) {
 			if (!(entity instanceof FakePlayerEntity fake)) continue;
@@ -100,11 +112,13 @@ public final class RequestRouting {
 			if (!owner.equals(fake.getAIState().ownerUUID())) continue;
 			found.add(fake);
 		}
-		return found;
+		lastScanKey = want;
+		lastScan = List.copyOf(found);
+		return lastScan;
 	}
 
 	/**
-	 * The Quartermaster already holding an open request with this key, or null.
+	 * The Quartermaster already holding a request with this key, or null.
 	 *
 	 * <p>Deliberately scanned level-wide and owner-scoped rather than within requestRadius: a
 	 * radius scan around the requester loses sight of the holder as soon as the requester walks
@@ -113,9 +127,11 @@ public final class RequestRouting {
 	 * <p>Uses the snapshot, so a Quartermaster that has not ticked since a reload is still seen.
 	 */
 	@Nullable
-	public static FakePlayerEntity holderOfOpen(ServerLevel level, @Nullable UUID owner, RequestKey key) {
+	public static FakePlayerEntity holderOf(ServerLevel level, @Nullable UUID owner, RequestKey key) {
 		for (FakePlayerEntity qm : allQuartermastersOf(level, owner)) {
-			if (snapshotOf(qm).findOpen(key) != null) return qm;
+			// any stage, not just open: a SHORTFALL copy is still this key's home, and matching only
+			// open ones let a re-raise start a second copy on a different board
+			if (snapshotOf(qm).find(key) != null) return qm;
 		}
 		return null;
 	}
@@ -156,7 +172,8 @@ public final class RequestRouting {
 		}
 		// running() is AIState too, and a stopped runner never ticks, so it can neither finish the
 		// delivery nor release its own Haul. Without this the request and the cargo strand forever.
-		if (runner.getAIState().job() != Job.RUNNER || !runner.getAIState().running()) {
+		if (runner.getAIState().job() != Job.RUNNER || !runner.getAIState().running()
+				|| runner.isJobPaused()) {
 			return AssignmentFault.RE_JOBBED;
 		}
 		Haul haul = Haul.of(runner.getAIState());

@@ -16,7 +16,8 @@ public record RaisedRequest(RaiseResult result,
 		return new RaisedRequest(result, null, null);
 	}
 
+	/** Whether a usable request came back. See {@link RaiseResult#accepted()} for mere acceptance. */
 	public boolean ok() {
-		return result.ok() && quartermaster != null && request != null;
+		return result.hasRequest() && quartermaster != null && request != null;
 	}
 }

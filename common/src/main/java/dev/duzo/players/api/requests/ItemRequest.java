@@ -85,12 +85,20 @@ public final class ItemRequest {
 		this.assignedAt = runner == null ? 0L : now;
 	}
 
-	/** Raise the ask when the same key is re-raised for more than is currently owed. */
+	/**
+	 * Raise the ask when the same key is re-raised for more than is outstanding.
+	 *
+	 * <p>The ceiling is the largest single ask, not that ask plus whatever already arrived:
+	 * comparing against {@code remaining} alone turned "64, then 64 again" into 94 delivered once
+	 * 30 of the first ask had landed.
+	 */
 	@ApiStatus.Internal
 	public void topUp(int newWanted, int newPriority) {
 		int target = clampCount(newWanted);
-		if (target > remaining) {
-			remaining = target;
+		int delivered = wanted - remaining;
+		int outstanding = Math.max(0, target - delivered);
+		if (outstanding > remaining) {
+			remaining = outstanding;
 			wanted = Math.max(wanted, target);
 		}
 		priority = Math.max(priority, newPriority);

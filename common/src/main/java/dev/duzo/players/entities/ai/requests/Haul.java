@@ -44,14 +44,19 @@ public record Haul(UUID quartermaster, ResourceLocation item, int baseline, long
 		return of(runner.getAIState()) != null;
 	}
 
-	/** Assign this Runner, capturing what it already holds so cargo can be derived later. */
-	public static void write(FakePlayerEntity runner, UUID quartermaster, ResourceLocation item, long now) {
-		write(runner, quartermaster, item, countOf(runner, item), now);
+	/**
+	 * Assign this Runner, capturing what it already holds so cargo can be derived later.
+	 *
+	 * @return false when the receipt could not be stored, in which case the Runner is NOT marked
+	 *         busy and must not be dispatched.
+	 */
+	public static boolean write(FakePlayerEntity runner, UUID quartermaster, ResourceLocation item, long now) {
+		return write(runner, quartermaster, item, countOf(runner, item), now);
 	}
 
 	/** Write an explicit baseline, used to correct one that has gone stale without resetting the clock. */
-	public static void write(FakePlayerEntity runner, UUID quartermaster, ResourceLocation item, int baseline, long since) {
-		runner.mutateAIState(state -> {
+	public static boolean write(FakePlayerEntity runner, UUID quartermaster, ResourceLocation item, int baseline, long since) {
+		return runner.mutateAIState(state -> {
 			CompoundTag tag = new CompoundTag();
 			tag.putIntArray("Qm", UUIDUtil.uuidToIntArray(quartermaster));
 			tag.putString("Item", item.toString());

@@ -164,17 +164,19 @@ public final class FakePlayerRequests {
 		// dedupe across every reachable board, using the persisted snapshot so a Quartermaster that
 		// has not ticked since a reload is still seen: otherwise two boards serve one ask and the
 		// pool is drawn twice
-		FakePlayerEntity holder = RequestRouting.holderOfOpen(level, owner, key);
+		// this key's home board, at any stage: a shortfalled copy is still its home, and matching
+		// only open ones let a re-raise start a second copy on another board
+		FakePlayerEntity holder = RequestRouting.holderOf(level, owner, key);
 		if (holder != null) {
 			RequestBoard board = RequestRouting.boardOf(holder);
-			ItemRequest open = board == null ? null : board.findOpen(key);
-			if (open != null) {
-				RequestStage from = open.stage();
-				open.topUp(count, priority);
-				INSTANCE.fireStageChange(holder, open, from);
-				return new RaisedRequest(RaiseResult.ALREADY_OPEN, holder, open);
+			ItemRequest existing = board == null ? null : board.find(key);
+			if (existing != null) {
+				RequestStage from = existing.stage();
+				board.revive(existing, count, priority);
+				INSTANCE.fireStageChange(holder, existing, from);
+				return new RaisedRequest(RaiseResult.ALREADY_OPEN, holder, existing);
 			}
-			// known holder that has not ticked, so it cannot be topped up this tick. A distinct
+			// known holder that has not ticked, so it cannot be revived this tick. A distinct
 			// result, because callers must not dereference request() here.
 			return new RaisedRequest(RaiseResult.HOLDER_NOT_READY, holder, null);
 		}
@@ -195,7 +197,7 @@ public final class FakePlayerRequests {
 	/** The open request with this key on any reachable board, or null. */
 	@Nullable
 	public static RaisedRequest findOpen(ServerLevel level, UUID owner, RequestKey key) {
-		FakePlayerEntity holder = RequestRouting.holderOfOpen(level, owner, key);
+		FakePlayerEntity holder = RequestRouting.holderOf(level, owner, key);
 		if (holder == null) return null;
 		RequestBoard board = RequestRouting.boardOf(holder);
 		ItemRequest open = board == null ? null : board.findOpen(key);
@@ -218,7 +220,7 @@ public final class FakePlayerRequests {
 
 	/** Cancel by key wherever it is open. */
 	public static boolean cancel(ServerLevel level, UUID owner, RequestKey key) {
-		FakePlayerEntity holder = RequestRouting.holderOfOpen(level, owner, key);
+		FakePlayerEntity holder = RequestRouting.holderOf(level, owner, key);
 		return holder != null && cancel(holder, key);
 	}
 
@@ -277,6 +279,10 @@ public final class FakePlayerRequests {
 	 * Take up to {@code count} of an item out of a Quartermaster's pool, for a {@link Resolver} that
 	 * needs to consume ingredients. Returns what it actually removed, which may be less than asked.
 	 *
+	 * <p><b>Ownership transfers to you.</b> The stacks are removed from the pool before this
+	 * returns, and nothing puts them back: if your craft then fails you must {@link #deposit} them
+	 * again or they are destroyed.
+	 *
 	 * <p>The counterpart to {@link #deposit}. Without it a crafting resolver would have to reach
 	 * outside this package for the container lookup, which is exactly what these two helpers exist
 	 * to avoid.
@@ -288,6 +294,9 @@ public final class FakePlayerRequests {
 			if (owed <= 0) break;
 			Container container = JobHelpers.containerAt(level, pos);
 			if (container == null) continue;
+			// as in PoolIndex.rebuild: a pooled chest may since have become a furnace, whose fuel
+			// and output slots are not storage
+			if (container instanceof net.minecraft.world.WorldlyContainer) continue;
 			for (int slot = 0; slot < container.getContainerSize() && owed > 0; slot++) {
 				ItemStack stack = container.getItem(slot);
 				if (stack.isEmpty()) continue;

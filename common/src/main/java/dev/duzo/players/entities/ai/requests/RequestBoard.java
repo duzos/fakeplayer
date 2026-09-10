@@ -48,22 +48,30 @@ public final class RequestBoard {
 	public ItemRequest post(ItemRequest request, int cap) {
 		ItemRequest existing = find(request.key());
 		if (existing != null) {
-			// revived in place rather than replaced. forget+add would wipe this key's latches and
-			// its lifetime failure count, so a consumer re-raising on a timer would re-notify the
-			// owner on every raise and could never be pruned.
-			existing.topUp(request.wanted(), request.priority());
-			if (!existing.isOpen()) {
-				existing.setStage(RequestStage.PENDING);
-				existing.resetFailures();
-				existing.setRetryAfter(0L);
-			}
-			requests.sort(ORDER);
+			revive(existing, request.wanted(), request.priority());
 			return existing;
 		}
 		if (requests.size() >= cap) return null;
 		requests.add(request);
 		requests.sort(ORDER);
 		return request;
+	}
+
+	/**
+	 * Top up an existing request and put it back in play if it had gone terminal.
+	 *
+	 * <p>Revived in place rather than replaced: forget+add would wipe this key's latches and its
+	 * lifetime failure count, so a consumer re-raising on a timer would re-notify the owner on
+	 * every raise and could never be pruned.
+	 */
+	public void revive(ItemRequest existing, int wanted, int priority) {
+		existing.topUp(wanted, priority);
+		if (!existing.isOpen()) {
+			existing.setStage(RequestStage.PENDING);
+			existing.resetFailures();
+			existing.setRetryAfter(0L);
+		}
+		requests.sort(ORDER);
 	}
 
 	@Nullable
