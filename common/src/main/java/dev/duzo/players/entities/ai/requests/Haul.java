@@ -26,7 +26,7 @@ import java.util.UUID;
  * double-assignment impossible rather than merely unlikely.
  */
 @ApiStatus.Internal
-public record Haul(UUID quartermaster, ResourceLocation item, int baseline, long since) {
+public record Haul(UUID quartermaster, ResourceLocation item, int baseline, long since, int wanted) {
 	private static final String TAG = "Haul";
 
 	@Nullable
@@ -38,7 +38,7 @@ public record Haul(UUID quartermaster, ResourceLocation item, int baseline, long
 		ResourceLocation item = ResourceLocation.tryParse(tag.getStringOr("Item", ""));
 		if (item == null) return null;
 		return new Haul(UUIDUtil.uuidFromIntArray(raw), item,
-				tag.getIntOr("Base", 0), tag.getLongOr("Since", 0L));
+				tag.getIntOr("Base", 0), tag.getLongOr("Since", 0L), tag.getIntOr("Want", 0));
 	}
 
 	public static boolean isBusy(FakePlayerEntity runner) {
@@ -51,26 +51,28 @@ public record Haul(UUID quartermaster, ResourceLocation item, int baseline, long
 	 * @return false when the receipt could not be stored, in which case the Runner is NOT marked
 	 *         busy and must not be dispatched.
 	 */
-	public static boolean write(FakePlayerEntity runner, UUID quartermaster, ResourceLocation item, long now) {
-		return write(runner, quartermaster, item, countOf(runner, item), now);
+	public static boolean write(FakePlayerEntity runner, UUID quartermaster, ResourceLocation item, int wanted, long now) {
+		return write(runner, quartermaster, item, countOf(runner, item), now, wanted);
 	}
 
 	/** Write an explicit baseline, used to correct one that has gone stale without resetting the clock. */
-	public static boolean write(FakePlayerEntity runner, UUID quartermaster, ResourceLocation item, int baseline, long since) {
+	public static boolean write(FakePlayerEntity runner, UUID quartermaster, ResourceLocation item, int baseline, long since, int wanted) {
 		return runner.mutateAIState(state -> {
 			CompoundTag tag = new CompoundTag();
 			tag.putIntArray("Qm", UUIDUtil.uuidToIntArray(quartermaster));
 			tag.putString("Item", item.toString());
 			tag.putInt("Base", baseline);
 			tag.putLong("Since", since);
+			tag.putInt("Want", wanted);
 			CompoundTag params = state.jobParams();
 			params.put(TAG, tag);
 			state.setJobParams(params);
 		});
 	}
 
-	public static void clear(FakePlayerEntity runner) {
-		runner.mutateAIState(state -> {
+	/** @return false when the receipt could not be removed, leaving the Runner marked busy. */
+	public static boolean clear(FakePlayerEntity runner) {
+		return runner.mutateAIState(state -> {
 			CompoundTag params = state.jobParams();
 			params.remove(TAG);
 			state.setJobParams(params);
@@ -86,8 +88,12 @@ public record Haul(UUID quartermaster, ResourceLocation item, int baseline, long
 	 */
 	public int cargo(FakePlayerEntity runner) {
 		int held = countOf(runner, item);
+		// bounded by the size of the request this receipt was written for. Without it a stale
+		// baseline (the fake was re-jobbed and has since accumulated the item by other means)
+		// made every unit it holds look like cargo owed to the pool.
+		if (wanted > 0 && held - baseline > wanted) return wanted;
 		if (held < baseline) {
-			if (!write(runner, quartermaster, item, held, since)) {
+			if (!write(runner, quartermaster, item, held, since, wanted)) {
 				// the correction could not be stored, so this will be retried every tick. Say so
 				// once per occurrence rather than failing silently.
 				Constants.LOG.warn("Could not correct the haul baseline for {}: its AIState is too large to sync",
