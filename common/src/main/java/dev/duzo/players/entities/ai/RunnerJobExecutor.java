@@ -79,11 +79,10 @@ public class RunnerJobExecutor implements JobExecutor {
 		ItemRequest request = board.assignedTo(entity.getUUID());
 		if (request == null) {
 			// cancelled, requeued, or finished by someone else: put the cargo back and go free.
-			// A receipt older than the orphan window is not evidence of anything any more (the fake
-			// may have been re-jobbed and picked the item up since), so drop it without returning.
-			if (level.getGameTime() - haul.since() <= RequestRouting.ORPHAN_TICKS) {
-				returnCargo(level, entity, qm, qmLevel, haul);
-			}
+			// Unconditional: the window is measured from dispatch, so a legitimately long haul
+			// crosses it, and skipping the return there left the pool's goods in the runner's
+			// pockets with the baseline discarded so nothing could ever account for them.
+			returnCargo(level, entity, qm, qmLevel, haul);
 			Haul.clear(entity);
 			rest(level, entity);
 			return;
@@ -99,7 +98,9 @@ public class RunnerJobExecutor implements JobExecutor {
 		} else if (cargo > 0) {
 			deliverLeg(level, entity, qm, qmLevel, haul, request);
 		} else {
-			fail(level, entity, qm, qmLevel, haul, request, "nothing in the pool");
+			// carrying nothing and nothing left to collect. Says "left" because a partial delivery
+			// reaches here too, and "nothing in the pool" would read as though none had arrived.
+			fail(level, entity, qm, qmLevel, haul, request, "nothing left in the pool");
 		}
 	}
 
@@ -167,6 +168,11 @@ public class RunnerJobExecutor implements JobExecutor {
 			// gone: charging failures here put the request on an endless collect/fail/notify
 			// treadmill. Hold the cargo and wait out the orphan window instead.
 			if (level.getGameTime() - haul.since() <= RequestRouting.ORPHAN_TICKS) {
+				// stop navigating, or it slides to the vanished target in a sitting pose, and reset
+				// the patience counter so a returning requester gets the full window rather than
+				// whatever was left when it disappeared
+				entity.getNavigation().stop();
+				handoffWaited = 0;
 				entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
 				return;
 			}
@@ -278,6 +284,9 @@ public class RunnerJobExecutor implements JobExecutor {
 			if (owed <= 0) break;
 			Container container = JobHelpers.containerAt(qmLevel, pos);
 			if (container == null) continue;
+			// as in PoolIndex.rebuild: a pooled chest may since have become a furnace, whose fuel
+			// and output slots are not storage and are invisible to every read path
+			if (container instanceof net.minecraft.world.WorldlyContainer) continue;
 			for (int slot = 0; slot < inv.getContainerSize() && owed > 0; slot++) {
 				ItemStack stack = inv.getItem(slot);
 				if (stack.isEmpty()) continue;
