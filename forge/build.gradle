@@ -68,6 +68,9 @@ publishMods {
     file = reobfJar.archiveFile
     changelog = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOG.md")).asText
     type = STABLE
+    // Driven by the shared publish workflow. When true nothing is uploaded and
+    // the release assets are written to the build directory instead.
+    dryRun = providers.environmentVariable("PUBLISH_DRY_RUN").map { it == "true" }.getOrElse(false)
     version = "${project.version}-${minecraft_version}-forge"
     displayName = "Fake Players ${project.version} (${minecraft_version} Forge/NeoForge)"
     // NeoForge 1.20.1 is API-compatible with Forge 1.20.1, so the Forge jar runs on both.
