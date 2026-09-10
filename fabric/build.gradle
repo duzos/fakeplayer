@@ -52,6 +52,9 @@ publishMods {
     file = jar.archiveFile
     changelog = providers.fileContents(rootProject.layout.projectDirectory.file("CHANGELOG.md")).asText
     type = STABLE
+    // Driven by the shared publish workflow. When true nothing is uploaded and
+    // the release assets are written to the build directory instead.
+    dryRun = providers.environmentVariable("PUBLISH_DRY_RUN").map { it == "true" }.getOrElse(false)
     version = "${project.version}-${minecraft_version}-fabric"
     displayName = "Fake Players ${project.version} (${minecraft_version} Fabric)"
     modLoaders.add("fabric")
