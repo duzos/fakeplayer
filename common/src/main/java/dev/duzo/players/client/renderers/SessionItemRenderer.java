@@ -58,7 +58,7 @@ public final class SessionItemRenderer {
 		switch (purpose) {
 			case AIMarkerItem.PURPOSE_REGION -> renderRegion(pose, lines, cam, stack, bound, crosshair);
 			case AIMarkerItem.PURPOSE_WAYPOINT -> renderWaypoint(pose, lines, cam, bound, crosshair);
-			case AIMarkerItem.PURPOSE_CHEST_PICKER -> renderChestPicker(pose, lines, cam, level, bound, crosshair);
+			case AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.PURPOSE_POOL -> renderChestPicker(pose, lines, cam, level, bound, crosshair);
 			default -> {}
 		}
 
