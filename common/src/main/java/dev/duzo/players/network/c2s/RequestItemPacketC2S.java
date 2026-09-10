@@ -48,6 +48,8 @@ public record RequestItemPacketC2S(int id, String item, int count) {
 		switch (raised.result()) {
 			case RAISED -> sender.sendSystemMessage(Component.literal("Requested " + count + " x " + id));
 			case ALREADY_OPEN -> sender.sendSystemMessage(Component.literal("Already on the way: " + id));
+			case HOLDER_NOT_READY -> sender.sendSystemMessage(
+					Component.literal("Already on the way: " + id + " (that quartermaster is still waking up)"));
 			case NO_QUARTERMASTER -> sender.sendSystemMessage(
 					Component.literal("No quartermaster of yours in range has a storage pool marked."));
 			case BOARD_FULL -> sender.sendSystemMessage(
