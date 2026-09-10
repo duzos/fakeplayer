@@ -42,6 +42,38 @@ Shift + right-click a fake (or press your **Open Fake Player Menu** key, see bel
 | **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. |
 | **Farmer** | region + deposit | Tills a plot, waters it, plants any seed (modded too), bonemeals, then harvests and replants on a loop. |
 | **Crafter** | table + source + deposit | Walks to a crafting table and lays out a recipe you teach it by hand; chain it onto another job's chest for a pipeline. |
+| **Quartermaster** | storage pool | Owns a pool of marked containers, answers requests from your other fakes and from you, and sends Runners. Never leaves the storeroom. |
+| **Runner** | none | Fetches a requested item from a Quartermaster's pool and delivers it. No fixed route and nothing to configure. |
+
+### Requests: Quartermaster and Runner
+
+A fake that runs out of something asks for more instead of just stopping. A **Quartermaster** owns a
+storeroom and works out who can fill the request; a **Runner** does the carrying. Set one of each up:
+
+- Set a fake to **Quartermaster** and press Mark on its Pool row. Right-click each chest or barrel to
+  add it to the pool, and right-click a pooled one again to remove it. The marker is not used up, so
+  one marker marks the whole storeroom. Furnaces and other sided containers cannot be pooled, and
+  marking only one half of a double chest is enough.
+- Bond at least one fake as a **Runner**, owned by you and within `requestRadius` blocks (64 by
+  default). The Quartermaster never walks, so with no Runner nearby nothing is delivered and it tells
+  you so.
+- Start both. A Fisherman with no rod now asks for one and waits, and the rod arrives if the pool has
+  one. If nothing can fill the request you are told **once** and the fake keeps waiting rather than
+  unbonding itself.
+- Ask for something yourself from the **Request** row on a Quartermaster: an item id, optionally with
+  a count, like `minecraft:oak_planks 64`. Asking again for more tops the request up instead of
+  queuing a second one.
+
+Worth knowing:
+
+- Only **your own** Quartermasters serve you, so pressing Ask on a teammate's reports that none is in
+  range.
+- The nearest Quartermaster that actually **has stock** wins, so an empty storeroom standing closer
+  does not shadow a full one.
+- Items are matched by id, so a damaged or enchanted one already in the Runner's own inventory can be
+  handed over in place of a fresh one from the pool.
+- Re-jobbing a Runner mid-delivery leaves the goods in its inventory. Open it to take them back, or
+  set it back to Runner and it returns them to the pool itself.
 
 ### Miner / Courier filter
 
