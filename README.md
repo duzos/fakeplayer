@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/img/logo.png" width="160" alt="logo">
+
 # Fake Players
 
 ### Player look-alikes that mine, chop, guard, and haul - for you.
