@@ -7,6 +7,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.component.ChargedProjectiles;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.ItemStack;
 
 import javax.annotation.Nullable;
 import java.util.EnumSet;
@@ -19,6 +22,8 @@ public class FakeRangedAttackGoal extends Goal {
 	private static final int BOW_DRAW_TICKS = 20;
 	private static final int BOW_INTERVAL = 20;
 	private static final int TRIDENT_INTERVAL = 40;
+	/** Vanilla's minimum trident charge before a throw counts. */
+	private static final int TRIDENT_WINDUP_TICKS = 10;
 	private static final int STRAFE_FLIP_TICKS = 20;
 	/** How long the fake keeps hunting after losing sight before it gives up on the shot. */
 	private static final int BLIND_GIVE_UP_TICKS = -60;
@@ -71,7 +76,19 @@ public class FakeRangedAttackGoal extends Goal {
 		this.strafingTime = -1;
 		this.mob.stopUsingItem();
 		this.mob.setChargingCrossbow(false);
+		this.releaseCrossbowCharge();
 		this.crossbowState = CrossbowState.UNCHARGED;
+	}
+
+	// A crossbow left loaded when the goal stops keeps the fake in the aiming pose forever, looking frozen
+	// mid-draw. Vanilla's RangedCrossbowAttackGoal clears the charge for the same reason.
+	private void releaseCrossbowCharge() {
+		for (InteractionHand hand : InteractionHand.values()) {
+			ItemStack held = this.mob.getItemInHand(hand);
+			if (held.getItem() instanceof CrossbowItem && CrossbowItem.isCharged(held)) {
+				held.set(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
+			}
+		}
 	}
 
 	@Override
@@ -198,10 +215,25 @@ public class FakeRangedAttackGoal extends Goal {
 		}
 	}
 
+	// Wound up like a bow so the fake visibly raises the trident before throwing. stopUsingItem rather than
+	// releaseUsingItem on purpose: releasing would run TridentItem's own throw and consume the trident.
 	private void tickTrident(LivingEntity target, boolean seen) {
-		if (--this.attackTime <= 0 && seen) {
-			this.mob.performRangedAttack(target, 1.6F);
-			this.attackTime = TRIDENT_INTERVAL;
+		if (this.mob.isUsingItem()) {
+			if (!seen && this.seeTime < BLIND_GIVE_UP_TICKS) {
+				this.mob.stopUsingItem();
+				return;
+			}
+			if (seen && this.mob.getTicksUsingItem() >= TRIDENT_WINDUP_TICKS) {
+				this.mob.stopUsingItem();
+				this.mob.performRangedAttack(target, 1.6F);
+				this.attackTime = TRIDENT_INTERVAL;
+			}
+			return;
+		}
+
+		if (--this.attackTime <= 0 && this.seeTime >= BLIND_GIVE_UP_TICKS) {
+			InteractionHand hand = this.handFor(RangedWeapon.TRIDENT);
+			if (hand != null) this.mob.startUsingItem(hand);
 		}
 	}
 
