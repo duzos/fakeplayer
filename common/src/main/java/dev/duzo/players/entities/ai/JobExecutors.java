@@ -20,6 +20,8 @@ public final class JobExecutors {
 		register(Job.FISHERMAN, FishermanJobExecutor::new);
 		register(Job.FARMER, FarmerJobExecutor::new);
 		register(Job.CRAFTER, CrafterJobExecutor::new);
+		register(Job.QUARTERMASTER, QuartermasterJobExecutor::new);
+		register(Job.RUNNER, RunnerJobExecutor::new);
 	}
 
 	private JobExecutors() {}
