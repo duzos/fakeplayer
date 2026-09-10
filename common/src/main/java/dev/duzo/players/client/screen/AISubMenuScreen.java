@@ -255,7 +255,10 @@ public class AISubMenuScreen extends Screen {
 		filterButton.visible = false;
 		filterEdit.visible = false;
 		filterToggle.visible = false;
+		if (filterEdit.isFocused()) filterEdit.setFocused(false);
 		poolButton.visible = false;
+		// dropping focus with visibility, or a hidden box keeps taking keystrokes and swallows ESC
+		if (requestEdit.isFocused()) requestEdit.setFocused(false);
 		requestEdit.visible = false;
 		requestButton.visible = false;
 		List<Row> rows = rowsFor(s.job());
