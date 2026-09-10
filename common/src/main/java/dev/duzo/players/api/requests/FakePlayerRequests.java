@@ -166,7 +166,7 @@ public final class FakePlayerRequests {
 		// pool is drawn twice
 		// this key's home board, at any stage: a shortfalled copy is still its home, and matching
 		// only open ones let a re-raise start a second copy on another board
-		FakePlayerEntity holder = RequestRouting.holderOf(level, owner, key);
+		FakePlayerEntity holder = RequestRouting.holderOf(level, requester, owner, key);
 		if (holder != null) {
 			RequestBoard board = RequestRouting.boardOf(holder);
 			ItemRequest existing = board == null ? null : board.find(key);
@@ -233,8 +233,8 @@ public final class FakePlayerRequests {
 
 	/** The open request with this key on any reachable board, or null. */
 	@Nullable
-	public static RaisedRequest findOpen(ServerLevel level, UUID owner, RequestKey key) {
-		FakePlayerEntity holder = RequestRouting.holderOf(level, owner, key);
+	public static RaisedRequest findOpen(ServerLevel level, Entity near, UUID owner, RequestKey key) {
+		FakePlayerEntity holder = RequestRouting.holderOf(level, near, owner, key);
 		if (holder == null) return null;
 		RequestBoard board = RequestRouting.boardOf(holder);
 		if (board == null) return new RaisedRequest(RaiseResult.HOLDER_NOT_READY, holder, null);
@@ -259,8 +259,8 @@ public final class FakePlayerRequests {
 	}
 
 	/** Cancel by key wherever it is open. */
-	public static boolean cancel(ServerLevel level, UUID owner, RequestKey key) {
-		FakePlayerEntity holder = RequestRouting.holderOf(level, owner, key);
+	public static boolean cancel(ServerLevel level, Entity near, UUID owner, RequestKey key) {
+		FakePlayerEntity holder = RequestRouting.holderOf(level, near, owner, key);
 		return holder != null && cancel(holder, key);
 	}
 

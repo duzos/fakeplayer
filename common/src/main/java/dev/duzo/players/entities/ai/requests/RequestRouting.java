@@ -151,8 +151,17 @@ public final class RequestRouting {
 	 * <p>Uses the snapshot, so a Quartermaster that has not ticked since a reload is still seen.
 	 */
 	@Nullable
-	public static FakePlayerEntity holderOf(ServerLevel level, @Nullable UUID owner, RequestKey key) {
-		for (FakePlayerEntity qm : allQuartermastersOf(level, owner)) {
+	public static FakePlayerEntity holderOf(ServerLevel level, Entity requester, @Nullable UUID owner, RequestKey key) {
+		// the holder is almost always near the requester, and that scan is section-indexed and
+		// bounded, so try it before walking every entity in every level
+		FakePlayerEntity near = findHolder(quartermastersFor(level, requester, owner), key);
+		if (near != null) return near;
+		return findHolder(allQuartermastersOf(level, owner), key);
+	}
+
+	@Nullable
+	private static FakePlayerEntity findHolder(List<FakePlayerEntity> candidates, RequestKey key) {
+		for (FakePlayerEntity qm : candidates) {
 			// any stage, not just open: a SHORTFALL copy is still this key's home, and matching only
 			// open ones let a re-raise start a second copy on a different board
 			if (snapshotOf(qm).find(key) != null) return qm;
