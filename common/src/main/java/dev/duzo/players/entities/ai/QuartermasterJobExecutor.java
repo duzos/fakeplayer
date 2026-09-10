@@ -15,6 +15,8 @@ import dev.duzo.players.entities.ai.requests.StoragePool;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 
+import java.util.List;
+
 import javax.annotation.Nullable;
 
 public class QuartermasterJobExecutor implements JobExecutor {
@@ -22,6 +24,7 @@ public class QuartermasterJobExecutor implements JobExecutor {
 	private static final int MAX_FAILURES = 3;
 	private static final int BACKOFF_TICKS = 20 * 15;
 	private static final int PRUNE_EVERY = 20 * 60;
+	private static final String HAUL_REFUSED = "could not hand a runner its delivery orders";
 
 	private RequestBoard board = new RequestBoard();
 	private int cooldown;
@@ -84,9 +87,12 @@ public class QuartermasterJobExecutor implements JobExecutor {
 			// one forced rebuild up front, so the first resolver's base is fresh; after that each
 			// post-call reading is itself freshly rebuilt and serves as the next resolver's base.
 			// Rebuilding on both sides of every call cost 2N full storeroom rescans per pass.
-			PoolIndex.markDirty(level, entity.getUUID());
-			have = PoolIndex.of(level, entity).count(request.key().item());
-			for (FakePlayerRequests.Resolver resolver : FakePlayerRequests.INSTANCE.resolverChain()) {
+			List<FakePlayerRequests.Resolver> chain = FakePlayerRequests.INSTANCE.resolverChain();
+			if (!chain.isEmpty()) {
+				PoolIndex.markDirty(level, entity.getUUID());
+				have = PoolIndex.of(level, entity).count(request.key().item());
+			}
+			for (FakePlayerRequests.Resolver resolver : chain) {
 				int before = have;
 				int claimed = Math.max(0, resolver.deposit(entity, request));
 				// unconditionally, because a resolver that deposits correctly but returns 0 would
@@ -110,27 +116,29 @@ public class QuartermasterJobExecutor implements JobExecutor {
 			announce(level, entity, request, "norunner", "no free runner for " + request.key().item());
 			return;
 		}
-		// every reason that can precede a successful dispatch, or a later genuine one is swallowed
 		board.clearLatch(request.key(), "norunner");
-		board.clearLatch(request.key(), "haulfailed");
-		board.clearLatch(request.key(), "orphaned");
 
 		// a refused receipt leaves the runner unmarked while the request says DISPATCHED, which is
 		// exactly the double-assignment window Haul exists to close
-		if (!Haul.write(runner, entity.getUUID(), request.key().item(), now)) {
+		if (!Haul.write(runner, entity.getUUID(), request.key().item(), request.remaining(), now)) {
 			request.noteFailure();
 			request.setRetryAfter(now + BACKOFF_TICKS);
-			announce(level, entity, request, "haulfailed", "could not hand a runner its delivery orders");
+			announce(level, entity, request, "haulfailed", HAUL_REFUSED);
 			// refusal is a persistent property of that runner's oversized state, so escalate
 			// rather than looping on it forever with nothing more said
 			if (request.failures() >= MAX_FAILURES) {
 				RequestStage stalled = request.stage();
 				request.setStage(RequestStage.SHORTFALL);
-				request.setShortfallReason("could not hand a runner its delivery orders");
+				request.setShortfallReason(HAUL_REFUSED);
 				FakePlayerRequests.INSTANCE.fireStageChange(entity, request, stalled);
 			}
 			return;
 		}
+
+		// cleared only now the dispatch has actually succeeded: clearing before the attempt meant
+		// the latch never suppressed anything and every retry re-announced
+		board.clearLatch(request.key(), "haulfailed");
+		board.clearLatch(request.key(), "orphaned");
 
 		RequestStage from = request.stage();
 		request.assignTo(runner.getUUID(), now);
@@ -190,6 +198,9 @@ public class QuartermasterJobExecutor implements JobExecutor {
 		for (ItemRequest request : board.all()) {
 			if (room <= 0) break;
 			if (request.stage() != RequestStage.SHORTFALL) continue;
+			// a haul refusal is a persistent property of that runner's oversized state, not a
+			// stock problem, so retrying it every 15 seconds only re-announces it forever
+			if (HAUL_REFUSED.equals(request.shortfallReason())) continue;
 			RequestStage from = request.stage();
 			request.setStage(RequestStage.PENDING);
 			request.resetFailures();
