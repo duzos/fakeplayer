@@ -1,5 +1,6 @@
 package dev.duzo.players.entities;
 
+import dev.duzo.players.Constants;
 import dev.duzo.players.api.CustomBindTracker;
 import dev.duzo.players.api.InteractionRegistry;
 import dev.duzo.players.api.SkinGrabber;
@@ -405,6 +406,27 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.inventory.storeAsItemList(output.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC));
 	}
 
+	/**
+	 * The live executor, or null if this fake has not ticked its job yet. Never use this to decide
+	 * whether another fake is alive or assigned: it is null for a whole tick after a reload and
+	 * entity tick order is arbitrary. Read AIState for that.
+	 */
+	@Nullable
+	public JobExecutor activeJobExecutor() {
+		return this.jobExecutor;
+	}
+
+	@Override
+	public void remove(RemovalReason reason) {
+		// also fires on chunk unload and dimension change, which is what keeps the cache bounded;
+		// a rebuilt index costs one rescan. On CHANGED_DIMENSION level() is still the old level,
+		// so the key forgotten is the right one.
+		if (this.level() instanceof ServerLevel level) {
+			dev.duzo.players.entities.ai.requests.PoolIndex.forget(level, this.getUUID());
+		}
+		super.remove(reason);
+	}
+
 	public void flushJobState() {
 		if (jobExecutor == null) return;
 		CompoundTag tag = jobExecutor.serialize();
@@ -622,8 +644,19 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		return aiCache;
 	}
 
+	// AI_STATE is a synced string, and EntityDataSerializers.STRING is capped at 32767 chars.
+	// Overflowing it throws while encoding the entity-data packet, after the value is already
+	// stored, which disconnects every tracking client with no way back. Refuse the write instead.
+	private static final int AI_STATE_MAX_CHARS = 30000;
+
 	public void setAIState(AIState state) {
-		this.entityData.set(AI_STATE, state.toNbt().toString());
+		String snbt = state.toNbt().toString();
+		if (snbt.length() > AI_STATE_MAX_CHARS) {
+			Constants.LOG.error("Refusing to store a {}-char AIState for {}: over the {} sync limit",
+					snbt.length(), this.getUUID(), AI_STATE_MAX_CHARS);
+			return;
+		}
+		this.entityData.set(AI_STATE, snbt);
 		this.aiCache = state;
 	}
 
