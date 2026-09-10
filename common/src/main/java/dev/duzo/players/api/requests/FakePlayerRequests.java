@@ -170,27 +170,34 @@ public final class FakePlayerRequests {
 		if (holder != null) {
 			RequestBoard board = RequestRouting.boardOf(holder);
 			ItemRequest existing = board == null ? null : board.find(key);
-			// A shortfalled copy would otherwise pin this key to a board that cannot fill it, even
-			// after another storeroom is stocked. It has no assignee and no cargo in flight, so it
-			// is safe to release and re-post against a Quartermaster that has the item.
-			if (existing != null && existing.stage() == RequestStage.SHORTFALL
-					&& betterHolderExists(level, requester, owner, key, holder)) {
-				board.forget(existing);
-				INSTANCE.fireRemoved(holder, existing);
-				holder = null;
-				existing = null;
-			}
-			if (existing != null) {
-				RequestStage from = existing.stage();
-				board.revive(existing, count, priority);
-				INSTANCE.fireStageChange(holder, existing, from);
-				return new RaisedRequest(RaiseResult.ALREADY_OPEN, holder, existing);
-			}
-			if (holder != null) {
+			if (existing == null) {
 				// known holder that has not ticked, so it cannot be revived this tick. A distinct
 				// result, because callers must not dereference request() here.
 				return new RaisedRequest(RaiseResult.HOLDER_NOT_READY, holder, null);
 			}
+
+			// A shortfalled copy would otherwise pin this key to a board that cannot fill it, even
+			// after another storeroom is stocked. It has no assignee and no cargo in flight, so it
+			// can move. The SAME object moves, keeping remaining, the delivered tally and both
+			// prune clocks, and the source board is only released once the target has accepted.
+			if (existing.stage() == RequestStage.SHORTFALL) {
+				FakePlayerEntity target = migrationTarget(level, owner, key, existing, holder);
+				RequestBoard targetBoard = target == null ? null : RequestRouting.boardOf(target);
+				if (targetBoard != null
+						&& targetBoard.adopt(existing, PlayersConfig.get().requestMaxPerQuartermaster)) {
+					// adopted first, then released: the request is never absent from every board,
+					// so a full target cannot lose it
+					board.forget(existing);
+					targetBoard.revive(existing, count, priority);
+					INSTANCE.fireStageChange(target, existing, RequestStage.SHORTFALL);
+					return new RaisedRequest(RaiseResult.ALREADY_OPEN, target, existing);
+				}
+			}
+
+			RequestStage from = existing.stage();
+			board.revive(existing, count, priority);
+			INSTANCE.fireStageChange(holder, existing, from);
+			return new RaisedRequest(RaiseResult.ALREADY_OPEN, holder, existing);
 		}
 
 		FakePlayerEntity quartermaster = RequestRouting.nearestCapable(level, requester, owner, key.item());
@@ -206,13 +213,22 @@ public final class FakePlayerRequests {
 		return new RaisedRequest(RaiseResult.RAISED, quartermaster, request);
 	}
 
-	/** Whether some other Quartermaster actually has the item, so a shortfall can be moved to it. */
-	private static boolean betterHolderExists(ServerLevel level, Entity requester, UUID owner,
-	                                          RequestKey key, FakePlayerEntity current) {
-		FakePlayerEntity stocked = RequestRouting.nearestCapable(level, requester, owner, key.item());
-		return stocked != null && stocked != current
-				&& RequestRouting.boardOf(stocked) != null
-				&& stock((ServerLevel) stocked.level(), stocked, key.item()) > 0;
+	/**
+	 * A Quartermaster worth moving a shortfalled request to, or null.
+	 *
+	 * <p>Requires enough stock to actually finish the request, not merely one unit, and requires
+	 * the same level as the current holder: a Runner can only serve a Quartermaster and a requester
+	 * in its own level, so a cross-level move produces a request nobody can deliver.
+	 */
+	@Nullable
+	private static FakePlayerEntity migrationTarget(ServerLevel level, UUID owner, RequestKey key,
+	                                                ItemRequest existing, FakePlayerEntity current) {
+		for (FakePlayerEntity qm : RequestRouting.allQuartermastersOf(level, owner)) {
+			if (qm == current || qm.level() != current.level()) continue;
+			if (RequestRouting.boardOf(qm) == null) continue;
+			if (stock((ServerLevel) qm.level(), qm, key.item()) >= existing.remaining()) return qm;
+		}
+		return null;
 	}
 
 	/** The open request with this key on any reachable board, or null. */

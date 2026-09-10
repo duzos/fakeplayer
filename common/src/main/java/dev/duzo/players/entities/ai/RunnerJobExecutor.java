@@ -53,7 +53,7 @@ public class RunnerJobExecutor implements JobExecutor {
 			// Haul presence is the busy lock and only this method can clear it.
 			if (level.getGameTime() - haul.since() > RequestRouting.ORPHAN_TICKS) {
 				dropCargo(level, entity, haul);
-				Haul.clear(entity);
+				releaseHaul(level, entity);
 				RequestRouting.notifyOwner(level, entity,
 						"lost contact with its quartermaster, dropping what it carried");
 			}
@@ -64,7 +64,7 @@ public class RunnerJobExecutor implements JobExecutor {
 		if (qm.getAIState().job() != Job.QUARTERMASTER) {
 			// decidable from AIState, so decide it now rather than waiting out the orphan window
 			returnCargo(level, entity, qm, (ServerLevel) qm.level(), haul);
-			Haul.clear(entity);
+			releaseHaul(level, entity);
 			rest(level, entity);
 			return;
 		}
@@ -83,7 +83,7 @@ public class RunnerJobExecutor implements JobExecutor {
 			// crosses it, and skipping the return there left the pool's goods in the runner's
 			// pockets with the baseline discarded so nothing could ever account for them.
 			returnCargo(level, entity, qm, qmLevel, haul);
-			Haul.clear(entity);
+			releaseHaul(level, entity);
 			rest(level, entity);
 			return;
 		}
@@ -206,7 +206,7 @@ public class RunnerJobExecutor implements JobExecutor {
 				if (board != null) board.forget(request);
 				FakePlayerRequests.INSTANCE.fireRemoved(qm, request);
 				returnCargo(level, entity, qm, qmLevel, haul); // any over-collected surplus
-				Haul.clear(entity);
+				releaseHaul(level, entity);
 				rest(level, entity);
 			}
 			return;
@@ -257,7 +257,7 @@ public class RunnerJobExecutor implements JobExecutor {
 	private void fail(ServerLevel level, FakePlayerEntity entity, FakePlayerEntity qm, ServerLevel qmLevel,
 	                  Haul haul, ItemRequest request, String reason) {
 		returnCargo(level, entity, qm, qmLevel, haul);
-		Haul.clear(entity);
+		releaseHaul(level, entity);
 		RequestStage from = request.stage();
 		request.assignTo(null, level.getGameTime());
 		request.setStage(RequestStage.PENDING);
@@ -324,6 +324,16 @@ public class RunnerJobExecutor implements JobExecutor {
 			entity.spawnAtLocation(level, drop);
 			if (stack.isEmpty()) inv.setItem(slot, ItemStack.EMPTY);
 		}
+	}
+
+	/**
+	 * Drop the receipt, which is also the busy lock. A refusal would leave this Runner marked busy
+	 * to every board with nothing able to clear it, so it is worth the owner's attention.
+	 */
+	private void releaseHaul(ServerLevel level, FakePlayerEntity entity) {
+		if (Haul.clear(entity)) return;
+		RequestRouting.notifyOwner(level, entity,
+				"could not clear its delivery orders and will not accept more work until its state shrinks");
 	}
 
 	/** Ranked from the Runner's own position, not the Quartermaster's, which moves under follow-override. */
