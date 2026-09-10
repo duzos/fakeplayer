@@ -81,11 +81,13 @@ public class QuartermasterJobExecutor implements JobExecutor {
 
 		String liar = null;
 		if (have < request.remaining()) {
+			// one forced rebuild up front, so the first resolver's base is fresh; after that each
+			// post-call reading is itself freshly rebuilt and serves as the next resolver's base.
+			// Rebuilding on both sides of every call cost 2N full storeroom rescans per pass.
+			PoolIndex.markDirty(level, entity.getUUID());
+			have = PoolIndex.of(level, entity).count(request.key().item());
 			for (FakePlayerRequests.Resolver resolver : FakePlayerRequests.INSTANCE.resolverChain()) {
-				// rebuild BEFORE the call as well as after, or the two readings are on different
-				// bases and a stale-high index frames an honest resolver as over-reporting
-				PoolIndex.markDirty(level, entity.getUUID());
-				int before = PoolIndex.of(level, entity).count(request.key().item());
+				int before = have;
 				int claimed = Math.max(0, resolver.deposit(entity, request));
 				// unconditionally, because a resolver that deposits correctly but returns 0 would
 				// otherwise stay invisible until the next interval rebuild
@@ -108,7 +110,10 @@ public class QuartermasterJobExecutor implements JobExecutor {
 			announce(level, entity, request, "norunner", "no free runner for " + request.key().item());
 			return;
 		}
+		// every reason that can precede a successful dispatch, or a later genuine one is swallowed
 		board.clearLatch(request.key(), "norunner");
+		board.clearLatch(request.key(), "haulfailed");
+		board.clearLatch(request.key(), "orphaned");
 
 		// a refused receipt leaves the runner unmarked while the request says DISPATCHED, which is
 		// exactly the double-assignment window Haul exists to close
@@ -116,6 +121,14 @@ public class QuartermasterJobExecutor implements JobExecutor {
 			request.noteFailure();
 			request.setRetryAfter(now + BACKOFF_TICKS);
 			announce(level, entity, request, "haulfailed", "could not hand a runner its delivery orders");
+			// refusal is a persistent property of that runner's oversized state, so escalate
+			// rather than looping on it forever with nothing more said
+			if (request.failures() >= MAX_FAILURES) {
+				RequestStage stalled = request.stage();
+				request.setStage(RequestStage.SHORTFALL);
+				request.setShortfallReason("could not hand a runner its delivery orders");
+				FakePlayerRequests.INSTANCE.fireStageChange(entity, request, stalled);
+			}
 			return;
 		}
 
