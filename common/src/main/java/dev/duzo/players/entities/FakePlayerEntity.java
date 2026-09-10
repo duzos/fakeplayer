@@ -1,5 +1,6 @@
 package dev.duzo.players.entities;
 
+import dev.duzo.players.api.CustomBindTracker;
 import dev.duzo.players.api.InteractionRegistry;
 import dev.duzo.players.api.SkinGrabber;
 import dev.duzo.players.config.PlayersConfig;
@@ -10,6 +11,8 @@ import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.entities.ai.JobExecutor;
 import dev.duzo.players.entities.ai.JobExecutors;
+import dev.duzo.players.entities.ai.RangedWeapon;
+import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
 import dev.duzo.players.entities.goal.FollowOwnerGoal;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
@@ -35,6 +38,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.Pose;
@@ -44,15 +48,24 @@ import net.minecraft.world.entity.ai.goal.*;
 import dev.duzo.players.entities.ai.FakeHurtByTargetGoal;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.entity.monster.CrossbowAttackMob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.entity.projectile.ThrownTrident;
+import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 
-import javax.annotation.Nullable;
+import net.minecraft.sounds.SoundEvents;
 
-public class FakePlayerEntity extends PathfinderMob {
+import javax.annotation.Nullable;
+import java.util.function.Predicate;
+
+public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob {
 	private static final EntityDataAccessor<Integer> PHYSICAL_STATE = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<CompoundTag> SKIN_DATA = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.COMPOUND_TAG);
 	private static final EntityDataAccessor<Boolean> SLIM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
@@ -60,6 +73,8 @@ public class FakePlayerEntity extends PathfinderMob {
 	// client-visual-only "what the job is placing" item, drawn in the main hand by the renderer;
 	// never affects the real MAINHAND equipment slot and does not need to survive a reload
 	private static final EntityDataAccessor<ItemStack> DISPLAY_ITEM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.ITEM_STACK);
+	// drives the client-side crossbow charging pose; combat state only, never persisted
+	private static final EntityDataAccessor<Boolean> CHARGING_CROSSBOW = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
 	private SkinData dataCache;
 	private AIState aiCache;
 	private Component nameCache;
@@ -192,7 +207,9 @@ public class FakePlayerEntity extends PathfinderMob {
 			return super.mobInteract(player, hand);
 		}
 
-		if (player.isShiftKeyDown()) {
+		// a client that has bound the open-menu key opens the menu with that instead, leaving right-click
+		// free for other mods that claim it
+		if (player.isShiftKeyDown() && !CustomBindTracker.hasCustomBind(player)) {
 			if (!player.level().isClientSide()) {
 				Services.COMMON_REGISTRY.openMenu(
 						(ServerPlayer) player,
@@ -208,6 +225,140 @@ public class FakePlayerEntity extends PathfinderMob {
 		}
 
 		return super.mobInteract(player, hand);
+	}
+
+	// ---- ranged combat ----
+
+	/** The hand holding a ranged weapon this fake can actually fight with right now, or null. */
+	@Nullable
+	public InteractionHand getUsableRangedHand() {
+		// both hands, so an empty bow in the main hand does not hide a usable trident in the offhand
+		for (InteractionHand hand : InteractionHand.values()) {
+			ItemStack weapon = this.getItemInHand(hand);
+			RangedWeapon kind = RangedWeapon.of(weapon);
+			if (kind != null && this.hasAmmoFor(kind, weapon)) return hand;
+		}
+		return null;
+	}
+
+	@Nullable
+	public RangedWeapon getUsableRangedWeapon() {
+		InteractionHand hand = this.getUsableRangedHand();
+		return hand == null ? null : RangedWeapon.of(this.getItemInHand(hand));
+	}
+
+	private boolean hasAmmoFor(RangedWeapon kind, ItemStack weapon) {
+		if (kind == RangedWeapon.TRIDENT) return true;
+		// a loaded crossbow already holds its bolt: vanilla moves the arrow out of the inventory when charging
+		// completes, tens of ticks before the shot, so requiring inventory ammo here stranded the last arrow
+		if (kind == RangedWeapon.CROSSBOW && CrossbowItem.isCharged(weapon)) return true;
+		return !this.getProjectile(weapon).isEmpty();
+	}
+
+	/** Whether a combat goal may drive movement, or a working job is actively pathing and must not be fought. */
+	public boolean allowsCombatMovement() {
+		// the Guard job yields navigation to its target, so combat is free to take over there
+		return !this.isMovementManagedByJob() || this.getAIState().job() == Job.GUARD;
+	}
+
+	// Ammunition comes out of the fake's own inventory, so it runs dry like a player rather than
+	// shooting for free like a skeleton. Hands are checked first so an offhand quiver still works.
+	@Override
+	public ItemStack getProjectile(ItemStack weapon) {
+		Predicate<ItemStack> accepts = RangedWeapon.ammo(weapon);
+
+		for (InteractionHand hand : InteractionHand.values()) {
+			ItemStack held = this.getItemInHand(hand);
+			if (!held.isEmpty() && accepts.test(held)) return held;
+		}
+
+		for (int slot = 0; slot < this.inventory.getContainerSize(); slot++) {
+			ItemStack stack = this.inventory.getItem(slot);
+			if (!stack.isEmpty() && accepts.test(stack)) return stack;
+		}
+
+		return ItemStack.EMPTY;
+	}
+
+	@Override
+	public void performRangedAttack(LivingEntity target, float velocity) {
+		if (!(this.level() instanceof ServerLevel server)) return;
+
+		InteractionHand hand = this.getUsableRangedHand();
+		if (hand == null) return;
+
+		ItemStack weapon = this.getItemInHand(hand);
+		RangedWeapon kind = RangedWeapon.of(weapon);
+		if (kind == null) return;
+
+		if (kind == RangedWeapon.TRIDENT) {
+			this.throwTrident(server, target, weapon, hand);
+			return;
+		}
+
+		// the goal fires crossbows through performCrossbowAttack; only reachable if something else asks
+		if (kind == RangedWeapon.CROSSBOW) {
+			this.performCrossbowAttack(this, velocity);
+			return;
+		}
+
+		ItemStack ammo = this.getProjectile(weapon);
+		if (ammo.isEmpty()) return;
+
+		// no weapon ItemStack parameter on this version: enchantments on the bow are not applied to the arrow
+		AbstractArrow arrow = ProjectileUtil.getMobArrow(this, ammo.copyWithCount(1), velocity);
+		// the fake paid for this arrow out of its inventory, so let it be picked back up
+		arrow.pickup = AbstractArrow.Pickup.ALLOWED;
+		this.shootAt(server, target, arrow, ammo);
+		ammo.shrink(1);
+		this.inventory.setChanged();
+		weapon.hurtAndBreak(1, this, e -> e.broadcastBreakEvent(hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND));
+		this.playSound(SoundEvents.SKELETON_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
+	}
+
+	// A thrown trident is not recoverable, so the held one is only damaged rather than consumed. Making the
+	// copy pickup-able instead would hand the thrower a second trident every throw.
+	private void throwTrident(ServerLevel server, LivingEntity target, ItemStack weapon, InteractionHand hand) {
+		ThrownTrident trident = new ThrownTrident(server, this, weapon.copyWithCount(1));
+		trident.pickup = AbstractArrow.Pickup.DISALLOWED;
+		this.shootAt(server, target, trident, weapon);
+		weapon.hurtAndBreak(1, this, e -> e.broadcastBreakEvent(hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND));
+		this.playSound(SoundEvents.DROWNED_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
+	}
+
+	// Same lob and same difficulty-scaled inaccuracy vanilla's skeleton uses. Projectile.spawnProjectileUsingShoot
+	// does not exist on this version, so the projectile is shot and added to the level directly, the way vanilla
+	// itself did before that helper was introduced.
+	private void shootAt(ServerLevel server, LivingEntity target, AbstractArrow projectile, ItemStack from) {
+		double dx = target.getX() - this.getX();
+		double dy = target.getY(0.3333333333333333D) - projectile.getY();
+		double dz = target.getZ() - this.getZ();
+		double horizontal = Math.sqrt(dx * dx + dz * dz);
+		projectile.shoot(dx, dy + horizontal * 0.20000000298023224D, dz,
+				1.6F, 14 - server.getLevelData().getDifficulty().getId() * 4);
+		server.addFreshEntity(projectile);
+	}
+
+	@Override
+	public void setChargingCrossbow(boolean charging) {
+		this.entityData.set(CHARGING_CROSSBOW, charging);
+	}
+
+	public boolean isChargingCrossbow() {
+		return this.entityData.get(CHARGING_CROSSBOW);
+	}
+
+	@Override
+	public void onCrossbowAttackPerformed() {
+		this.noActionTime = 0;
+	}
+
+	// CrossbowAttackMob.shootCrossbowProjectile(LivingEntity, ItemStack, Projectile, float) has no default body
+	// on this version (only the 5-arg shooter/target overload does), unlike 1.21.11 where the reference needed
+	// no override at all. Vanilla's own CrossbowAttackMob implementations (e.g. Pillager) all forward like this.
+	@Override
+	public void shootCrossbowProjectile(LivingEntity shooter, ItemStack weapon, Projectile projectile, float velocity) {
+		this.shootCrossbowProjectile(this, shooter, projectile, velocity, 1.6F);
 	}
 
 	public static AttributeSupplier.Builder getHumanoidAttributes() {
@@ -227,6 +378,9 @@ public class FakePlayerEntity extends PathfinderMob {
 		this.targetSelector.addGoal(1, new FakeHurtByTargetGoal(this));
 		this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.5D, true));
 		this.goalSelector.addGoal(2, new MoveTowardsItemsGoal(this, 1.0D, true));
+		// above the item-pickup goal on purpose: goals only yield the movement flag to a strictly better
+		// priority, so at 2 a fake already walking to a drop could never break off to shoot
+		this.goalSelector.addGoal(1, new FakeRangedAttackGoal(this, 1.0D, 15.0F));
 		this.goalSelector.addGoal(1, new TemptGoal(this, 1.0D, Ingredient.of(Items.REDSTONE_BLOCK, Items.REDSTONE_TORCH), false));
 		this.goalSelector.addGoal(0, new FloatGoal(this));
 		this.goalSelector.addGoal(0, new FollowOwnerGoal(this));
@@ -317,6 +471,7 @@ public class FakePlayerEntity extends PathfinderMob {
 		this.entityData.define(SLIM, false);
 		this.entityData.define(AI_STATE, new AIState().toNbt());
 		this.entityData.define(DISPLAY_ITEM, ItemStack.EMPTY);
+		this.entityData.define(CHARGING_CROSSBOW, false);
 	}
 
 	@Override

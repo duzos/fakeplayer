@@ -14,6 +14,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 
 @Mod.EventBusSubscriber(modid = Constants.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientModEvents {
@@ -21,6 +22,11 @@ public class ClientModEvents {
 	public static void onEntityRenderersRegistry(EntityRenderersEvent.RegisterRenderers event) {
 		event.registerEntityRenderer(FPEntities.FAKE_PLAYER.get(), FakePlayerRendererWrapper::new);
 		event.registerEntityRenderer(FPEntities.FISHING_HOOK.get(), FakeFishingHookRenderer::new);
+	}
+
+	@SubscribeEvent
+	public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+		event.register(FPKeybinds.OPEN_MENU);
 	}
 
 	@SubscribeEvent

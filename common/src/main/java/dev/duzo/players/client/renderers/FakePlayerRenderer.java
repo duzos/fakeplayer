@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import dev.duzo.players.client.model.FakePlayerModel;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.client.model.HumanoidArmorModel;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -13,10 +14,13 @@ import net.minecraft.client.renderer.entity.layers.*;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, FakePlayerModel> {
 	public FakePlayerRenderer(EntityRendererProvider.Context context, boolean slim) {
@@ -42,8 +46,70 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 			matrices.translate(0, -0.5f, 0);
 		}
 
+		// There is no render state on this version: poses live directly on the model, and nothing was
+		// ever setting them before this, so a fake drawing a bow / charging a crossbow / winding up a
+		// trident rendered with its arms down. Set them here, right before the model uses them, same as
+		// the display-item fallback below (an item-use pose wins, otherwise the old ITEM/EMPTY behaviour).
+		ItemStack display = entity.getDisplayItem();
+		boolean mainIsRight = entity.getMainArm() == HumanoidArm.RIGHT;
+		boolean mainHandHasDisplay = !display.isEmpty();
+		HumanoidModel<FakePlayerEntity> model = this.getModel();
+		model.leftArmPose = resolveArmPose(entity, HumanoidArm.LEFT, !mainIsRight && mainHandHasDisplay);
+		model.rightArmPose = resolveArmPose(entity, HumanoidArm.RIGHT, mainIsRight && mainHandHasDisplay);
+
 		super.render(entity, pEntityYaw, pPartialTicks, matrices, pBuffer, pPackedLight);
 		matrices.popPose();
+	}
+
+	// AvatarRenderer's equivalent (on newer versions) is private and takes an Avatar, which a fake is not,
+	// so it is mirrored here.
+	static HumanoidModel.ArmPose armPose(FakePlayerEntity entity, HumanoidArm arm) {
+		ItemStack main = entity.getItemInHand(InteractionHand.MAIN_HAND);
+		ItemStack off = entity.getItemInHand(InteractionHand.OFF_HAND);
+		HumanoidModel.ArmPose mainPose = poseFor(entity, main, InteractionHand.MAIN_HAND);
+		HumanoidModel.ArmPose offPose = poseFor(entity, off, InteractionHand.OFF_HAND);
+
+		// a two-handed pose owns both arms, so the other one just holds or is empty
+		if (mainPose.isTwoHanded()) {
+			offPose = off.isEmpty() ? HumanoidModel.ArmPose.EMPTY : HumanoidModel.ArmPose.ITEM;
+		}
+
+		return arm == entity.getMainArm() ? mainPose : offPose;
+	}
+
+	private static HumanoidModel.ArmPose poseFor(FakePlayerEntity entity, ItemStack stack, InteractionHand hand) {
+		if (stack.isEmpty()) return HumanoidModel.ArmPose.EMPTY;
+
+		if (!entity.swinging && stack.is(Items.CROSSBOW) && CrossbowItem.isCharged(stack)) {
+			return HumanoidModel.ArmPose.CROSSBOW_HOLD;
+		}
+
+		if (entity.getUsedItemHand() == hand && entity.getUseItemRemainingTicks() > 0) {
+			return switch (stack.getUseAnimation()) {
+				case BLOCK -> HumanoidModel.ArmPose.BLOCK;
+				case BOW -> HumanoidModel.ArmPose.BOW_AND_ARROW;
+				case SPEAR -> HumanoidModel.ArmPose.THROW_SPEAR;
+				case CROSSBOW -> HumanoidModel.ArmPose.CROSSBOW_CHARGE;
+				case SPYGLASS -> HumanoidModel.ArmPose.SPYGLASS;
+				case TOOT_HORN -> HumanoidModel.ArmPose.TOOT_HORN;
+				case BRUSH -> HumanoidModel.ArmPose.BRUSH;
+				default -> HumanoidModel.ArmPose.ITEM;
+			};
+		}
+
+		return HumanoidModel.ArmPose.ITEM;
+	}
+
+	// An item-use pose (drawing a bow, charging a crossbow, winding up a trident) has to win over the plain
+	// "holding something" pose, or the fake shoots with its arms down. Everything else keeps the old
+	// behaviour, including the display item a job shows without touching the real equipment slot.
+	private static HumanoidModel.ArmPose resolveArmPose(FakePlayerEntity entity, HumanoidArm arm, boolean hasDisplayItem) {
+		HumanoidModel.ArmPose pose = armPose(entity, arm);
+		if (pose != HumanoidModel.ArmPose.EMPTY && pose != HumanoidModel.ArmPose.ITEM) return pose;
+
+		InteractionHand hand = arm == entity.getMainArm() ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
+		return hasDisplayItem || !entity.getItemInHand(hand).isEmpty()
+			? HumanoidModel.ArmPose.ITEM : HumanoidModel.ArmPose.EMPTY;
 	}
 
 
