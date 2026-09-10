@@ -128,7 +128,9 @@ public final class ItemRequest {
 		if (key == null) return null;
 		ItemRequest req = new ItemRequest(key, tag.getIntOr("Wanted", 1),
 				tag.getIntOr("Priority", 0), tag.getLongOr("RaisedAt", 0L));
-		req.remaining = Math.max(0, tag.getIntOr("Remaining", req.wanted));
+		// clamped to wanted: topUp derives delivered as wanted - remaining, and a hand-edited or
+		// truncated board could otherwise make that negative and inflate the ask
+		req.remaining = Math.min(req.wanted, Math.max(0, tag.getIntOr("Remaining", req.wanted)));
 		req.stage = RequestStage.byName(tag.getStringOr("Stage", RequestStage.PENDING.name()), RequestStage.PENDING);
 		req.lifetimeFailures = tag.getIntOr("LifeFail", 0);
 		int[] raw = tag.getIntArray("Assignee").orElse(null);

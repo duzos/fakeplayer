@@ -1,5 +1,6 @@
 package dev.duzo.players.entities.ai.requests;
 
+import dev.duzo.players.Constants;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.AIState;
 import net.minecraft.core.UUIDUtil;
@@ -86,7 +87,12 @@ public record Haul(UUID quartermaster, Identifier item, int baseline, long since
 	public int cargo(FakePlayerEntity runner) {
 		int held = countOf(runner, item);
 		if (held < baseline) {
-			write(runner, quartermaster, item, held, since);
+			if (!write(runner, quartermaster, item, held, since)) {
+				// the correction could not be stored, so this will be retried every tick. Say so
+				// once per occurrence rather than failing silently.
+				Constants.LOG.warn("Could not correct the haul baseline for {}: its AIState is too large to sync",
+						runner.getUUID());
+			}
 			return 0;
 		}
 		return held - baseline;
