@@ -248,9 +248,11 @@ public class RunnerJobExecutor implements JobExecutor {
 		request.assignTo(null, level.getGameTime());
 		request.setStage(RequestStage.PENDING);
 		if (qm.activeJobExecutor() instanceof QuartermasterJobExecutor executor) {
+			// owns the transition and fires the event, so this method must not fire a second one
 			executor.noteRunnerFailure(qmLevel, qm, request, level.getGameTime(), reason);
+		} else {
+			FakePlayerRequests.INSTANCE.fireStageChange(qm, request, from);
 		}
-		FakePlayerRequests.INSTANCE.fireStageChange(qm, request, from);
 		rest(level, entity);
 	}
 
@@ -322,12 +324,17 @@ public class RunnerJobExecutor implements JobExecutor {
 		return best;
 	}
 
+	/**
+	 * The requester, but only while it is in this level. getPlayer(uuid) is server-wide and
+	 * JobHelpers.atTarget compares coordinates without levels, so without the level check a player
+	 * standing at matching coordinates in another dimension would be handed the goods.
+	 */
 	@Nullable
 	private Entity requesterOf(ServerLevel level, ItemRequest request) {
-		if (request.key().kind() == RequesterKind.PLAYER) {
-			return level.getServer().getPlayerList().getPlayer(request.key().requester());
-		}
-		return level.getEntity(request.key().requester());
+		Entity target = request.key().kind() == RequesterKind.PLAYER
+				? level.getServer().getPlayerList().getPlayer(request.key().requester())
+				: level.getEntity(request.key().requester());
+		return target != null && target.level() == level ? target : null;
 	}
 
 	private void rest(ServerLevel level, FakePlayerEntity entity) {
