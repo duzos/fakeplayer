@@ -131,7 +131,14 @@ public final class FakePlayerRequests {
 		for (Listener l : this.listeners) l.onRemoved(qm, request);
 	}
 
-	/** Raise on behalf of a fake player, delivered into its inventory. Never returns null. */
+	/**
+	 * Raise on behalf of a fake player, delivered into its inventory.
+	 *
+	 * <p>Never returns null, but check {@link RaisedRequest#ok()} rather than
+	 * {@link RaiseResult#ok()} before touching {@link RaisedRequest#request()}: an
+	 * {@link RaiseResult#ALREADY_OPEN} result can carry a null request in the window after a reload
+	 * where the holding Quartermaster's board is persisted but not yet live.
+	 */
 	public static RaisedRequest raise(FakePlayerEntity requester, ItemStack want, int priority) {
 		if (want.isEmpty() || !(requester.level() instanceof ServerLevel level)) {
 			return RaisedRequest.failed(RaiseResult.INVALID);
@@ -180,8 +187,7 @@ public final class FakePlayerRequests {
 
 		ItemRequest request = board.post(
 				new ItemRequest(key, count, priority, level.getGameTime()),
-				PlayersConfig.get().requestMaxPerQuartermaster,
-				replaced -> INSTANCE.fireRemoved(quartermaster, replaced));
+				PlayersConfig.get().requestMaxPerQuartermaster);
 		if (request == null) return RaisedRequest.failed(RaiseResult.BOARD_FULL);
 		INSTANCE.fireRaised(quartermaster, request);
 		return new RaisedRequest(RaiseResult.RAISED, quartermaster, request);

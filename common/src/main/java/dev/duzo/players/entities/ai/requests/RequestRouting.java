@@ -137,7 +137,11 @@ public final class RequestRouting {
 		if (!(level.getEntity(assignee) instanceof FakePlayerEntity runner) || !runner.isAlive()) {
 			return now - request.assignedAt() > ORPHAN_TICKS ? AssignmentFault.ORPHANED : null;
 		}
-		if (runner.getAIState().job() != Job.RUNNER) return AssignmentFault.RE_JOBBED;
+		// running() is AIState too, and a stopped runner never ticks, so it can neither finish the
+		// delivery nor release its own Haul. Without this the request and the cargo strand forever.
+		if (runner.getAIState().job() != Job.RUNNER || !runner.getAIState().running()) {
+			return AssignmentFault.RE_JOBBED;
+		}
 		Haul haul = Haul.of(runner.getAIState());
 		if (haul == null || !haul.quartermaster().equals(quartermaster)) return AssignmentFault.RE_JOBBED;
 		return null;

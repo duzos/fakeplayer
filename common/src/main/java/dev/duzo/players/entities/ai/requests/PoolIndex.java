@@ -12,12 +12,19 @@ import net.minecraft.world.Container;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.ChestBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.ChestType;
 import org.jetbrains.annotations.ApiStatus;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -116,6 +123,17 @@ public final class PoolIndex {
 		}
 	}
 
+	/** The other half of a double chest at this position, or null if it is not one. */
+	@Nullable
+	private static BlockPos doubleChestPartner(ServerLevel level, BlockPos pos) {
+		BlockState state = level.getBlockState(pos);
+		if (!(state.getBlock() instanceof ChestBlock)) return null;
+		if (!state.hasProperty(ChestBlock.TYPE)) return null;
+		ChestType type = state.getValue(ChestBlock.TYPE);
+		if (type == ChestType.SINGLE) return null;
+		return pos.relative(ChestBlock.getConnectedDirection(state)).immutable();
+	}
+
 	private void ensure(ServerLevel level, FakePlayerEntity quartermaster) {
 		long now = level.getGameTime();
 		// a clock that moved backwards (world restored, different level) must not freeze rebuilds
@@ -129,21 +147,21 @@ public final class PoolIndex {
 	private void rebuild(ServerLevel level, FakePlayerEntity quartermaster) {
 		counts.clear();
 		locations.clear();
-		List<Container> seen = new ArrayList<>();
+		Set<BlockPos> counted = new HashSet<>();
 		for (BlockPos pos : StoragePool.read(quartermaster.getAIState())) {
 			Container container = JobHelpers.containerAt(level, pos);
 			if (container == null) continue;
 			// re-checked here, not just at marking time: a pooled chest may since have been
 			// replaced by a furnace, whose fuel and output slots are not storage
 			if (container instanceof WorldlyContainer) continue;
-			// either half of a double chest resolves to the same merged container, and marking both
-			// halves is the natural gesture, so identity-dedupe or stock reads double
-			boolean already = false;
-			for (Container c : seen) {
-				if (c == container) { already = true; break; }
-			}
-			if (already) continue;
-			seen.add(container);
+			// Marking both halves of a double chest is the natural gesture, and getContainerAt
+			// returns the whole merged inventory for either half, so counting both would double
+			// every stack. Identity comparison does not work: CompoundContainer is freshly
+			// allocated on each call. Skip a half whose partner is already counted.
+			if (counted.contains(pos)) continue;
+			counted.add(pos.immutable());
+			BlockPos partner = doubleChestPartner(level, pos);
+			if (partner != null) counted.add(partner);
 
 			for (int slot = 0; slot < container.getContainerSize(); slot++) {
 				ItemStack stack = container.getItem(slot);
