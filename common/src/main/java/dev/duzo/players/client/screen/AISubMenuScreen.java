@@ -11,6 +11,8 @@ import dev.duzo.players.network.c2s.BondPacketC2S;
 import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
 import dev.duzo.players.network.c2s.OpenCrafterLearnPacketC2S;
+import dev.duzo.players.entities.ai.requests.StoragePool;
+import dev.duzo.players.network.c2s.RequestItemPacketC2S;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
@@ -76,6 +78,9 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton sourceButton;
 	private FlatButton teachButton;
 	private FlatButton patrolClearButton;
+	private FlatButton poolButton;
+	private EditBox requestEdit;
+	private FlatButton requestButton;
 	private EditBox filterEdit;
 	private FlatButton filterButton;
 	private FlatButton filterToggle;
@@ -89,7 +94,7 @@ public class AISubMenuScreen extends Screen {
 	private int filterToggleX;
 
 	// Which marker rows a job actually uses, in display order. Drives both layout and rendering.
-	private enum Row { WAYPOINT, REGION, DEPOSIT, SOURCE, TEACH, FILTER, PATROL }
+	private enum Row { WAYPOINT, REGION, DEPOSIT, SOURCE, TEACH, FILTER, PATROL, POOL, REQUEST }
 
 	// Shrinks the whole panel when the screen is too small to fit it (large GUI scale).
 	private float uiScale = 1f;
@@ -181,6 +186,16 @@ public class AISubMenuScreen extends Screen {
 		this.addRenderableWidget(filterButton);
 		filterToggle = new FlatButton(filterToggleX, markerSectionY, FILTER_TOGGLE_W, BTN_H, Component.literal("ON"), this::toggleFilter);
 		this.addRenderableWidget(filterToggle);
+		poolButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
+				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_POOL));
+		this.addRenderableWidget(poolButton);
+		requestEdit = new EditBox(this.font, innerLeft + 52, markerSectionY, FILTER_EDIT_W, BTN_H, Component.literal("request"));
+		requestEdit.setMaxLength(256);
+		requestEdit.setTooltip(Tooltip.create(Component.literal(
+				"An item id, optionally followed by a count. Example: minecraft:oak_planks 64")));
+		this.addRenderableWidget(requestEdit);
+		requestButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Ask"), this::sendRequest);
+		this.addRenderableWidget(requestButton);
 
 		int startStopY = markerSectionY + 18 + 4 * ROW_H + 48;
 		startStopButton = new FlatButton(innerLeft, startStopY, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
@@ -225,6 +240,7 @@ public class AISubMenuScreen extends Screen {
 			case FISHERMAN -> List.of(Row.WAYPOINT, Row.DEPOSIT);
 			case FARMER -> List.of(Row.REGION, Row.DEPOSIT);
 			case CRAFTER -> List.of(Row.WAYPOINT, Row.SOURCE, Row.DEPOSIT, Row.TEACH);
+			case QUARTERMASTER -> List.of(Row.POOL, Row.REQUEST);
 			default -> List.of();
 		};
 	}
@@ -239,6 +255,9 @@ public class AISubMenuScreen extends Screen {
 		filterButton.visible = false;
 		filterEdit.visible = false;
 		filterToggle.visible = false;
+		poolButton.visible = false;
+		requestEdit.visible = false;
+		requestButton.visible = false;
 		List<Row> rows = rowsFor(s.job());
 		for (int i = 0; i < rows.size(); i++) {
 			int btnY = markerSectionY + 18 + i * ROW_H - 4;
@@ -249,6 +268,13 @@ public class AISubMenuScreen extends Screen {
 				case SOURCE -> place(sourceButton, btnY);
 				case TEACH -> place(teachButton, btnY);
 				case PATROL -> place(patrolClearButton, btnY);
+				case POOL -> place(poolButton, btnY);
+				case REQUEST -> {
+					place(requestButton, btnY);
+					requestEdit.setX(innerLeft + 52);
+					requestEdit.setY(btnY);
+					requestEdit.visible = true;
+				}
 				case FILTER -> {
 					boolean disabled = filterDisabled(s);
 					place(filterButton, btnY);
@@ -326,6 +352,13 @@ public class AISubMenuScreen extends Screen {
 				case REGION -> drawRegionRow(ctx, x, rowY, s);
 				case DEPOSIT -> drawMarkerRow(ctx, x, rowY, "Deposit", s.depositChest());
 				case SOURCE -> drawMarkerRow(ctx, x, rowY, "Source", s.sourceChest());
+				case POOL -> {
+					int pooled = StoragePool.read(s).size();
+					drawChip(ctx, x + PADDING, rowY, pooled == 0 ? COL_MUTED : COL_GREEN,
+							pooled == 0 ? "Pool  unset" : "Pool  " + pooled + (pooled == 1 ? " container" : " containers"),
+							pooled == 0 ? COL_MUTED : COL_BODY);
+				}
+				case REQUEST -> drawChip(ctx, x + PADDING, rowY, COL_AQUA, "Request", COL_BODY);
 				case TEACH -> {
 					CompoundTag recipe = s.jobParams().getCompound("Recipe");
 					boolean learned = !recipe.isEmpty();
@@ -469,20 +502,30 @@ public class AISubMenuScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-		if (this.filterEdit != null && this.filterEdit.isFocused()) {
+		for (EditBox box : editBoxes()) {
+			if (!box.isFocused()) continue;
 			if (keyCode == InputConstants.KEY_ESCAPE || keyCode == InputConstants.KEY_TAB) {
 				return super.keyPressed(keyCode, scanCode, modifiers);
 			}
-			this.filterEdit.keyPressed(keyCode, scanCode, modifiers);
+			box.keyPressed(keyCode, scanCode, modifiers);
 			return true;
 		}
 		return super.keyPressed(keyCode, scanCode, modifiers);
 	}
 
+	// every visible edit box, so a newly added one is not silently starved of keystrokes
+	private List<EditBox> editBoxes() {
+		List<EditBox> boxes = new java.util.ArrayList<>(2);
+		if (filterEdit != null && filterEdit.visible) boxes.add(filterEdit);
+		if (requestEdit != null && requestEdit.visible) boxes.add(requestEdit);
+		return boxes;
+	}
+
 	@Override
 	public boolean charTyped(char codePoint, int modifiers) {
-		if (this.filterEdit != null && this.filterEdit.isFocused()) {
-			this.filterEdit.charTyped(codePoint, modifiers);
+		for (EditBox box : editBoxes()) {
+			if (!box.isFocused()) continue;
+			box.charTyped(codePoint, modifiers);
 			return true;
 		}
 		return super.charTyped(codePoint, modifiers);
@@ -531,6 +574,24 @@ public class AISubMenuScreen extends Screen {
 	private void openTeach() {
 		Network.getNetworkHandler().sendToServer(new OpenCrafterLearnPacketC2S(entity.getId()));
 		Minecraft.getInstance().setScreen(null);
+	}
+
+	// "minecraft:oak_planks 64" in one box: an id, and optionally a trailing count
+	private void sendRequest() {
+		String raw = requestEdit.getValue().trim();
+		if (raw.isEmpty()) return;
+		String item = raw;
+		int count = 1;
+		int space = raw.lastIndexOf(' ');
+		if (space > 0) {
+			try {
+				count = Integer.parseInt(raw.substring(space + 1).trim());
+				item = raw.substring(0, space).trim();
+			} catch (NumberFormatException ignored) {
+				// no trailing count, so treat the whole box as the item id
+			}
+		}
+		Network.getNetworkHandler().sendToServer(new RequestItemPacketC2S(entity.getId(), item, count));
 	}
 
 	private void applyFilter() {
