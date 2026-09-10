@@ -40,20 +40,25 @@ public final class RequestBoard {
 	}
 
 	/**
-	 * Adds the request, tops up an existing open one, or returns null when the board is at capacity.
-	 * The cap counts every request, not just open ones, because shortfalls persist too.
+	 * Adds the request, or revives and tops up an existing one with the same key, or returns null
+	 * when the board is at capacity. The cap counts every request, not just open ones, because
+	 * shortfalls persist too.
 	 */
 	@Nullable
-	public ItemRequest post(ItemRequest request, int cap, Consumer<ItemRequest> onRemoved) {
+	public ItemRequest post(ItemRequest request, int cap) {
 		ItemRequest existing = find(request.key());
-		if (existing != null && existing.isOpen()) {
+		if (existing != null) {
+			// revived in place rather than replaced. forget+add would wipe this key's latches and
+			// its lifetime failure count, so a consumer re-raising on a timer would re-notify the
+			// owner on every raise and could never be pruned.
 			existing.topUp(request.wanted(), request.priority());
+			if (!existing.isOpen()) {
+				existing.setStage(RequestStage.PENDING);
+				existing.resetFailures();
+				existing.setRetryAfter(0L);
+			}
 			requests.sort(ORDER);
 			return existing;
-		}
-		if (existing != null) {
-			forget(existing);
-			onRemoved.accept(existing);
 		}
 		if (requests.size() >= cap) return null;
 		requests.add(request);
@@ -113,9 +118,12 @@ public final class RequestBoard {
 	 * eligible too: a pending request for a dead fake is the one that costs real work, because it
 	 * keeps being dispatched.
 	 */
-	public void prune(Predicate<RequestKey> requesterGone, int minFailures, Consumer<ItemRequest> onRemoved) {
+	public void prune(Predicate<RequestKey> requesterGone, int minFailures, long raisedBefore,
+	                  Consumer<ItemRequest> onRemoved) {
 		requests.removeIf(r -> {
-			boolean drop = r.lifetimeFailures() >= minFailures && requesterGone.test(r.key());
+			boolean drop = r.lifetimeFailures() >= minFailures
+					&& r.raisedAt() <= raisedBefore
+					&& requesterGone.test(r.key());
 			if (drop) {
 				clearLatch(r.key());
 				onRemoved.accept(r);

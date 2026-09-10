@@ -54,7 +54,10 @@ public class QuartermasterJobExecutor implements JobExecutor {
 
 		if (now >= nextPrune) {
 			nextPrune = now + PRUNE_EVERY;
+			// the age floor keeps "unloaded chunk" from reading as "requester gone", the same
+			// distinction assignmentFault makes
 			board.prune(key -> requesterGone(level, key), MAX_FAILURES,
+					now - RequestRouting.ORPHAN_TICKS,
 					dropped -> FakePlayerRequests.INSTANCE.fireRemoved(entity, dropped));
 		}
 
@@ -84,7 +87,9 @@ public class QuartermasterJobExecutor implements JobExecutor {
 				// otherwise stay invisible until the next interval rebuild
 				PoolIndex.markDirty(level, entity.getUUID());
 				int after = PoolIndex.of(level, entity).count(request.key().item());
-				if (claimed > after - have) liar = resolver.name();
+				// only accuse a resolver that claimed something: `after - have` goes negative when the
+				// index was stale high, which would otherwise frame an honest zero
+				if (claimed > 0 && claimed > after - have) liar = resolver.name();
 				have = after;
 				if (have >= request.remaining()) break;
 			}
@@ -109,7 +114,9 @@ public class QuartermasterJobExecutor implements JobExecutor {
 		request.assignTo(runner.getUUID(), now);
 		request.setStage(RequestStage.DISPATCHED);
 		request.setShortfallReason(null);
-		request.resetFailures();
+		// deliberately NOT resetFailures(): dispatch happens before the runner can fail, so
+		// clearing here means the counter never reaches MAX_FAILURES and escalation is dead code
+
 		// only a dispatch that can satisfy the whole ask clears the shortfall latch, or a
 		// trickle-fed pool re-notifies the owner once per item that arrives
 		if (have >= request.remaining()) board.clearLatch(request.key(), "shortfall");
@@ -141,15 +148,15 @@ public class QuartermasterJobExecutor implements JobExecutor {
 
 	/** Called by a Runner that gave up a leg, so the request backs off instead of re-dispatching at once. */
 	public void noteRunnerFailure(ServerLevel level, FakePlayerEntity entity, ItemRequest request, long now, String reason) {
+		RequestStage from = request.stage();
 		request.noteFailure();
 		request.setRetryAfter(now + BACKOFF_TICKS);
 		if (request.failures() >= MAX_FAILURES) {
-			RequestStage from = request.stage();
 			request.setStage(RequestStage.SHORTFALL);
 			request.setShortfallReason(reason);
 			announce(level, entity, request, "shortfall", reason + " for " + request.key().item());
-			FakePlayerRequests.INSTANCE.fireStageChange(entity, request, from);
 		}
+		FakePlayerRequests.INSTANCE.fireStageChange(entity, request, from);
 	}
 
 	private void retryShortfalls(FakePlayerEntity entity) {

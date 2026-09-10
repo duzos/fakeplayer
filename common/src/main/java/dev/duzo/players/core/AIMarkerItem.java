@@ -256,7 +256,14 @@ public class AIMarkerItem extends Item {
 				}
 				BlockPos commit = pos.immutable();
 				boolean[] added = {false};
-				entity.mutateAIState(s -> added[0] = StoragePool.toggle(s, commit));
+				// stored may be false when the pool has grown past the AIState sync limit, in which
+				// case nothing was written and saying "added" would be a lie
+				boolean stored = entity.mutateAIState(s -> added[0] = StoragePool.toggle(s, commit));
+				if (!stored) {
+					player.displayClientMessage(Component.literal("This pool is too large to store any more containers.")
+							.withStyle(ChatFormatting.RED), true);
+					return InteractionResult.FAIL;
+				}
 				PoolIndex.markDirty(level, entity.getUUID());
 				player.displayClientMessage(Component.literal(added[0]
 								? "Container added to the pool."

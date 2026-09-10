@@ -649,21 +649,24 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	// stored, which disconnects every tracking client with no way back. Refuse the write instead.
 	private static final int AI_STATE_MAX_CHARS = 30000;
 
-	public void setAIState(AIState state) {
+	/** @return false when the state was too large to sync and was therefore not stored. */
+	public boolean setAIState(AIState state) {
 		String snbt = state.toNbt().toString();
 		if (snbt.length() > AI_STATE_MAX_CHARS) {
 			Constants.LOG.error("Refusing to store a {}-char AIState for {}: over the {} sync limit",
 					snbt.length(), this.getUUID(), AI_STATE_MAX_CHARS);
-			return;
+			return false;
 		}
 		this.entityData.set(AI_STATE, snbt);
 		this.aiCache = state;
+		return true;
 	}
 
-	public void mutateAIState(java.util.function.Consumer<AIState> mutator) {
+	/** @return false when the mutated state was too large to sync and was therefore discarded. */
+	public boolean mutateAIState(java.util.function.Consumer<AIState> mutator) {
 		AIState state = AIState.fromNbt(parseAiSnbt(this.entityData.get(AI_STATE)));
 		mutator.accept(state);
-		setAIState(state);
+		return setAIState(state);
 	}
 
 	private static CompoundTag parseAiSnbt(String snbt) {
