@@ -170,15 +170,27 @@ public final class FakePlayerRequests {
 		if (holder != null) {
 			RequestBoard board = RequestRouting.boardOf(holder);
 			ItemRequest existing = board == null ? null : board.find(key);
+			// A shortfalled copy would otherwise pin this key to a board that cannot fill it, even
+			// after another storeroom is stocked. It has no assignee and no cargo in flight, so it
+			// is safe to release and re-post against a Quartermaster that has the item.
+			if (existing != null && existing.stage() == RequestStage.SHORTFALL
+					&& betterHolderExists(level, requester, owner, key, holder)) {
+				board.forget(existing);
+				INSTANCE.fireRemoved(holder, existing);
+				holder = null;
+				existing = null;
+			}
 			if (existing != null) {
 				RequestStage from = existing.stage();
 				board.revive(existing, count, priority);
 				INSTANCE.fireStageChange(holder, existing, from);
 				return new RaisedRequest(RaiseResult.ALREADY_OPEN, holder, existing);
 			}
-			// known holder that has not ticked, so it cannot be revived this tick. A distinct
-			// result, because callers must not dereference request() here.
-			return new RaisedRequest(RaiseResult.HOLDER_NOT_READY, holder, null);
+			if (holder != null) {
+				// known holder that has not ticked, so it cannot be revived this tick. A distinct
+				// result, because callers must not dereference request() here.
+				return new RaisedRequest(RaiseResult.HOLDER_NOT_READY, holder, null);
+			}
 		}
 
 		FakePlayerEntity quartermaster = RequestRouting.nearestCapable(level, requester, owner, key.item());
@@ -194,14 +206,26 @@ public final class FakePlayerRequests {
 		return new RaisedRequest(RaiseResult.RAISED, quartermaster, request);
 	}
 
+	/** Whether some other Quartermaster actually has the item, so a shortfall can be moved to it. */
+	private static boolean betterHolderExists(ServerLevel level, Entity requester, UUID owner,
+	                                          RequestKey key, FakePlayerEntity current) {
+		FakePlayerEntity stocked = RequestRouting.nearestCapable(level, requester, owner, key.item());
+		return stocked != null && stocked != current
+				&& RequestRouting.boardOf(stocked) != null
+				&& stock((ServerLevel) stocked.level(), stocked, key.item()) > 0;
+	}
+
 	/** The open request with this key on any reachable board, or null. */
 	@Nullable
 	public static RaisedRequest findOpen(ServerLevel level, UUID owner, RequestKey key) {
 		FakePlayerEntity holder = RequestRouting.holderOf(level, owner, key);
 		if (holder == null) return null;
 		RequestBoard board = RequestRouting.boardOf(holder);
-		ItemRequest open = board == null ? null : board.findOpen(key);
-		return new RaisedRequest(open == null ? RaiseResult.HOLDER_NOT_READY : RaiseResult.ALREADY_OPEN, holder, open);
+		if (board == null) return new RaisedRequest(RaiseResult.HOLDER_NOT_READY, holder, null);
+		ItemRequest open = board.findOpen(key);
+		// a holder whose copy exists but is terminal is not "waiting on a tick", so reporting
+		// HOLDER_NOT_READY would tell a polling caller to retry against something already finished
+		return open == null ? null : new RaisedRequest(RaiseResult.ALREADY_OPEN, holder, open);
 	}
 
 	/**
@@ -325,6 +349,9 @@ public final class FakePlayerRequests {
 			if (stack.isEmpty()) break;
 			Container container = JobHelpers.containerAt(level, pos);
 			if (container == null) continue;
+			// a pooled chest may since have become a furnace, and a null direction skips the sided
+			// check, so goods would land in a fuel or output slot that no read path ever sees again
+			if (container instanceof net.minecraft.world.WorldlyContainer) continue;
 			int before = stack.getCount();
 			ItemStack leftover = HopperBlockEntity.addItem(null, container, stack.copy(), null);
 			int moved = before - leftover.getCount();

@@ -9,11 +9,10 @@ import dev.duzo.players.entities.ai.JobExecutor;
 import dev.duzo.players.entities.ai.QuartermasterJobExecutor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -92,29 +91,54 @@ public final class RequestRouting {
 		return null;
 	}
 
-	private record OwnerScan(ResourceKey<Level> level, UUID owner, long tick) {}
+	private record OwnerScan(UUID owner, long tick) {}
 
-	// getAllEntities walks every loaded entity, and holderOf is reached from raise(), cancel() and
-	// an unthrottled packet. Memoized for the tick it was built on: server-thread only, and one
-	// entry is enough because callers ask about one owner at a time.
+	// getAllEntities walks every loaded entity in a level and this scans every level, while
+	// holderOf is reached from raise(), cancel() and an unthrottled packet. Memoized for the tick
+	// it was built on: server-thread only, and one entry is enough because callers ask about one
+	// owner at a time. UUIDs rather than entities, so a quit-to-title cannot leave a whole
+	// ServerLevel strongly reachable from a static field.
 	@Nullable private static OwnerScan lastScanKey;
-	private static List<FakePlayerEntity> lastScan = List.of();
+	private static List<UUID> lastScan = List.of();
 
-	/** Every loaded Quartermaster in this level belonging to the owner, regardless of distance. */
+	/**
+	 * Every loaded Quartermaster belonging to the owner, in <b>every</b> level, regardless of
+	 * distance.
+	 *
+	 * <p>All levels, not just the requester's: a player's request key carries no dimension, so a
+	 * per-level scan let the same ask go live on one board in the Nether and another in the
+	 * Overworld and be delivered twice.
+	 */
 	public static List<FakePlayerEntity> allQuartermastersOf(ServerLevel level, @Nullable UUID owner) {
 		if (owner == null) return List.of();
-		OwnerScan want = new OwnerScan(level.dimension(), owner, level.getGameTime());
-		if (want.equals(lastScanKey)) return lastScan;
-		List<FakePlayerEntity> found = new ArrayList<>();
-		for (Entity entity : level.getAllEntities()) {
-			if (!(entity instanceof FakePlayerEntity fake)) continue;
-			if (fake.getAIState().job() != Job.QUARTERMASTER) continue;
-			if (!owner.equals(fake.getAIState().ownerUUID())) continue;
-			found.add(fake);
+		MinecraftServer server = level.getServer();
+		OwnerScan want = new OwnerScan(owner, level.getGameTime());
+		if (!want.equals(lastScanKey)) {
+			List<UUID> found = new ArrayList<>();
+			for (ServerLevel each : server.getAllLevels()) {
+				for (Entity entity : each.getAllEntities()) {
+					if (!(entity instanceof FakePlayerEntity fake)) continue;
+					if (fake.getAIState().job() != Job.QUARTERMASTER) continue;
+					if (!owner.equals(fake.getAIState().ownerUUID())) continue;
+					found.add(fake.getUUID());
+				}
+			}
+			lastScanKey = want;
+			lastScan = List.copyOf(found);
 		}
-		lastScanKey = want;
-		lastScan = List.copyOf(found);
-		return lastScan;
+
+		// re-resolved every call: the memo may outlive an entity that died or unloaded later in
+		// this same tick, and reviving a board that is about to be discarded loses the request
+		List<FakePlayerEntity> live = new ArrayList<>(lastScan.size());
+		for (UUID id : lastScan) {
+			for (ServerLevel each : server.getAllLevels()) {
+				if (each.getEntity(id) instanceof FakePlayerEntity fake && fake.isAlive() && !fake.isRemoved()) {
+					live.add(fake);
+					break;
+				}
+			}
+		}
+		return live;
 	}
 
 	/**
