@@ -11,7 +11,5 @@ jobs:
     uses: duzos/mod-ci/.github/workflows/devbuild.yml@v1
     secrets: inherit
     with:
+      targets: '[{"project":"fabric"},{"project":"forge","datagen":true}]'
       java: '21'
-      targets: >-
-        [{"project":"fabric","label":"FABRIC","avatar":"https://wiki.tf2classic.com/w/images/b/b3/Engineer_BLU.png"},
-         {"project":"forge","label":"FORGE","datagen":true,"avatar":"https://wiki.tf2classic.com/w/images/b/b3/Engineer_RED.png"}]
