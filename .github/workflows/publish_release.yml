@@ -1,0 +1,18 @@
+name: Release reminder
+
+# master has no Gradle project, so it cannot publish. A GitHub release runs
+# workflows from the default branch, which is here, so this exists only to say
+# out loud that the real publish is a manual dispatch on a ver/* branch.
+
+on:
+  release:
+    types: [ published ]
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain what to do
+        run: |
+          echo "::notice::master cannot publish. Run 'Publish (Modrinth + CurseForge)' manually on the ver/* branch for this release."
+          echo "Tag: ${{ github.event.release.tag_name }}"
