@@ -22,17 +22,18 @@ Entities that look **exactly** like real players - auto-grabbed skins, armour, f
 
 - **Looks like a player** - real model with a skin grabbed from any username (or URL / the trending list); slim & classic.
 - **Acts like one** - wanders, sits, sleeps, wears armour, holds items, chats, fights back.
+- **Fights at range** - give it a bow, crossbow or trident and it keeps its distance, strafes and fires like a skeleton, shooting arrows from its own inventory.
 - **Carries an inventory** - managed through its GUI.
 
 ## 🧠 AI Jobs
 
-Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI hands you markers (waypoint, region, chests); right-click to place them - the fake follows you while you do. Each job's menu shows only the markers it needs, and fakes visibly open the chests and barrels they work from.
+Shift + right-click a fake (or press your **Open Fake Player Menu** key, see below) → **AI** → **Bond**, then pick a job. The GUI hands you markers (waypoint, region, chests); right-click to place them - the fake follows you while you do. Each job's menu shows only the markers it needs, and fakes visibly open the chests and barrels they work from.
 
 | Job | Needs | Does |
 | --- | --- | --- |
 | **Idle** | waypoint (optional) | Walks to its waypoint, else waits. |
 | **Follow** | bond | Sticks within 32 blocks, teleports if it lags behind. |
-| **Guard** | patrol points | Patrols your points and attacks hostiles in range. Hold the Waypoint marker to edit points - right-click adds, sneak + right-click removes. |
+| **Guard** | patrol points | Patrols your points and attacks hostiles in range, at range if it is carrying a bow, crossbow or trident. Hold the Waypoint marker to edit points - right-click adds, sneak + right-click removes. |
 | **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. Filter grammar and the on/off toggle are covered below. |
 | **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
 | **Courier** | source + deposit | Hauls matching items from one chest to another. Shares the Miner's filter. |
@@ -50,6 +51,16 @@ The Miner and Courier both filter what they collect against one stored string, e
 - `*`, or a blank box - matches everything. The ON/OFF button next to Apply toggles this directly, and a blank box always means the filter is off (reopening the menu shows it that way too).
 
 Miner defaults to `c:ores` when never set; Courier defaults to matching everything when never set, and the Filter row reflects that per job. Applying a filter does **not** reset quarry progress.
+
+## ⌨️ Controls
+
+Shift + right-click a fake opens its management menu. If another mod claims right-click on mobs, bind
+**Options → Controls → Fake Players → Open Fake Player Menu** to a key instead: while that key is bound the menu
+opens from it whenever you are looking at a fake, and shift + right-click no longer opens it. Leave it unbound
+and nothing changes.
+
+Holding an item and right-clicking a fake still runs that item's interaction either way (chest opens its
+inventory, paper makes it speak, stairs sit it down, and so on).
 
 ## ⚙️ Config
 

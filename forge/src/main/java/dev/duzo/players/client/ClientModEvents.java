@@ -11,6 +11,7 @@ import dev.duzo.players.core.FPMenus;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
@@ -21,6 +22,11 @@ public class ClientModEvents {
 	public static void onEntityRenderersRegistry(EntityRenderersEvent.RegisterRenderers event) {
 		event.registerEntityRenderer(FPEntities.FAKE_PLAYER.get(), FakePlayerRendererWrapper::new);
 		event.registerEntityRenderer(FPEntities.FISHING_HOOK.get(), FakeFishingHookRenderer::new);
+	}
+
+	@SubscribeEvent
+	public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+		event.register(FPKeybinds.OPEN_MENU);
 	}
 
 	@SubscribeEvent
