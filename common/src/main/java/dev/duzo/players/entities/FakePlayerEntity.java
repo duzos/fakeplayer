@@ -611,15 +611,18 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		return aiCache;
 	}
 
-	public void setAIState(AIState state) {
+	/** @return true; the CompoundTag-backed AI_STATE has no sync-size cap to fail against. */
+	public boolean setAIState(AIState state) {
 		this.entityData.set(AI_STATE, state.toNbt());
 		this.aiCache = state;
+		return true;
 	}
 
-	public void mutateAIState(java.util.function.Consumer<AIState> mutator) {
+	/** @return true; the CompoundTag-backed AI_STATE has no sync-size cap to fail against. */
+	public boolean mutateAIState(java.util.function.Consumer<AIState> mutator) {
 		AIState state = AIState.fromNbt(this.entityData.get(AI_STATE));
 		mutator.accept(state);
-		setAIState(state);
+		return setAIState(state);
 	}
 
 	public void sendChat(String message) {

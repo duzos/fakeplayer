@@ -78,8 +78,12 @@ public class RunnerJobExecutor implements JobExecutor {
 
 		ItemRequest request = board.assignedTo(entity.getUUID());
 		if (request == null) {
-			// cancelled, requeued, or finished by someone else: put the cargo back and go free
-			returnCargo(level, entity, qm, qmLevel, haul);
+			// cancelled, requeued, or finished by someone else: put the cargo back and go free.
+			// A receipt older than the orphan window is not evidence of anything any more (the fake
+			// may have been re-jobbed and picked the item up since), so drop it without returning.
+			if (level.getGameTime() - haul.since() <= RequestRouting.ORPHAN_TICKS) {
+				returnCargo(level, entity, qm, qmLevel, haul);
+			}
 			Haul.clear(entity);
 			rest(level, entity);
 			return;
