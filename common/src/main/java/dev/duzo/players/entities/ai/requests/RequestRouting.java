@@ -90,14 +90,31 @@ public final class RequestRouting {
 		return null;
 	}
 
+	/** Every loaded Quartermaster in this level belonging to the owner, regardless of distance. */
+	public static List<FakePlayerEntity> allQuartermastersOf(ServerLevel level, @Nullable UUID owner) {
+		if (owner == null) return List.of();
+		List<FakePlayerEntity> found = new ArrayList<>();
+		for (Entity entity : level.getAllEntities()) {
+			if (!(entity instanceof FakePlayerEntity fake)) continue;
+			if (fake.getAIState().job() != Job.QUARTERMASTER) continue;
+			if (!owner.equals(fake.getAIState().ownerUUID())) continue;
+			found.add(fake);
+		}
+		return found;
+	}
+
 	/**
-	 * The Quartermaster already holding an open request with this key, or null. Uses the snapshot,
-	 * so a Quartermaster that has not ticked since a reload is still seen and the same ask cannot
-	 * go live on two boards.
+	 * The Quartermaster already holding an open request with this key, or null.
+	 *
+	 * <p>Deliberately scanned level-wide and owner-scoped rather than within requestRadius: a
+	 * radius scan around the requester loses sight of the holder as soon as the requester walks
+	 * away, and the same ask then goes live on a second board and is delivered twice.
+	 *
+	 * <p>Uses the snapshot, so a Quartermaster that has not ticked since a reload is still seen.
 	 */
 	@Nullable
-	public static FakePlayerEntity holderOfOpen(ServerLevel level, Entity requester, @Nullable UUID owner, RequestKey key) {
-		for (FakePlayerEntity qm : quartermastersFor(level, requester, owner)) {
+	public static FakePlayerEntity holderOfOpen(ServerLevel level, @Nullable UUID owner, RequestKey key) {
+		for (FakePlayerEntity qm : allQuartermastersOf(level, owner)) {
 			if (snapshotOf(qm).findOpen(key) != null) return qm;
 		}
 		return null;
