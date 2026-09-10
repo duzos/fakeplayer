@@ -1,3 +1,5 @@
+![logo](https://raw.githubusercontent.com/duzos/fakeplayer/master/docs/img/logo.png)
+
 # Fake Players
 
 ### Player look-alikes that mine, chop, guard, and haul - for you.
