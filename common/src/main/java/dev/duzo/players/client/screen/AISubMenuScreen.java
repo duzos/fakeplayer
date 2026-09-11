@@ -12,7 +12,7 @@ import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
 import dev.duzo.players.network.c2s.OpenCrafterLearnPacketC2S;
 import dev.duzo.players.entities.ai.requests.StoragePool;
-import dev.duzo.players.network.c2s.RequestItemPacketC2S;
+import dev.duzo.players.network.c2s.RequestStockPacketC2S;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
@@ -83,7 +83,6 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton teachButton;
 	private FlatButton patrolClearButton;
 	private FlatButton poolButton;
-	private EditBox requestEdit;
 	private FlatButton requestButton;
 	private EditBox filterEdit;
 	private FlatButton filterButton;
@@ -197,12 +196,10 @@ public class AISubMenuScreen extends Screen {
 		poolButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
 				Component.literal("Mark"), () -> giveMarker(AIMarkerItem.PURPOSE_POOL));
 		this.addRenderableWidget(poolButton);
-		requestEdit = new EditBox(this.font, innerLeft + 52, markerSectionY, FILTER_EDIT_W, BTN_H, Component.literal("request"));
-		requestEdit.setMaxLength(256);
-		requestEdit.setTooltip(Tooltip.create(Component.literal(
-				"An item id, optionally followed by a count. Example: minecraft:oak_planks 64")));
-		this.addRenderableWidget(requestEdit);
-		requestButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Ask"), this::sendRequest);
+		requestButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
+				Component.literal("Browse"), this::browseStock);
+		requestButton.setTooltip(Tooltip.create(Component.literal(
+				"See what this quartermaster has pooled, and click to request it.")));
 		this.addRenderableWidget(requestButton);
 
 		int startStopY = markerSectionY + 18 + 4 * ROW_H + 48;
@@ -264,7 +261,6 @@ public class AISubMenuScreen extends Screen {
 		filterEdit.visible = false;
 		filterToggle.visible = false;
 		poolButton.visible = false;
-		requestEdit.visible = false;
 		requestButton.visible = false;
 		List<Row> rows = rowsFor(s.job());
 		for (int i = 0; i < rows.size(); i++) {
@@ -277,12 +273,7 @@ public class AISubMenuScreen extends Screen {
 				case TEACH -> place(teachButton, btnY);
 				case PATROL -> place(patrolClearButton, btnY);
 				case POOL -> place(poolButton, btnY);
-				case REQUEST -> {
-					place(requestButton, btnY);
-					requestEdit.setX(innerLeft + 52);
-					requestEdit.setY(btnY);
-					requestEdit.visible = true;
-				}
+				case REQUEST -> place(requestButton, btnY);
 				case FILTER -> {
 					boolean disabled = filterDisabled(s);
 					place(filterButton, btnY);
@@ -515,34 +506,21 @@ public class AISubMenuScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(KeyEvent event) {
-		for (EditBox box : editBoxes()) {
-			if (!box.isFocused()) continue;
+		if (this.filterEdit != null && this.filterEdit.isFocused()) {
 			if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_TAB) {
 				return super.keyPressed(event);
 			}
-			box.keyPressed(event);
+			this.filterEdit.keyPressed(event);
 			return true;
 		}
 		return super.keyPressed(event);
 	}
 
 	// every visible edit box, so a newly added one is not silently starved of keystrokes
-	// Gating on `visible` is what stops a hidden box eating keystrokes. Do NOT also call
-	// box.setFocused(false) from relayout: relayout runs every tick, and Screen.setFocused
-	// early-returns when the box is already focused, so the screen's focus pointer is left
-	// dangling at a box that reports unfocused and can never be focused again.
-	private List<EditBox> editBoxes() {
-		List<EditBox> boxes = new java.util.ArrayList<>(2);
-		if (filterEdit != null && filterEdit.visible) boxes.add(filterEdit);
-		if (requestEdit != null && requestEdit.visible) boxes.add(requestEdit);
-		return boxes;
-	}
-
 	@Override
 	public boolean charTyped(CharacterEvent event) {
-		for (EditBox box : editBoxes()) {
-			if (!box.isFocused()) continue;
-			box.charTyped(event);
+		if (this.filterEdit != null && this.filterEdit.isFocused()) {
+			this.filterEdit.charTyped(event);
 			return true;
 		}
 		return super.charTyped(event);
@@ -592,22 +570,8 @@ public class AISubMenuScreen extends Screen {
 		Minecraft.getInstance().setScreen(null);
 	}
 
-	// "minecraft:oak_planks 64" in one box: an id, and optionally a trailing count
-	private void sendRequest() {
-		String raw = requestEdit.getValue().trim();
-		if (raw.isEmpty()) return;
-		String item = raw;
-		int count = 1;
-		int space = raw.lastIndexOf(' ');
-		if (space > 0) {
-			try {
-				count = Integer.parseInt(raw.substring(space + 1).trim());
-				item = raw.substring(0, space).trim();
-			} catch (NumberFormatException ignored) {
-				// no trailing count, so treat the whole box as the item id
-			}
-		}
-		Network.getNetworkHandler().sendToServer(new RequestItemPacketC2S(entity.getId(), item, count));
+	private void browseStock() {
+		Network.getNetworkHandler().sendToServer(new RequestStockPacketC2S(entity.getId()));
 	}
 
 	private void applyFilter() {
