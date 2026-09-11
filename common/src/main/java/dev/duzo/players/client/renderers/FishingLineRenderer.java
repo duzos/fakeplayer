@@ -24,7 +24,7 @@ import org.joml.Vector3f;
  * drives {@link SessionItemRenderer}, so it stays off the entity submit-node pipeline.
  */
 public final class FishingLineRenderer {
-	private static final Identifier BOBBER_TEXTURE = Identifier.parse("minecraft:textures/entity/fishing_hook.png");
+	private static final Identifier BOBBER_TEXTURE = Identifier.parse("minecraft:textures/entity/fishing/fishing_hook.png");
 	private static final int LINE_COLOR = 0xFF202020;
 	private static final float LINE_WIDTH = 1.5F;
 	private static final float BOBBER_HALF = 0.18F;
