@@ -6,6 +6,7 @@
 - Requests that cannot be filled tell you once and then stay quiet. The fake keeps waiting rather than unbonding itself, and you get one message per problem rather than a repeat every few seconds. A message that arrives while you are logged out is held until you are back.
 - The nearest Quartermaster that actually has the item wins, so a nearby empty storeroom does not shadow a stocked one further away.
 - Runners head back to their Quartermaster once they have nothing to carry, instead of idling wherever the last delivery happened to end.
+- A Runner carries what it is delivering in its hand, so you can tell a loaded one from an idle one across the base.
 - How far all of this reaches is set by `requestRadius` in `players.json`: how far a waiting fake looks for a Quartermaster, and how far a Quartermaster looks for a Runner. It defaults to 256 blocks, about 16 chunks. An existing config from an earlier version is moved up to 256 once, automatically, unless you had already changed it yourself.
 - Addons can use all of this. `dev.duzo.players.api.requests.FakePlayerRequests` is a single entry point for raising a request, following it, and cancelling it, plus two hooks: a resolver chain for sourcing items the pool does not have, and a listener for watching requests through their whole life. Addon-authored jobs are not possible yet.
 
