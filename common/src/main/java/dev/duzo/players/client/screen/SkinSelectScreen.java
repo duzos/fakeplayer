@@ -51,6 +51,9 @@ public class SkinSelectScreen extends Screen {
 		super(Component.literal("Skin Selection"));
 		this.target = target;
 		this.render = new FakePlayerEntity(target.level());
+		// Never added to a level, so it has no id, and the item model resolver reads getId() while
+		// extracting the render state. Zero is the unassigned sentinel that throws; real ids are positive.
+		this.render.setId(-1);
 
 		this.index = SkinGrabber.INSTANCE.getAllKeys().indexOf(target.getSkinData().key());
 		this.updateSelectedSkin();
