@@ -2,11 +2,13 @@
 
 - Fakes can ask each other for items, through two new jobs. A **Quartermaster** owns a storeroom you define by marking chests with its Pool marker, keeps track of what is in them, and works out who can fill a request. A **Runner** does the carrying: it collects from the pool and delivers to whoever asked. The Quartermaster never leaves the storeroom, so you scale a base up by bonding more Runners to it rather than by making one fake faster.
 - A Fisherman that has no fishing rod now asks for one and waits, instead of standing there doing nothing. The rod arrives if the pool has one, and it gets back to fishing on its own.
-- You can ask a Quartermaster for items yourself, from the new Request row in its AI menu. Type an item id and optionally a count, like `minecraft:oak_planks 64`, and a Runner brings it to wherever you are standing. Asking again for a larger amount tops up the request you already have rather than starting a second one.
+- You can ask a Quartermaster for items yourself. Press Browse in its AI menu to see everything the storeroom holds and click what you want: a click asks for a stack, sneak-click asks for one, ctrl-click asks for all of it. A Runner brings it to wherever you are standing. Asking again for a larger amount tops up the request you already have rather than starting a second one.
 - Requests that cannot be filled tell you once and then stay quiet. The fake keeps waiting rather than unbonding itself, and you get one message per problem rather than a repeat every few seconds. A message that arrives while you are logged out is held until you are back.
 - The nearest Quartermaster that actually has the item wins, so a nearby empty storeroom does not shadow a stocked one further away.
 - Runners head back to their Quartermaster once they have nothing to carry, instead of idling wherever the last delivery happened to end.
 - How far all of this reaches is set by `requestRadius` in `players.json`: how far a waiting fake looks for a Quartermaster, and how far a Quartermaster looks for a Runner. It defaults to 256 blocks, about 16 chunks. An existing config from an earlier version is moved up to 256 once, automatically, unless you had already changed it yourself.
 - Addons can use all of this. `dev.duzo.players.api.requests.FakePlayerRequests` is a single entry point for raising a request, following it, and cancelling it, plus two hooks: a resolver chain for sourcing items the pool does not have, and a listener for watching requests through their whole life. Addon-authored jobs are not possible yet.
+
+- Fakes no longer wander off after a held redstone torch while they are working. Previously a player could lead a Miner off its region, a Courier off its route, or a Runner away from a delivery it was carrying.
 
 The Courier is unchanged and is not involved in requests: it keeps doing standing chest-to-chest runs.
