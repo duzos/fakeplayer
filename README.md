@@ -64,8 +64,8 @@ storeroom and works out who can fill the request; a **Runner** does the carrying
 - Ask for something yourself from the **Request** row on a Quartermaster. Press Browse to see
   everything the storeroom holds, then click an item: a click asks for a stack, sneak-click asks for
   one, ctrl-click asks for all of it. Asking again for more tops the request up instead of queuing a
-  second one. The list is a snapshot from when you opened it, so use Refresh if a Runner has been
-  busy since.
+  second one. Under the grid is what you currently have on order, with an x to call one off. The
+  whole thing updates while you watch it.
 
 Worth knowing:
 
@@ -75,6 +75,8 @@ Worth knowing:
 - Items are matched by id, so a damaged or enchanted one already in the Runner's own inventory can be
   handed over in place of a fresh one from the pool. For the same reason Browse merges variants:
   three tools of different durability show as one icon with a count of three.
+- A Runner holds what it is carrying, so you can see which ones are loaded from across the base.
+  With nothing to carry it walks back to its Quartermaster rather than standing where it stopped.
 - Re-jobbing a Runner mid-delivery leaves the goods in its inventory. Open it to take them back, or
   set it back to Runner and it returns them to the pool itself.
 
@@ -112,6 +114,7 @@ Tuning lives in `players.json`:
 | `persistFakePlayers` | `true` | Whether fakes survive a server restart. |
 | `allowLocalSkinUploadOpOnly` | `true` | Restricts uploading a local skin file to server operators; disable to let any player upload one. |
 | `guardRadius` | `12` | How far a Guard chases from its patrol point. |
+| `requestRadius` | `256` | How far a waiting fake looks for a Quartermaster, and how far a Quartermaster looks for a Runner. Roughly 16 chunks. Configs written by an older version are moved up to this once, unless you had already changed the value yourself. |
 | `minerMaxBlocksPerSecond` | `2.5` | Caps how fast the Miner can break blocks. |
 | `minerBailY` | `-58` | Y level the Miner refuses to dig below. |
 | `minerSpoil` | `ground` | What the Miner does with a drop its filter doesn't ask for once the build reserve (up to 64 build blocks) is full: `ground` (dropped and left at the bot's feet - most despawns uncollected), `chest` (deposited like ore), or `void` (deleted). Anything the filter matches is always kept, build-suitable or not. An unrecognised value falls back to `ground` with a logged warning. |
