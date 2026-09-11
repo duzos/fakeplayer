@@ -205,15 +205,7 @@ public final class FakePlayerRequests {
 		}
 
 		FakePlayerEntity quartermaster = RequestRouting.nearestCapable(level, requester, owner, key.item());
-		if (quartermaster == null) {
-			if (requester instanceof FakePlayerEntity asker) {
-				dev.duzo.players.entities.ai.requests.RequestDebug.state(asker, "raisefail",
-						"{} x{} -> NO_QUARTERMASTER", key.item(), count);
-			}
-			return RaisedRequest.failed(RaiseResult.NO_QUARTERMASTER);
-		}
-		dev.duzo.players.entities.ai.requests.RequestDebug.event(quartermaster, "raise",
-				"{} x{} from {}", key.item(), count, key.kind());
+		if (quartermaster == null) return RaisedRequest.failed(RaiseResult.NO_QUARTERMASTER);
 		RequestBoard board = RequestRouting.boardOf(quartermaster);
 		if (board == null) return RaisedRequest.failed(RaiseResult.NO_QUARTERMASTER);
 
