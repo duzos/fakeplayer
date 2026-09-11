@@ -7,6 +7,7 @@ import dev.duzo.players.api.requests.RequesterKind;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.requests.Haul;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
+import dev.duzo.players.entities.ai.requests.RequestDebug;
 import dev.duzo.players.entities.ai.requests.RequestBoard;
 import dev.duzo.players.entities.ai.requests.RequestRouting;
 import net.minecraft.core.BlockPos;
@@ -22,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
 import javax.annotation.Nullable;
+import java.util.UUID;
 
 /**
  * Stateless by design. Everything this job needs is derived each tick from its Haul receipt (in its
@@ -35,18 +37,29 @@ public class RunnerJobExecutor implements JobExecutor {
 	private static final int MAX_PATH_FAILS = 3;
 	private static final int HANDOFF_PATIENCE = 20 * 15;
 
+	private static final double RTB_ARRIVE_SQR = 25.0;
+
 	// all transient: nothing here is authority, so losing it on a reload costs one rescan
 	@Nullable private BlockPos source;
 	private int pathFails;
 	private int handoffWaited;
+	// where to idle between jobs. Purely cosmetic, so it is not persisted: after a reload a runner
+	// simply waits where it stands until its next dispatch.
+	@Nullable private UUID homeQm;
+	private int rtbFails;
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
 		Haul haul = Haul.of(entity.getAIState());
+		RequestDebug.state(entity, "haul", "{}", haul == null ? "free"
+				: haul.item() + " base=" + haul.baseline() + " want=" + haul.wanted()
+						+ " qm=" + RequestDebug.shortId(haul.quartermaster()));
 		if (haul == null) {
-			rest(level, entity);
+			returnToBase(level, entity);
 			return;
 		}
+		homeQm = haul.quartermaster();
+		rtbFails = 0;
 
 		if (!(level.getEntity(haul.quartermaster()) instanceof FakePlayerEntity qm)) {
 			// unobservable, not gone: an unloaded chunk must not cost a dispatch. But a
@@ -90,6 +103,8 @@ public class RunnerJobExecutor implements JobExecutor {
 		}
 
 		int cargo = haul.cargo(entity);
+		RequestDebug.state(entity, "task", "{} cargo={} full={}",
+				RequestDebug.describe(request), cargo, JobHelpers.isFull(entity.getInventory()));
 		// deliver a short load rather than hoarding it: remaining is decremented by what actually
 		// arrives, so the request stays open for the rest and the requester gets what it can have
 		boolean canCollectMore = !JobHelpers.isFull(entity.getInventory())
@@ -143,6 +158,7 @@ public class RunnerJobExecutor implements JobExecutor {
 			if (stack.isEmpty()) container.setItem(slot, ItemStack.EMPTY);
 			container.setChanged();
 			if (got > 0) {
+				RequestDebug.event(entity, "collect", "+{} of {} from {}", got, haul.item(), source);
 				index.noteTaken(haul.item(), source, got);
 				want -= got;
 				moved++; // count transfers, not slots visited
@@ -195,6 +211,8 @@ public class RunnerJobExecutor implements JobExecutor {
 		pathFails = 0;
 
 		int delivered = handOff(entity, target, haul, request);
+		RequestDebug.event(entity, "handoff", "delivered={} of {} remaining={}",
+				delivered, haul.item(), request.remaining());
 		if (delivered > 0) {
 			handoffWaited = 0;
 			entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
@@ -257,6 +275,8 @@ public class RunnerJobExecutor implements JobExecutor {
 	/** Give up this leg: return the cargo, free the Runner, and let the board back the request off. */
 	private void fail(ServerLevel level, FakePlayerEntity entity, FakePlayerEntity qm, ServerLevel qmLevel,
 	                  Haul haul, ItemRequest request, String reason) {
+		RequestDebug.event(entity, "fail", "{} cargo={} reason={}",
+				RequestDebug.describe(request), haul.cargo(entity), reason);
 		returnCargo(level, entity, qm, qmLevel, haul);
 		releaseHaul(level, entity);
 		RequestStage from = request.stage();
@@ -278,6 +298,7 @@ public class RunnerJobExecutor implements JobExecutor {
 	private void returnCargo(ServerLevel level, FakePlayerEntity entity, FakePlayerEntity qm,
 	                         ServerLevel qmLevel, Haul haul) {
 		int owed = haul.cargo(entity);
+		RequestDebug.event(entity, "return", "{} x{} to pool", haul.item(), owed);
 		if (owed <= 0) return;
 		SimpleContainer inv = entity.getInventory();
 
@@ -372,6 +393,38 @@ public class RunnerJobExecutor implements JobExecutor {
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 		source = null;
 		handoffWaited = 0;
+	}
+
+	/**
+	 * Idle back at the storeroom rather than wherever the last delivery happened to end. The
+	 * Quartermaster never leaves its pool, so walking to it is walking to the storeroom, which is
+	 * also where the next job will start.
+	 */
+	private void returnToBase(ServerLevel level, FakePlayerEntity entity) {
+		JobHelpers.closeContainer(level, entity);
+		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
+		source = null;
+		handoffWaited = 0;
+
+		if (homeQm == null || !(level.getEntity(homeQm) instanceof FakePlayerEntity qm) || !qm.isAlive()) {
+			entity.getNavigation().stop();
+			return;
+		}
+		if (entity.distanceToSqr(qm) <= RTB_ARRIVE_SQR) {
+			entity.getNavigation().stop();
+			homeQm = null;
+			rtbFails = 0;
+			return;
+		}
+		// walkTo also reports UNREACHABLE while its own 40-tick retry cooldown is pending, and that
+		// cooldown is always set by the failed leg that just freed this runner. Giving up on the
+		// first report killed return-to-base in exactly the case it exists for, so count instead.
+		if (JobHelpers.walkTo(entity, qm.blockPosition(), SPEED) == JobHelpers.WalkResult.UNREACHABLE
+				&& ++rtbFails >= MAX_PATH_FAILS) {
+			entity.getNavigation().stop();
+			homeQm = null;
+			rtbFails = 0;
+		}
 	}
 
 	@Override
