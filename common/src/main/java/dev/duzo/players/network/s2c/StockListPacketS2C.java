@@ -4,7 +4,7 @@ import commonnetwork.networking.data.PacketContext;
 import commonnetwork.networking.data.Side;
 import dev.duzo.players.PlayersCommon;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +21,7 @@ import java.util.List;
  * cancelling them possible.
  */
 public record StockListPacketS2C(int id, List<Entry> stock, int total, List<Pending> pending) {
-	public static final Identifier LOCATION = PlayersCommon.id("qm_stock_list");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("qm_stock_list");
 
 	/** Cap on entries sent, so a pathological pool cannot produce an oversized packet. */
 	public static final int MAX_ENTRIES = 500;
@@ -29,17 +29,17 @@ public record StockListPacketS2C(int id, List<Entry> stock, int total, List<Pend
 	public static final int MAX_PENDING = 64;
 	private static final int MAX_ID_LENGTH = 256;
 
-	public record Entry(Identifier item, int count) {}
+	public record Entry(ResourceLocation item, int count) {}
 
 	/** An outstanding request. {@code mine} means the viewing player raised it and may cancel it. */
-	public record Pending(Identifier item, int remaining, boolean mine, boolean waiting) {}
+	public record Pending(ResourceLocation item, int remaining, boolean mine, boolean waiting) {}
 
 	public static StockListPacketS2C decode(FriendlyByteBuf buf) {
 		int id = buf.readInt();
 		int size = Math.max(0, Math.min(MAX_ENTRIES, buf.readInt()));
 		List<Entry> stock = new ArrayList<>(size);
 		for (int i = 0; i < size; i++) {
-			Identifier item = Identifier.tryParse(buf.readUtf(MAX_ID_LENGTH));
+			ResourceLocation item = ResourceLocation.tryParse(buf.readUtf(MAX_ID_LENGTH));
 			int count = buf.readInt();
 			if (item != null) stock.add(new Entry(item, count));
 		}
@@ -47,7 +47,7 @@ public record StockListPacketS2C(int id, List<Entry> stock, int total, List<Pend
 		int pendingSize = Math.max(0, Math.min(MAX_PENDING, buf.readInt()));
 		List<Pending> pending = new ArrayList<>(pendingSize);
 		for (int i = 0; i < pendingSize; i++) {
-			Identifier item = Identifier.tryParse(buf.readUtf(MAX_ID_LENGTH));
+			ResourceLocation item = ResourceLocation.tryParse(buf.readUtf(MAX_ID_LENGTH));
 			int remaining = buf.readInt();
 			boolean mine = buf.readBoolean();
 			boolean waiting = buf.readBoolean();

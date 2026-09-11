@@ -5,7 +5,7 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.JobHelpers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
@@ -44,8 +44,8 @@ public final class PoolIndex {
 	/** One stack's worth of one item in a known container. */
 	public record Loc(BlockPos pos, int count) {}
 
-	private final Map<Identifier, Integer> counts = new HashMap<>();
-	private final Map<Identifier, List<Loc>> locations = new HashMap<>();
+	private final Map<ResourceLocation, Integer> counts = new HashMap<>();
+	private final Map<ResourceLocation, List<Loc>> locations = new HashMap<>();
 	private boolean dirty;
 	private long rebuiltAt;
 
@@ -79,16 +79,16 @@ public final class PoolIndex {
 		return Math.max(20, PlayersConfig.get().requestIndexInterval);
 	}
 
-	public int count(Identifier item) {
+	public int count(ResourceLocation item) {
 		return counts.getOrDefault(item, 0);
 	}
 
 	/** Every item the pool holds, with its total count. A snapshot, safe to hand to a packet. */
-	public Map<Identifier, Integer> contents() {
+	public Map<ResourceLocation, Integer> contents() {
 		return Map.copyOf(counts);
 	}
 
-	public List<Loc> locations(Identifier item) {
+	public List<Loc> locations(ResourceLocation item) {
 		return List.copyOf(locations.getOrDefault(item, List.of()));
 	}
 
@@ -97,7 +97,7 @@ public final class PoolIndex {
 	 * locations rather than decremented separately, so the two maps cannot disagree even when a
 	 * take spans slots or the index was already stale.
 	 */
-	public void noteTaken(Identifier item, BlockPos from, int taken) {
+	public void noteTaken(ResourceLocation item, BlockPos from, int taken) {
 		if (taken <= 0) return;
 		List<Loc> locs = locations.get(item);
 		if (locs == null) {
@@ -171,7 +171,7 @@ public final class PoolIndex {
 			for (int slot = 0; slot < container.getContainerSize(); slot++) {
 				ItemStack stack = container.getItem(slot);
 				if (stack.isEmpty()) continue;
-				Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+				ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
 				counts.merge(id, stack.getCount(), Integer::sum);
 				locations.computeIfAbsent(id, k -> new ArrayList<>())
 						.add(new Loc(pos.immutable(), stack.getCount()));
