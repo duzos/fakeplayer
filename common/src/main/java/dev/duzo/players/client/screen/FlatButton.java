@@ -1,7 +1,7 @@
 package dev.duzo.players.client.screen;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.InputWithModifiers;
@@ -83,7 +83,7 @@ public class FlatButton extends AbstractButton {
 	}
 
 	@Override
-	protected void renderContents(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
+	protected void extractContents(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
 		boolean hovered = this.isHoveredOrFocused();
 		int bg = hovered ? hoverBgColor : bgColor;
 		int border = hovered ? hoverBorderColor : borderColor;
@@ -116,7 +116,7 @@ public class FlatButton extends AbstractButton {
 		int textX = x0 + (this.width - textW) / 2;
 		int textY = y0 + (this.height - 8) / 2 + 1;
 		int colorToDraw = this.active ? text : 0xFF6B7787;
-		ctx.drawString(font, drawMsg, textX, textY, colorToDraw, false);
+		ctx.text(font, drawMsg, textX, textY, colorToDraw, false);
 	}
 
 	@Override

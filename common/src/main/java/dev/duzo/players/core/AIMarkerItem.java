@@ -203,16 +203,16 @@ public class AIMarkerItem extends Item {
 					if (player.isShiftKeyDown()) {
 						boolean[] removed = {false};
 						entity.mutateAIState(s -> removed[0] = GuardJobExecutor.removePatrolPoint(s, point));
-						player.displayClientMessage(Component.literal(removed[0] ? "Patrol point removed." : "No patrol point here.")
-								.withStyle(removed[0] ? ChatFormatting.GREEN : ChatFormatting.RED), true);
+						player.sendOverlayMessage(Component.literal(removed[0] ? "Patrol point removed." : "No patrol point here.")
+								.withStyle(removed[0] ? ChatFormatting.GREEN : ChatFormatting.RED));
 					} else {
 						entity.mutateAIState(s -> GuardJobExecutor.appendPatrolPoint(s, point));
-						player.displayClientMessage(Component.literal("Patrol point added.").withStyle(ChatFormatting.GREEN), true);
+						player.sendOverlayMessage(Component.literal("Patrol point added.").withStyle(ChatFormatting.GREEN));
 					}
 					bumpExpiry(stack, level.getGameTime());
 				} else {
 					entity.mutateAIState(s -> s.setWaypoint(pos.immutable()));
-					player.displayClientMessage(Component.literal("Waypoint set.").withStyle(ChatFormatting.GREEN), true);
+					player.sendOverlayMessage(Component.literal("Waypoint set.").withStyle(ChatFormatting.GREEN));
 					silentlyConsume(player, stack);
 				}
 			}
@@ -221,7 +221,7 @@ public class AIMarkerItem extends Item {
 					tag.putLong(TAG_REGION_A, pos.asLong());
 					writeTag(stack, tag);
 					bumpExpiry(stack, level.getGameTime());
-					player.displayClientMessage(Component.literal("Region corner A set, click another block for B.").withStyle(ChatFormatting.YELLOW), true);
+					player.sendOverlayMessage(Component.literal("Region corner A set, click another block for B.").withStyle(ChatFormatting.YELLOW));
 				} else {
 					BlockPos a = BlockPos.of(tag.getLongOr(TAG_REGION_A, 0L));
 					BlockPos b = pos.immutable();
@@ -229,29 +229,29 @@ public class AIMarkerItem extends Item {
 						s.setRegionA(a);
 						s.setRegionB(b);
 					});
-					player.displayClientMessage(Component.literal("Region set.").withStyle(ChatFormatting.GREEN), true);
+					player.sendOverlayMessage(Component.literal("Region set.").withStyle(ChatFormatting.GREEN));
 					silentlyConsume(player, stack);
 				}
 			}
 			case PURPOSE_CHEST_PICKER -> {
 				if (!isValidContainer(level, pos)) {
-					player.displayClientMessage(Component.literal("Right-click a container.").withStyle(ChatFormatting.RED), true);
+					player.sendOverlayMessage(Component.literal("Right-click a container.").withStyle(ChatFormatting.RED));
 					return InteractionResult.FAIL;
 				}
 				byte slot = tag.getByteOr(TAG_CHEST_SLOT, CHEST_SLOT_DEPOSIT);
 				BlockPos commit = pos.immutable();
 				if (slot == CHEST_SLOT_SOURCE) {
 					entity.mutateAIState(s -> s.setSourceChest(commit));
-					player.displayClientMessage(Component.literal("Source container set.").withStyle(ChatFormatting.GREEN), true);
+					player.sendOverlayMessage(Component.literal("Source container set.").withStyle(ChatFormatting.GREEN));
 				} else {
 					entity.mutateAIState(s -> s.setDepositChest(commit));
-					player.displayClientMessage(Component.literal("Deposit container set.").withStyle(ChatFormatting.GREEN), true);
+					player.sendOverlayMessage(Component.literal("Deposit container set.").withStyle(ChatFormatting.GREEN));
 				}
 				silentlyConsume(player, stack);
 			}
 			case PURPOSE_POOL -> {
 				if (!StoragePool.isPoolable(level, pos)) {
-					player.displayClientMessage(Component.literal("Right-click a chest or barrel.").withStyle(ChatFormatting.RED), true);
+					player.sendOverlayMessage(Component.literal("Right-click a chest or barrel.").withStyle(ChatFormatting.RED));
 					return InteractionResult.FAIL;
 				}
 				BlockPos commit = pos.immutable();
@@ -260,15 +260,15 @@ public class AIMarkerItem extends Item {
 				// case nothing was written and saying "added" would be a lie
 				boolean stored = entity.mutateAIState(s -> added[0] = StoragePool.toggle(s, commit));
 				if (!stored) {
-					player.displayClientMessage(Component.literal("This pool is too large to store any more containers.")
-							.withStyle(ChatFormatting.RED), true);
+					player.sendOverlayMessage(Component.literal("This pool is too large to store any more containers.")
+							.withStyle(ChatFormatting.RED));
 					return InteractionResult.FAIL;
 				}
 				PoolIndex.markDirty(level, entity.getUUID());
-				player.displayClientMessage(Component.literal(added[0]
+				player.sendOverlayMessage(Component.literal(added[0]
 								? "Container added to the pool."
 								: "Container removed from the pool.")
-						.withStyle(added[0] ? ChatFormatting.GREEN : ChatFormatting.YELLOW), true);
+						.withStyle(added[0] ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
 				// not consumed, so one marker marks a whole storeroom
 				bumpExpiry(stack, level.getGameTime());
 			}

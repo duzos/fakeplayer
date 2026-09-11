@@ -10,7 +10,7 @@ import dev.duzo.players.network.c2s.RequestStockPacketC2S;
 import dev.duzo.players.network.s2c.StockListPacketS2C;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -85,7 +85,7 @@ public class QuartermasterStockScreen extends Screen {
 	}
 
 	@Override
-	public void renderBackground(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
+	public void extractBackground(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
 	}
 
 	@Override
@@ -161,7 +161,7 @@ public class QuartermasterStockScreen extends Screen {
 	}
 
 	@Override
-	public void render(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
+	public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
 		float scale = this.uiScale;
 		int viewW = Math.round(this.width / scale);
 		int viewH = Math.round(this.height / scale);
@@ -183,11 +183,11 @@ public class QuartermasterStockScreen extends Screen {
 
 		MutableComponent title = Component.literal("Storeroom")
 				.withStyle(s -> s.withColor(TextColor.fromRgb(COL_ACCENT & 0xFFFFFF)).withBold(true));
-		ctx.drawString(this.font, title, x + PADDING, y + 8, 0xFFFFFFFF, false);
+		ctx.text(this.font, title, x + PADDING, y + 8, 0xFFFFFFFF, false);
 
 		String sub = stock.isEmpty() ? "empty"
 				: stock.size() + (total > stock.size() ? " of " + total : "") + " kinds";
-		ctx.drawString(this.font, Component.literal(sub)
+		ctx.text(this.font, Component.literal(sub)
 						.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_MUTED & 0xFFFFFF))),
 				x + PANEL_W - PADDING - this.font.width(sub), y + 8, 0xFFFFFFFF, false);
 
@@ -204,19 +204,19 @@ public class QuartermasterStockScreen extends Screen {
 			StockListPacketS2C.Entry entry = shown.get(i);
 			ItemStack stack = stackOf(entry);
 			if (stack.isEmpty()) continue;
-			ctx.renderItem(stack, cx + 1, cy + 1);
+			ctx.item(stack, cx + 1, cy + 1);
 			drawCount(ctx, cx, cy, entry.count());
 			if (over) hovered = i;
 		}
 
 		if (stock.isEmpty()) {
 			String none = "Nothing pooled. Mark some containers first.";
-			ctx.drawString(this.font, Component.literal(none)
+			ctx.text(this.font, Component.literal(none)
 							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_MUTED & 0xFFFFFF))),
 					x + PADDING, gridY + 4, 0xFFFFFFFF, false);
 		} else {
 			String hint = "Click: stack, shift: one, ctrl: all";
-			ctx.drawString(this.font, Component.literal(hint)
+			ctx.text(this.font, Component.literal(hint)
 							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_MUTED & 0xFFFFFF))),
 					x + PADDING, gridY + ROWS * CELL + 6, 0xFFFFFFFF, false);
 		}
@@ -225,12 +225,12 @@ public class QuartermasterStockScreen extends Screen {
 
 		if (!stock.isEmpty()) {
 			String pages = (page + 1) + "/" + (maxPage() + 1);
-			ctx.drawString(this.font, Component.literal(pages)
+			ctx.text(this.font, Component.literal(pages)
 							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_BODY & 0xFFFFFF))),
 					x + PADDING + 92, y + PANEL_H - PADDING - 16 + 4, 0xFFFFFFFF, false);
 		}
 
-		super.render(ctx, sMouseX, sMouseY, partialTick);
+		super.extractRenderState(ctx, sMouseX, sMouseY, partialTick);
 		ctx.pose().popMatrix();
 
 		// outside the scaled matrix on purpose, or the tooltip renders at panel scale in the wrong place
@@ -256,12 +256,12 @@ public class QuartermasterStockScreen extends Screen {
 	 * Outstanding requests, so a mis-click is visible and undoable. Without this a request that
 	 * shortfalls sits on the board until the player logs out, and a grid makes those cheap to make.
 	 */
-	private void drawPending(GuiGraphics ctx, int panelX, int top, int sMouseX, int sMouseY) {
-		ctx.drawString(this.font, Component.literal("Outstanding")
+	private void drawPending(GuiGraphicsExtractor ctx, int panelX, int top, int sMouseX, int sMouseY) {
+		ctx.text(this.font, Component.literal("Outstanding")
 						.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_MUTED & 0xFFFFFF))),
 				panelX + PADDING, top, 0xFFFFFFFF, false);
 		if (pending.isEmpty()) {
-			ctx.drawString(this.font, Component.literal("nothing waiting")
+			ctx.text(this.font, Component.literal("nothing waiting")
 							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_MUTED & 0xFFFFFF))),
 					panelX + PADDING + 70, top, 0xFFFFFFFF, false);
 			return;
@@ -273,19 +273,19 @@ public class QuartermasterStockScreen extends Screen {
 			int dot = row.waiting() ? COL_YELLOW : COL_GREEN;
 			ctx.fill(panelX + PADDING, rowY + 2, panelX + PADDING + 4, rowY + 6, dot);
 			String label = shortName(row.item()) + " x" + row.remaining();
-			ctx.drawString(this.font, Component.literal(label)
+			ctx.text(this.font, Component.literal(label)
 							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_BODY & 0xFFFFFF))),
 					panelX + PADDING + 8, rowY, 0xFFFFFFFF, false);
 			if (!row.mine()) continue;
 			int cancelX = cancelX(panelX);
 			boolean over = sMouseX >= cancelX && sMouseX < cancelX + 8 && sMouseY >= rowY && sMouseY < rowY + 9;
-			ctx.drawString(this.font, Component.literal("x")
+			ctx.text(this.font, Component.literal("x")
 							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb((over ? COL_RED : COL_MUTED) & 0xFFFFFF))),
 					cancelX, rowY, 0xFFFFFFFF, false);
 		}
 		if (pending.size() > shown) {
 			String more = "+" + (pending.size() - shown) + " more";
-			ctx.drawString(this.font, Component.literal(more)
+			ctx.text(this.font, Component.literal(more)
 							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_MUTED & 0xFFFFFF))),
 					panelX + PADDING + 8, top + 12 + shown * PENDING_H, 0xFFFFFFFF, false);
 		}
@@ -321,7 +321,7 @@ public class QuartermasterStockScreen extends Screen {
 	 * Stack counts, drawn small. The vanilla decoration is sized for a 16px slot holding at most
 	 * two digits, and a pooled count of several hundred simply runs into the next cell.
 	 */
-	private void drawCount(GuiGraphics ctx, int cx, int cy, int count) {
+	private void drawCount(GuiGraphicsExtractor ctx, int cx, int cy, int count) {
 		if (count <= 1) return;
 		String text = shortCount(count);
 		float scale = 0.6F;
@@ -331,8 +331,8 @@ public class QuartermasterStockScreen extends Screen {
 		ctx.pose().pushMatrix();
 		ctx.pose().translate(tx, ty);
 		ctx.pose().scale(scale, scale);
-		ctx.drawString(this.font, text, 1, 1, 0xFF000000, false);
-		ctx.drawString(this.font, text, 0, 0, 0xFFFFFFFF, false);
+		ctx.text(this.font, text, 1, 1, 0xFF000000, false);
+		ctx.text(this.font, text, 0, 0, 0xFFFFFFFF, false);
 		ctx.pose().popMatrix();
 	}
 

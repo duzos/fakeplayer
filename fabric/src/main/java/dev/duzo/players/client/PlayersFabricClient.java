@@ -9,11 +9,11 @@ import dev.duzo.players.client.screen.FakePlayerInventoryScreen;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPMenus;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.gui.screens.MenuScreens;
 
 public class PlayersFabricClient implements ClientModInitializer {
@@ -21,7 +21,7 @@ public class PlayersFabricClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		PlayersCommonClient.init();
 
-		KeyBindingHelper.registerKeyBinding(FPKeybinds.OPEN_MENU);
+		KeyMappingHelper.registerKeyMapping(FPKeybinds.OPEN_MENU);
 
 		EntityRendererRegistry.register(FPEntities.FAKE_PLAYER.get(), FakePlayerRendererWrapper::new);
 		EntityRendererRegistry.register(FPEntities.FISHING_HOOK.get(), FakeFishingHookRenderer::new);
@@ -29,9 +29,9 @@ public class PlayersFabricClient implements ClientModInitializer {
 		MenuScreens.register(FPMenus.CRAFTER_LEARN.get(), FakeCrafterScreen::new);
 		ClientTickEvents.END_CLIENT_TICK.register(PlayersCommonClient::tick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> PlayersCommonClient.onClientStopping());
-		WorldRenderEvents.AFTER_ENTITIES.register(ctx -> {
-			SessionItemRenderer.render(ctx.matrices());
-			FishingLineRenderer.render(ctx.matrices());
+		LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> {
+			SessionItemRenderer.render(ctx.poseStack());
+			FishingLineRenderer.render(ctx.poseStack());
 		});
 	}
 }

@@ -52,11 +52,11 @@ public final class FishingLineRenderer {
 				Vec3 hand = handPos(living, partial).subtract(cam);
 				drawLine(pose, buffers.getBuffer(RenderTypes.lines()), hand, bobber);
 			}
-			drawBobber(pose, buffers.getBuffer(RenderTypes.entityCutoutNoCull(BOBBER_TEXTURE)), camRot, bobber);
+			drawBobber(pose, buffers.getBuffer(RenderTypes.entityCutout(BOBBER_TEXTURE)), camRot, bobber);
 		}
 
 		buffers.endBatch(RenderTypes.lines());
-		buffers.endBatch(RenderTypes.entityCutoutNoCull(BOBBER_TEXTURE));
+		buffers.endBatch(RenderTypes.entityCutout(BOBBER_TEXTURE));
 	}
 
 	private static Vec3 bobberPos(FakeFishingHook hook, float partial) {

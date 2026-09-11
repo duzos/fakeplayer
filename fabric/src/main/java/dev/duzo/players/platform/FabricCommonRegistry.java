@@ -4,10 +4,10 @@ import com.mojang.brigadier.CommandDispatcher;
 import dev.duzo.players.platform.services.ICommonRegistry;
 import io.netty.buffer.Unpooled;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
+import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
+import net.fabricmc.fabric.api.menu.v1.ExtendedMenuProvider;
+import net.fabricmc.fabric.api.menu.v1.ExtendedMenuType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -69,7 +69,7 @@ public class FabricCommonRegistry implements ICommonRegistry {
 
 	@Override
 	public <T extends Item> void addToGroup(Supplier<T> item, ResourceKey<CreativeModeTab> tab) {
-		ItemGroupEvents.modifyEntriesEvent(tab).register((group) -> {
+		CreativeModeTabEvents.modifyOutputEvent(tab).register((group) -> {
 			group.accept(item.get());
 		});
 	}
@@ -83,7 +83,7 @@ public class FabricCommonRegistry implements ICommonRegistry {
 
 	@Override
 	public <T extends AbstractContainerMenu> Supplier<MenuType<T>> registerMenu(String modid, String name, ExtendedMenuFactory<T> factory) {
-		ExtendedScreenHandlerType<T, FriendlyByteBuf> type = new ExtendedScreenHandlerType<>(
+		ExtendedMenuType<T, FriendlyByteBuf> type = new ExtendedMenuType<>(
 				factory::create,
 				RAW_BYTES_CODEC
 		);
@@ -92,7 +92,7 @@ public class FabricCommonRegistry implements ICommonRegistry {
 
 	@Override
 	public void openMenu(ServerPlayer player, MenuProvider provider, Consumer<FriendlyByteBuf> data) {
-		player.openMenu(new ExtendedScreenHandlerFactory<FriendlyByteBuf>() {
+		player.openMenu(new ExtendedMenuProvider<FriendlyByteBuf>() {
 			@Override
 			public FriendlyByteBuf getScreenOpeningData(ServerPlayer p) {
 				FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());

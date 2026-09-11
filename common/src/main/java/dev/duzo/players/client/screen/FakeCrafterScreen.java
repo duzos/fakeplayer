@@ -3,7 +3,7 @@ package dev.duzo.players.client.screen;
 import commonnetwork.api.Network;
 import dev.duzo.players.menu.FakeCrafterMenu;
 import dev.duzo.players.network.c2s.LearnRecipePacketC2S;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -16,8 +16,6 @@ public class FakeCrafterScreen extends AbstractContainerScreen<FakeCrafterMenu> 
 
 	public FakeCrafterScreen(FakeCrafterMenu menu, Inventory playerInventory, Component title) {
 		super(menu, playerInventory, title);
-		this.imageWidth = 176;
-		this.imageHeight = 166;
 	}
 
 	@Override
@@ -35,7 +33,8 @@ public class FakeCrafterScreen extends AbstractContainerScreen<FakeCrafterMenu> 
 	}
 
 	@Override
-	protected void renderBg(GuiGraphics ctx, float partialTick, int mouseX, int mouseY) {
+	public void extractBackground(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
+		super.extractBackground(ctx, mouseX, mouseY, partialTick);
 		ctx.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, 256, 256);
 	}
 }
