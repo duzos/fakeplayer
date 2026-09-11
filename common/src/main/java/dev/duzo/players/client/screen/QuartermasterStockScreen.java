@@ -328,7 +328,9 @@ public class QuartermasterStockScreen extends Screen {
 		int tx = cx + CELL - 2 - w;
 		int ty = cy + CELL - 2 - Math.round(this.font.lineHeight * scale);
 		ctx.pose().pushPose();
-		ctx.pose().translate(tx, ty, 0.0F);
+		// the item is drawn at z 150, so a count at z 0 ends up behind it. vanilla's own
+		// decoration uses 200 for the same reason
+		ctx.pose().translate(tx, ty, 200.0F);
 		ctx.pose().scale(scale, scale, 1.0F);
 		ctx.drawString(this.font, text, 1, 1, 0xFF000000, false);
 		ctx.drawString(this.font, text, 0, 0, 0xFFFFFFFF, false);
