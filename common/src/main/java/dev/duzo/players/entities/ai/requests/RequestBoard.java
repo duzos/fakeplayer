@@ -5,6 +5,7 @@ import dev.duzo.players.api.requests.RequestKey;
 import dev.duzo.players.api.requests.RequestStage;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import org.jetbrains.annotations.ApiStatus;
 
 import javax.annotation.Nullable;
@@ -197,9 +198,9 @@ public final class RequestBoard {
 	 */
 	public static RequestBoard fromNbt(CompoundTag tag) {
 		RequestBoard board = new RequestBoard();
-		ListTag list = tag.getListOrEmpty("Requests");
+		ListTag list = tag.contains("Requests") ? tag.getList("Requests", Tag.TAG_COMPOUND) : new ListTag();
 		for (int i = 0; i < list.size(); i++) {
-			ItemRequest r = ItemRequest.fromNbt(list.getCompoundOrEmpty(i));
+			ItemRequest r = ItemRequest.fromNbt(list.getCompound(i));
 			if (r != null) board.requests.add(r);
 		}
 		board.requests.sort(ORDER);

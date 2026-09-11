@@ -14,7 +14,7 @@ import dev.duzo.players.entities.ai.requests.PoolIndex;
 import dev.duzo.players.network.s2c.StockListPacketS2C;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -26,7 +26,7 @@ import java.util.UUID;
 
 /** Asks a Quartermaster what its pool currently holds, so the stock picker can be drawn. */
 public record RequestStockPacketC2S(int id) {
-	public static final Identifier LOCATION = PlayersCommon.id("ai_request_stock");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_request_stock");
 
 	public static RequestStockPacketC2S decode(FriendlyByteBuf buf) {
 		return new RequestStockPacketC2S(buf.readInt());
@@ -49,7 +49,7 @@ public record RequestStockPacketC2S(int id) {
 			return;
 		}
 
-		Map<Identifier, Integer> contents = PoolIndex.of(level, entity).contents();
+		Map<ResourceLocation, Integer> contents = PoolIndex.of(level, entity).contents();
 		List<StockListPacketS2C.Entry> stock = new ArrayList<>(contents.size());
 		contents.forEach((item, count) -> {
 			if (count > 0) stock.add(new StockListPacketS2C.Entry(item, count));

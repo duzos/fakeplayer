@@ -12,7 +12,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -168,8 +167,8 @@ public class QuartermasterStockScreen extends Screen {
 		int sMouseX = Math.round(mouseX / scale);
 		int sMouseY = Math.round(mouseY / scale);
 
-		ctx.pose().pushMatrix();
-		ctx.pose().scale(scale, scale);
+		ctx.pose().pushPose();
+		ctx.pose().scale(scale, scale, 1.0F);
 
 		ctx.fill(0, 0, viewW, viewH, 0xA0050709);
 		int x = (viewW - PANEL_W) / 2;
@@ -231,7 +230,7 @@ public class QuartermasterStockScreen extends Screen {
 		}
 
 		super.render(ctx, sMouseX, sMouseY, partialTick);
-		ctx.pose().popMatrix();
+		ctx.pose().popPose();
 
 		// outside the scaled matrix on purpose, or the tooltip renders at panel scale in the wrong place
 		if (hovered >= 0) {
@@ -243,7 +242,7 @@ public class QuartermasterStockScreen extends Screen {
 				lines.add(Component.literal("pooled: " + entry.count()).withStyle(ChatFormatting.GRAY));
 				lines.add(Component.literal("click for " + Math.min(stack.getMaxStackSize(), entry.count()))
 						.withStyle(ChatFormatting.DARK_GRAY));
-				ctx.setTooltipForNextFrame(this.font, lines, java.util.Optional.empty(), mouseX, mouseY);
+				ctx.renderComponentTooltip(this.font, lines, mouseX, mouseY);
 			}
 		}
 	}
@@ -295,7 +294,7 @@ public class QuartermasterStockScreen extends Screen {
 		return panelX + PANEL_W - PADDING - 8;
 	}
 
-	private static String shortName(net.minecraft.resources.Identifier id) {
+	private static String shortName(net.minecraft.resources.ResourceLocation id) {
 		String path = id.getPath();
 		return path.length() > 22 ? path.substring(0, 21) + "…" : path;
 	}
@@ -328,50 +327,46 @@ public class QuartermasterStockScreen extends Screen {
 		int w = Math.round(this.font.width(text) * scale);
 		int tx = cx + CELL - 2 - w;
 		int ty = cy + CELL - 2 - Math.round(this.font.lineHeight * scale);
-		ctx.pose().pushMatrix();
-		ctx.pose().translate(tx, ty);
-		ctx.pose().scale(scale, scale);
+		ctx.pose().pushPose();
+		ctx.pose().translate(tx, ty, 0.0F);
+		ctx.pose().scale(scale, scale, 1.0F);
 		ctx.drawString(this.font, text, 1, 1, 0xFF000000, false);
 		ctx.drawString(this.font, text, 0, 0, 0xFFFFFFFF, false);
-		ctx.pose().popMatrix();
-	}
-
-	// Map real cursor coordinates into the scaled panel space so hit-testing lines up.
-	private MouseButtonEvent scaled(MouseButtonEvent event) {
-		return new MouseButtonEvent(event.x() / this.uiScale, event.y() / this.uiScale, event.buttonInfo());
+		ctx.pose().popPose();
 	}
 
 	@Override
-	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-		MouseButtonEvent scaled = scaled(event);
-		if (clickCancel(scaled)) return true;
-		if (clickGrid(scaled)) return true;
-		return super.mouseClicked(scaled, doubleClick);
+	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		double sx = mouseX / this.uiScale;
+		double sy = mouseY / this.uiScale;
+		if (clickCancel(sx, sy)) return true;
+		if (clickGrid(sx, sy)) return true;
+		return super.mouseClicked(sx, sy, button);
 	}
 
 	@Override
-	public boolean mouseReleased(MouseButtonEvent event) {
-		return super.mouseReleased(scaled(event));
+	public boolean mouseReleased(double mouseX, double mouseY, int button) {
+		return super.mouseReleased(mouseX / this.uiScale, mouseY / this.uiScale, button);
 	}
 
 	@Override
-	public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-		return super.mouseDragged(scaled(event), dragX / this.uiScale, dragY / this.uiScale);
+	public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+		return super.mouseDragged(mouseX / this.uiScale, mouseY / this.uiScale, button, dragX / this.uiScale, dragY / this.uiScale);
 	}
 
-	private boolean clickCancel(MouseButtonEvent event) {
+	private boolean clickCancel(double mx, double my) {
 		if (pending.isEmpty()) return false;
 		int viewH = Math.round(this.height / this.uiScale);
 		int viewW = Math.round(this.width / this.uiScale);
 		int panelX = (viewW - PANEL_W) / 2;
 		int top = pendingTop((viewH - PANEL_H) / 2);
 		int cancelX = cancelX(panelX);
-		if (event.x() < cancelX || event.x() >= cancelX + 8) return false;
+		if (mx < cancelX || mx >= cancelX + 8) return false;
 
 		int shown = Math.min(PENDING_ROWS, pending.size());
 		for (int i = 0; i < shown; i++) {
 			int rowY = top + 12 + i * PENDING_H;
-			if (event.y() < rowY || event.y() >= rowY + 9) continue;
+			if (my < rowY || my >= rowY + 9) continue;
 			StockListPacketS2C.Pending row = pending.get(i);
 			if (!row.mine()) return true;
 			Network.getNetworkHandler().sendToServer(
@@ -382,13 +377,13 @@ public class QuartermasterStockScreen extends Screen {
 		return false;
 	}
 
-	private boolean clickGrid(MouseButtonEvent event) {
+	private boolean clickGrid(double mx, double my) {
 		int viewW = Math.round(this.width / this.uiScale);
 		int viewH = Math.round(this.height / this.uiScale);
 		int gridX = (viewW - PANEL_W) / 2 + PADDING;
 		int gridY = (viewH - PANEL_H) / 2 + TITLE_H + 8;
-		int col = (int) ((event.x() - gridX) / CELL);
-		int row = (int) ((event.y() - gridY) / CELL);
+		int col = (int) ((mx - gridX) / CELL);
+		int row = (int) ((my - gridY) / CELL);
 		if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
 
 		List<StockListPacketS2C.Entry> shown = pageEntries();
@@ -402,11 +397,9 @@ public class QuartermasterStockScreen extends Screen {
 
 		ItemStack stack = stackOf(entry);
 		int count;
-		// read off the click itself rather than the keyboard's current state, so the modifier that
-		// was held when the player clicked is the one that counts
-		if (event.hasControlDown()) {
+		if (Screen.hasControlDown()) {
 			count = Math.min(ItemRequest.MAX_COUNT, entry.count());
-		} else if (event.hasShiftDown()) {
+		} else if (Screen.hasShiftDown()) {
 			count = 1;
 		} else {
 			count = Math.min(stack.isEmpty() ? 1 : stack.getMaxStackSize(), entry.count());

@@ -37,7 +37,7 @@ public final class StoragePool {
 	}
 
 	public static List<BlockPos> read(AIState state) {
-		long[] raw = state.jobParams().getLongArray(TAG_POOL).orElse(new long[0]);
+		long[] raw = state.jobParams().getLongArray(TAG_POOL);
 		List<BlockPos> out = new ArrayList<>(raw.length);
 		for (long l : raw) out.add(BlockPos.of(l));
 		return out;
@@ -45,7 +45,7 @@ public final class StoragePool {
 
 	/** Adds the container, or removes it if already pooled. Returns true when it was added. */
 	public static boolean toggle(AIState state, BlockPos pos) {
-		long[] cur = state.jobParams().getLongArray(TAG_POOL).orElse(new long[0]);
+		long[] cur = state.jobParams().getLongArray(TAG_POOL);
 		long key = pos.asLong();
 		CompoundTag params = state.jobParams();
 		long[] without = Arrays.stream(cur).filter(l -> l != key).toArray();
