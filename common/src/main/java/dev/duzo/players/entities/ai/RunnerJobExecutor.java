@@ -19,6 +19,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
@@ -60,6 +62,7 @@ public class RunnerJobExecutor implements JobExecutor {
 				: haul.item() + " base=" + haul.baseline() + " want=" + haul.wanted()
 						+ " qm=" + RequestDebug.shortId(haul.quartermaster()));
 		if (haul == null) {
+			showCargo(entity, null, 0);
 			returnToBase(level, entity);
 			return;
 		}
@@ -108,6 +111,7 @@ public class RunnerJobExecutor implements JobExecutor {
 		}
 
 		int cargo = haul.cargo(entity);
+		showCargo(entity, haul, cargo);
 		RequestDebug.state(entity, "task", "{} cargo={} full={}",
 				RequestDebug.describe(request), cargo, JobHelpers.isFull(entity.getInventory()));
 		// deliver a short load rather than hoarding it: remaining is decremented by what actually
@@ -359,9 +363,29 @@ public class RunnerJobExecutor implements JobExecutor {
 	 * to every board with nothing able to clear it, so it is worth the owner's attention.
 	 */
 	private void releaseHaul(ServerLevel level, FakePlayerEntity entity) {
+		showCargo(entity, null, 0);
 		if (Haul.clear(entity)) return;
 		RequestRouting.notifyOwner(level, entity,
 				"could not clear its delivery orders and will not accept more work until its state shrinks");
+	}
+
+	/**
+	 * Put what the Runner is carrying in its hand, so a loaded one is tellable from an idle one at
+	 * a glance. Display only: cargo is counted out of the inventory, so this copy is given a drop
+	 * chance of zero rather than being allowed to fall out on death and duplicate the real stack.
+	 */
+	private static void showCargo(FakePlayerEntity entity, @Nullable Haul haul, int cargo) {
+		ItemStack want = ItemStack.EMPTY;
+		if (haul != null && cargo > 0) {
+			Item item = BuiltInRegistries.ITEM.getOptional(haul.item()).orElse(null);
+			if (item != null) {
+				want = new ItemStack(item);
+				want.setCount(Math.min(want.getMaxStackSize(), cargo));
+			}
+		}
+		if (ItemStack.matches(entity.getMainHandItem(), want)) return;
+		entity.setDropChance(EquipmentSlot.MAINHAND, 0F);
+		entity.setItemSlot(EquipmentSlot.MAINHAND, want);
 	}
 
 	/** Ranked from the Runner's own position, not the Quartermaster's, which moves under follow-override. */
