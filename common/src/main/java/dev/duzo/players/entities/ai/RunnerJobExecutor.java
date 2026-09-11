@@ -7,7 +7,6 @@ import dev.duzo.players.api.requests.RequesterKind;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.requests.Haul;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
-import dev.duzo.players.entities.ai.requests.RequestDebug;
 import dev.duzo.players.entities.ai.requests.RequestBoard;
 import dev.duzo.players.entities.ai.requests.RequestRouting;
 import net.minecraft.core.BlockPos;
@@ -58,9 +57,6 @@ public class RunnerJobExecutor implements JobExecutor {
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
 		Haul haul = Haul.of(entity.getAIState());
-		RequestDebug.state(entity, "haul", "{}", haul == null ? "free"
-				: haul.item() + " base=" + haul.baseline() + " want=" + haul.wanted()
-						+ " qm=" + RequestDebug.shortId(haul.quartermaster()));
 		if (haul == null) {
 			showCargo(entity, null, 0);
 			returnToBase(level, entity);
@@ -112,8 +108,6 @@ public class RunnerJobExecutor implements JobExecutor {
 
 		int cargo = haul.cargo(entity);
 		showCargo(entity, haul, cargo);
-		RequestDebug.state(entity, "task", "{} cargo={} full={}",
-				RequestDebug.describe(request), cargo, JobHelpers.isFull(entity.getInventory()));
 		// deliver a short load rather than hoarding it: remaining is decremented by what actually
 		// arrives, so the request stays open for the rest and the requester gets what it can have
 		boolean canCollectMore = !JobHelpers.isFull(entity.getInventory())
@@ -167,7 +161,6 @@ public class RunnerJobExecutor implements JobExecutor {
 			if (stack.isEmpty()) container.setItem(slot, ItemStack.EMPTY);
 			container.setChanged();
 			if (got > 0) {
-				RequestDebug.event(entity, "collect", "+{} of {} from {}", got, haul.item(), source);
 				index.noteTaken(haul.item(), source, got);
 				want -= got;
 				moved++; // count transfers, not slots visited
@@ -220,8 +213,6 @@ public class RunnerJobExecutor implements JobExecutor {
 		pathFails = 0;
 
 		int delivered = handOff(entity, target, haul, request);
-		RequestDebug.event(entity, "handoff", "delivered={} of {} remaining={}",
-				delivered, haul.item(), request.remaining());
 		if (delivered > 0) {
 			handoffWaited = 0;
 			entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
@@ -284,8 +275,6 @@ public class RunnerJobExecutor implements JobExecutor {
 	/** Give up this leg: return the cargo, free the Runner, and let the board back the request off. */
 	private void fail(ServerLevel level, FakePlayerEntity entity, FakePlayerEntity qm, ServerLevel qmLevel,
 	                  Haul haul, ItemRequest request, String reason) {
-		RequestDebug.event(entity, "fail", "{} cargo={} reason={}",
-				RequestDebug.describe(request), haul.cargo(entity), reason);
 		returnCargo(level, entity, qm, qmLevel, haul);
 		releaseHaul(level, entity);
 		RequestStage from = request.stage();
@@ -307,7 +296,6 @@ public class RunnerJobExecutor implements JobExecutor {
 	private void returnCargo(ServerLevel level, FakePlayerEntity entity, FakePlayerEntity qm,
 	                         ServerLevel qmLevel, Haul haul) {
 		int owed = haul.cargo(entity);
-		RequestDebug.event(entity, "return", "{} x{} to pool", haul.item(), owed);
 		if (owed <= 0) return;
 		SimpleContainer inv = entity.getInventory();
 
