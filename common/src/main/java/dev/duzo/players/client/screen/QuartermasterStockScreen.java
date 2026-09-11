@@ -55,10 +55,14 @@ public class QuartermasterStockScreen extends Screen {
 	private static final int PENDING_ROWS = 3;
 	private static final int PENDING_H = 12;
 
+	/** How often the open screen asks the server for a fresh snapshot. */
+	private static final int REFRESH_TICKS = 20;
+
 	private final FakePlayerEntity entity;
-	private final List<StockListPacketS2C.Entry> stock;
-	private final int total;
-	private final List<StockListPacketS2C.Pending> pending;
+	private List<StockListPacketS2C.Entry> stock;
+	private int total;
+	private List<StockListPacketS2C.Pending> pending;
+	private int sinceRefresh;
 	private int page;
 	private float uiScale = 1f;
 	private FlatButton prev;
@@ -122,7 +126,25 @@ public class QuartermasterStockScreen extends Screen {
 	}
 
 	private void refresh() {
+		sinceRefresh = 0;
 		Network.getNetworkHandler().sendToServer(new RequestStockPacketC2S(entity.getId()));
+	}
+
+	public int entityId() {
+		return entity.getId();
+	}
+
+	/**
+	 * Takes a newer snapshot without reopening, so the outstanding list keeps up with the runners
+	 * while the page the player was reading stays where it was.
+	 */
+	public void update(List<StockListPacketS2C.Entry> stock, int total,
+	                   List<StockListPacketS2C.Pending> pending) {
+		this.stock = List.copyOf(stock);
+		this.total = total;
+		this.pending = List.copyOf(pending);
+		this.page = Math.min(this.page, maxPage());
+		updateButtons();
 	}
 
 	@Override
@@ -132,7 +154,9 @@ public class QuartermasterStockScreen extends Screen {
 		// be silently swallowed by the server-side guards. Close instead of pretending to work.
 		if (entity == null || entity.isRemoved() || entity.getAIState().job() != Job.QUARTERMASTER) {
 			Minecraft.getInstance().setScreen(null);
+			return;
 		}
+		if (++sinceRefresh >= REFRESH_TICKS) refresh();
 	}
 
 	@Override
