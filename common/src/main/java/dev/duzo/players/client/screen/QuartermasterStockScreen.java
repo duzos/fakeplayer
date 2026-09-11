@@ -167,8 +167,8 @@ public class QuartermasterStockScreen extends Screen {
 		int sMouseX = Math.round(mouseX / scale);
 		int sMouseY = Math.round(mouseY / scale);
 
-		ctx.pose().pushMatrix();
-		ctx.pose().scale(scale, scale);
+		ctx.pose().pushPose();
+		ctx.pose().scale(scale, scale, 1.0F);
 
 		ctx.fill(0, 0, viewW, viewH, 0xA0050709);
 		int x = (viewW - PANEL_W) / 2;
@@ -230,7 +230,7 @@ public class QuartermasterStockScreen extends Screen {
 		}
 
 		super.render(ctx, sMouseX, sMouseY, partialTick);
-		ctx.pose().popMatrix();
+		ctx.pose().popPose();
 
 		// outside the scaled matrix on purpose, or the tooltip renders at panel scale in the wrong place
 		if (hovered >= 0) {
@@ -242,7 +242,7 @@ public class QuartermasterStockScreen extends Screen {
 				lines.add(Component.literal("pooled: " + entry.count()).withStyle(ChatFormatting.GRAY));
 				lines.add(Component.literal("click for " + Math.min(stack.getMaxStackSize(), entry.count()))
 						.withStyle(ChatFormatting.DARK_GRAY));
-				ctx.setTooltipForNextFrame(this.font, lines, java.util.Optional.empty(), mouseX, mouseY);
+				ctx.renderTooltip(this.font, lines.stream().map(Component::getVisualOrderText).toList(), mouseX, mouseY);
 			}
 		}
 	}
@@ -327,12 +327,12 @@ public class QuartermasterStockScreen extends Screen {
 		int w = Math.round(this.font.width(text) * scale);
 		int tx = cx + CELL - 2 - w;
 		int ty = cy + CELL - 2 - Math.round(this.font.lineHeight * scale);
-		ctx.pose().pushMatrix();
-		ctx.pose().translate(tx, ty);
-		ctx.pose().scale(scale, scale);
+		ctx.pose().pushPose();
+		ctx.pose().translate(tx, ty, 0.0F);
+		ctx.pose().scale(scale, scale, 1.0F);
 		ctx.drawString(this.font, text, 1, 1, 0xFF000000, false);
 		ctx.drawString(this.font, text, 0, 0, 0xFFFFFFFF, false);
-		ctx.pose().popMatrix();
+		ctx.pose().popPose();
 	}
 
 	@Override
