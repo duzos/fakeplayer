@@ -349,7 +349,7 @@ public class RunnerJobExecutor implements JobExecutor {
 			if (!BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(haul.item())) continue;
 			ItemStack drop = stack.split(Math.min(owed, stack.getCount()));
 			owed -= drop.getCount();
-			entity.spawnAtLocation(level, drop);
+			entity.spawnAtLocation(drop);
 			if (stack.isEmpty()) inv.setItem(slot, ItemStack.EMPTY);
 		}
 	}
