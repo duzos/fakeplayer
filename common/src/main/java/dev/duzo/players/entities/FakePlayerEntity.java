@@ -14,6 +14,7 @@ import dev.duzo.players.entities.ai.JobExecutors;
 import dev.duzo.players.entities.ai.RangedWeapon;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
 import dev.duzo.players.entities.goal.FollowOwnerGoal;
+import dev.duzo.players.entities.goal.JobAwareTemptGoal;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
 import dev.duzo.players.entities.inventory.FakePlayerInventory;
@@ -370,7 +371,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		// above the item-pickup goal on purpose: goals only yield the movement flag to a strictly better
 		// priority, so at 2 a fake already walking to a drop could never break off to shoot
 		this.goalSelector.addGoal(1, new FakeRangedAttackGoal(this, 1.0D, 15.0F));
-		this.goalSelector.addGoal(1, new TemptGoal(this, 1.0D, Ingredient.of(Items.REDSTONE_BLOCK, Items.REDSTONE_TORCH), false));
+		this.goalSelector.addGoal(1, new JobAwareTemptGoal(this, 1.0D, Ingredient.of(Items.REDSTONE_BLOCK, Items.REDSTONE_TORCH), false));
 		this.goalSelector.addGoal(0, new FloatGoal(this));
 		this.goalSelector.addGoal(0, new FollowOwnerGoal(this));
 	}
