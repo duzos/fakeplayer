@@ -60,6 +60,11 @@ public class FishermanJobExecutor implements JobExecutor {
 		ensureRod(entity); // a fisherman always holds his rod
 		if (activeHook != null && activeHook.isAlive()) faceHook(entity); // always face the bobber while it's out
 
+		dev.duzo.players.entities.ai.requests.RequestDebug.state(entity, "fisher",
+				"phase={} rod={} owner={} waypoint={} pos={}",
+				phase, rod(entity).isEmpty() ? "none" : "held",
+				s.ownerUUID() == null ? "UNBONDED" : "ok", spot, entity.blockPosition());
+
 		if (phase != Phase.DUMP) JobHelpers.closeContainer(level, entity);
 
 		switch (phase) {
