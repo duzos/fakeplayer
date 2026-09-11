@@ -251,7 +251,7 @@ public class AIMarkerItem extends Item {
 			}
 			case PURPOSE_POOL -> {
 				if (!StoragePool.isPoolable(level, pos)) {
-					player.displayClientMessage(Component.literal("Right-click a chest or barrel.").withStyle(ChatFormatting.RED), true);
+					player.sendOverlayMessage(Component.literal("Right-click a chest or barrel.").withStyle(ChatFormatting.RED));
 					return InteractionResult.FAIL;
 				}
 				BlockPos commit = pos.immutable();
@@ -260,15 +260,15 @@ public class AIMarkerItem extends Item {
 				// case nothing was written and saying "added" would be a lie
 				boolean stored = entity.mutateAIState(s -> added[0] = StoragePool.toggle(s, commit));
 				if (!stored) {
-					player.displayClientMessage(Component.literal("This pool is too large to store any more containers.")
-							.withStyle(ChatFormatting.RED), true);
+					player.sendOverlayMessage(Component.literal("This pool is too large to store any more containers.")
+							.withStyle(ChatFormatting.RED));
 					return InteractionResult.FAIL;
 				}
 				PoolIndex.markDirty(level, entity.getUUID());
-				player.displayClientMessage(Component.literal(added[0]
+				player.sendOverlayMessage(Component.literal(added[0]
 								? "Container added to the pool."
 								: "Container removed from the pool.")
-						.withStyle(added[0] ? ChatFormatting.GREEN : ChatFormatting.YELLOW), true);
+						.withStyle(added[0] ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
 				// not consumed, so one marker marks a whole storeroom
 				bumpExpiry(stack, level.getGameTime());
 			}

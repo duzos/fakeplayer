@@ -23,7 +23,7 @@ public class PlayersCommonClient {
 		if (!(minecraft.level.getEntity(entityId) instanceof FakePlayerEntity entity)) return;
 		// an already open picker takes the new snapshot in place, or its polling would reset the
 		// page and drop the scroll position once a second
-		if (minecraft.screen instanceof QuartermasterStockScreen open && open.entityId() == entityId) {
+		if (minecraft.gui.screen() instanceof QuartermasterStockScreen open && open.entityId() == entityId) {
 			open.update(stock, total, pending);
 			return;
 		}
