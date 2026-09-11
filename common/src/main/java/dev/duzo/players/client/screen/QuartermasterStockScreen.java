@@ -294,7 +294,7 @@ public class QuartermasterStockScreen extends Screen {
 		return panelX + PANEL_W - PADDING - 8;
 	}
 
-	private static String shortName(net.minecraft.resources.Identifier id) {
+	private static String shortName(net.minecraft.resources.ResourceLocation id) {
 		String path = id.getPath();
 		return path.length() > 22 ? path.substring(0, 21) + "…" : path;
 	}

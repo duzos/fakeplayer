@@ -3,7 +3,7 @@ package dev.duzo.players.api.requests;
 import dev.duzo.players.entities.ai.Job;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -16,7 +16,7 @@ import java.util.UUID;
  *
  * <p>Addressed by persistent UUID because synced entity ids change on reload.
  */
-public record RequestKey(UUID requester, RequesterKind kind, Job job, Identifier item) {
+public record RequestKey(UUID requester, RequesterKind kind, Job job, ResourceLocation item) {
 
 	public CompoundTag toNbt() {
 		CompoundTag tag = new CompoundTag();
@@ -31,7 +31,7 @@ public record RequestKey(UUID requester, RequesterKind kind, Job job, Identifier
 	public static RequestKey fromNbt(CompoundTag tag) {
 		int[] raw = tag.getIntArray("Requester").orElse(null);
 		if (raw == null || raw.length != 4) return null;
-		Identifier item = Identifier.tryParse(tag.getStringOr("Item", ""));
+		ResourceLocation item = ResourceLocation.tryParse(tag.getStringOr("Item", ""));
 		if (item == null) return null;
 		Job job;
 		try {
