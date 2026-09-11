@@ -15,23 +15,31 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * One Quartermaster's pool contents, sent in reply to a stock request, and the screen that shows
- * them.
+ * One Quartermaster's pool contents and its outstanding requests, sent in reply to a stock request.
  *
- * <p>A snapshot, deliberately: it can be stale by the time the player clicks, and that is fine
- * because the request is resolved server-side against the live index. Keeping it live would mean
- * the server tracking who has the screen open, for a storeroom that rarely changes.
+ * <p>The stock half is a snapshot on purpose: it can be stale by the time the player clicks, which
+ * is fine because the request resolves server-side against the live index. Keeping it live would
+ * mean the server tracking who has the screen open, for a storeroom that rarely changes.
+ *
+ * <p>The pending half exists because a clickable grid makes requests cheap to create, and a request
+ * that shortfalls otherwise sits on the board until the player logs out. Showing them is what makes
+ * cancelling them possible.
  */
-public record StockListPacketS2C(int id, List<Entry> stock, int total) implements CustomPacketPayload {
+public record StockListPacketS2C(int id, List<Entry> stock, int total, List<Pending> pending) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("qm_stock_list");
 	public static final CustomPacketPayload.Type<StockListPacketS2C> TYPE = new CustomPacketPayload.Type<>(LOCATION);
 	public static final StreamCodec<FriendlyByteBuf, StockListPacketS2C> CODEC = CustomPacketPayload.codec(StockListPacketS2C::encode, StockListPacketS2C::decode);
 
 	/** Cap on entries sent, so a pathological pool cannot produce an oversized packet. */
 	public static final int MAX_ENTRIES = 500;
+	/** Cap on outstanding rows sent. The board itself is capped at 64. */
+	public static final int MAX_PENDING = 64;
 	private static final int MAX_ID_LENGTH = 256;
 
 	public record Entry(Identifier item, int count) {}
+
+	/** An outstanding request. {@code mine} means the viewing player raised it and may cancel it. */
+	public record Pending(Identifier item, int remaining, boolean mine, boolean waiting) {}
 
 	public static StockListPacketS2C decode(FriendlyByteBuf buf) {
 		int id = buf.readInt();
@@ -42,7 +50,17 @@ public record StockListPacketS2C(int id, List<Entry> stock, int total) implement
 			int count = buf.readInt();
 			if (item != null) stock.add(new Entry(item, count));
 		}
-		return new StockListPacketS2C(id, stock, buf.readInt());
+		int total = buf.readInt();
+		int pendingSize = Math.max(0, Math.min(MAX_PENDING, buf.readInt()));
+		List<Pending> pending = new ArrayList<>(pendingSize);
+		for (int i = 0; i < pendingSize; i++) {
+			Identifier item = Identifier.tryParse(buf.readUtf(MAX_ID_LENGTH));
+			int remaining = buf.readInt();
+			boolean mine = buf.readBoolean();
+			boolean waiting = buf.readBoolean();
+			if (item != null) pending.add(new Pending(item, remaining, mine, waiting));
+		}
+		return new StockListPacketS2C(id, stock, total, pending);
 	}
 
 	public static void handle(PacketContext<StockListPacketS2C> ctx) {
@@ -50,7 +68,9 @@ public record StockListPacketS2C(int id, List<Entry> stock, int total) implement
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.level == null) return;
 		if (!(minecraft.level.getEntity(ctx.message().id()) instanceof FakePlayerEntity entity)) return;
-		minecraft.setScreen(new QuartermasterStockScreen(entity, ctx.message().stock(), ctx.message().total()));
+		StockListPacketS2C msg = ctx.message();
+		// reopened rather than mutated, so a refresh and a first open take the same path
+		minecraft.gui.setScreen(new QuartermasterStockScreen(entity, msg.stock(), msg.total(), msg.pending()));
 	}
 
 	@Override
@@ -66,5 +86,12 @@ public record StockListPacketS2C(int id, List<Entry> stock, int total) implement
 			buf.writeInt(entry.count());
 		}
 		buf.writeInt(total);
+		buf.writeInt(Math.min(MAX_PENDING, pending.size()));
+		for (Pending row : pending) {
+			buf.writeUtf(row.item().toString(), MAX_ID_LENGTH);
+			buf.writeInt(row.remaining());
+			buf.writeBoolean(row.mine());
+			buf.writeBoolean(row.waiting());
+		}
 	}
 }

@@ -4,6 +4,10 @@ import commonnetwork.api.Network;
 import commonnetwork.networking.data.PacketContext;
 import commonnetwork.networking.data.Side;
 import dev.duzo.players.PlayersCommon;
+import dev.duzo.players.api.requests.FakePlayerRequests;
+import dev.duzo.players.api.requests.ItemRequest;
+import dev.duzo.players.api.requests.RequestStage;
+import dev.duzo.players.api.requests.RequesterKind;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
@@ -59,8 +63,22 @@ public record RequestStockPacketC2S(int id) implements CustomPacketPayload {
 		List<StockListPacketS2C.Entry> capped = stock.size() > StockListPacketS2C.MAX_ENTRIES
 				? stock.subList(0, StockListPacketS2C.MAX_ENTRIES)
 				: stock;
+		List<StockListPacketS2C.Pending> pending = new ArrayList<>();
+		for (ItemRequest request : FakePlayerRequests.outstanding(entity)) {
+			if (pending.size() >= StockListPacketS2C.MAX_PENDING) break;
+			pending.add(new StockListPacketS2C.Pending(
+					request.key().item(),
+					request.remaining(),
+					// only the viewer's own requests are cancellable: a fake re-raises within a
+					// second, so removing its request would look broken rather than helpful
+					request.key().kind() == RequesterKind.PLAYER
+							&& sender.getUUID().equals(request.key().requester()),
+					request.stage() != RequestStage.DISPATCHED));
+		}
+
 		Network.getNetworkHandler().sendToClient(
-				new StockListPacketS2C(ctx.message().id, List.copyOf(capped), stock.size()), sender);
+				new StockListPacketS2C(ctx.message().id, List.copyOf(capped), stock.size(),
+						List.copyOf(pending)), sender);
 	}
 
 	@Override

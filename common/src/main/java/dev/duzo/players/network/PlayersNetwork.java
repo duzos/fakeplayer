@@ -12,6 +12,7 @@ import dev.duzo.players.network.c2s.OpenCrafterLearnPacketC2S;
 import dev.duzo.players.network.c2s.OpenFakeMenuPacketC2S;
 import dev.duzo.players.network.c2s.RequestSkinDataPacketC2S;
 import dev.duzo.players.network.c2s.RequestItemPacketC2S;
+import dev.duzo.players.network.c2s.CancelRequestPacketC2S;
 import dev.duzo.players.network.c2s.RequestStockPacketC2S;
 import dev.duzo.players.network.s2c.StockListPacketS2C;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
@@ -40,6 +41,7 @@ public class PlayersNetwork {
 		Network.registerPacket(RequestItemPacketC2S.TYPE, RequestItemPacketC2S.CODEC, RequestItemPacketC2S::handle);
 		Network.registerPacket(RequestStockPacketC2S.TYPE, RequestStockPacketC2S.CODEC, RequestStockPacketC2S::handle);
 		Network.registerPacket(StockListPacketS2C.TYPE, StockListPacketS2C.CODEC, StockListPacketS2C::handle);
+		Network.registerPacket(CancelRequestPacketC2S.TYPE, CancelRequestPacketC2S.CODEC, CancelRequestPacketC2S::handle);
 		Network.registerPacket(SetJobPacketC2S.TYPE, SetJobPacketC2S.CODEC, SetJobPacketC2S::handle);
 		Network.registerPacket(StartStopJobPacketC2S.TYPE, StartStopJobPacketC2S.CODEC, StartStopJobPacketC2S::handle);
 		Network.registerPacket(GiveAIMarkerPacketC2S.TYPE, GiveAIMarkerPacketC2S.CODEC, GiveAIMarkerPacketC2S::handle);
