@@ -54,9 +54,10 @@ storeroom and works out who can fill the request; a **Runner** does the carrying
   add it to the pool, and right-click a pooled one again to remove it. The marker is not used up, so
   one marker marks the whole storeroom. Furnaces and other sided containers cannot be pooled, and
   marking only one half of a double chest is enough.
-- Bond at least one fake as a **Runner**, owned by you and within `requestRadius` blocks (64 by
-  default). The Quartermaster never walks, so with no Runner nearby nothing is delivered and it tells
-  you so.
+- Bond at least one fake as a **Runner**, owned by you and within `requestRadius` blocks (256 by
+  default, about 16 chunks). The Quartermaster never walks, so with no Runner nearby nothing is
+  delivered and it tells you so. The same radius decides which Quartermasters a waiting fake can
+  reach, so a storeroom further than that is invisible to it.
 - Start both. A Fisherman with no rod now asks for one and waits, and the rod arrives if the pool has
   one. If nothing can fill the request you are told **once** and the fake keeps waiting rather than
   unbonding itself.
