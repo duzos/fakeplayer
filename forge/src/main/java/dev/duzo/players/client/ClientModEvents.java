@@ -13,9 +13,17 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 
 @EventBusSubscriber(modid = Constants.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientModEvents {
+	@SubscribeEvent
+	public static void onClientSetup(FMLClientSetupEvent event) {
+		// fabric does this from its client entrypoint. without it here the stock list packet has no
+		// opener and pressing Browse does nothing at all on this loader
+		event.enqueueWork(PlayersCommonClient::init);
+	}
+
 	@SubscribeEvent
 	public static void onEntityRenderersRegistry(EntityRenderersEvent.RegisterRenderers event) {
 		event.registerEntityRenderer(FPEntities.FAKE_PLAYER.get(), FakePlayerRendererWrapper::new);
