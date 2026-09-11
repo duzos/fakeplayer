@@ -83,6 +83,11 @@ public final class PoolIndex {
 		return counts.getOrDefault(item, 0);
 	}
 
+	/** Every item the pool holds, with its total count. A snapshot, safe to hand to a packet. */
+	public Map<ResourceLocation, Integer> contents() {
+		return Map.copyOf(counts);
+	}
+
 	public List<Loc> locations(ResourceLocation item) {
 		return List.copyOf(locations.getOrDefault(item, List.of()));
 	}
