@@ -9,7 +9,7 @@ public class Constants {
 	public static final String MOD_ID = "players";
 	public static final String MOD_NAME = "Fake Players";
 	public static final Logger LOG = LoggerFactory.getLogger(MOD_NAME);
-	private static boolean SILENCE_LOGS = true;
+	private static boolean SILENCE_LOGS = false; // TEMP: playtest instrumentation
 
 	public static void debug(String format, Object... arguments) {
 		if (!(Services.PLATFORM.isDevelopmentEnvironment()) || SILENCE_LOGS) return;

@@ -143,7 +143,11 @@ public final class FakePlayerRequests {
 			return RaisedRequest.failed(RaiseResult.INVALID);
 		}
 		UUID owner = requester.getAIState().ownerUUID();
-		if (owner == null) return RaisedRequest.failed(RaiseResult.INVALID);
+		if (owner == null) {
+			dev.duzo.players.Constants.debug("[fpdebug] RAISE-FAIL {} is unbonded, cannot raise",
+					requester.getUUID());
+			return RaisedRequest.failed(RaiseResult.INVALID);
+		}
 		RequestKey key = new RequestKey(requester.getUUID(), RequesterKind.FAKE,
 				requester.getAIState().job(), BuiltInRegistries.ITEM.getKey(want.getItem()));
 		return post(level, requester, owner, key, want.getCount(), priority);
@@ -201,7 +205,15 @@ public final class FakePlayerRequests {
 		}
 
 		FakePlayerEntity quartermaster = RequestRouting.nearestCapable(level, requester, owner, key.item());
-		if (quartermaster == null) return RaisedRequest.failed(RaiseResult.NO_QUARTERMASTER);
+		if (quartermaster == null) {
+			if (requester instanceof FakePlayerEntity asker) {
+				dev.duzo.players.entities.ai.requests.RequestDebug.state(asker, "raisefail",
+						"{} x{} -> NO_QUARTERMASTER", key.item(), count);
+			}
+			return RaisedRequest.failed(RaiseResult.NO_QUARTERMASTER);
+		}
+		dev.duzo.players.entities.ai.requests.RequestDebug.event(quartermaster, "raise",
+				"{} x{} from {}", key.item(), count, key.kind());
 		RequestBoard board = RequestRouting.boardOf(quartermaster);
 		if (board == null) return RaisedRequest.failed(RaiseResult.NO_QUARTERMASTER);
 
