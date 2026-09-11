@@ -38,6 +38,11 @@ public class RunnerJobExecutor implements JobExecutor {
 	private static final int HANDOFF_PATIENCE = 20 * 15;
 
 	private static final double RTB_ARRIVE_SQR = 25.0;
+	// JobHelpers reports UNREACHABLE on every tick of its own 40-tick retry cooldown without
+	// pathing at all, and that cooldown is always set by the failed leg that just freed this
+	// runner. So give up only after continuous unreachability well past that window; counting
+	// reports instead of ticks tripped in three ticks and killed return-to-base every time.
+	private static final int RTB_GIVE_UP_TICKS = 60;
 
 	// all transient: nothing here is authority, so losing it on a reload costs one rescan
 	@Nullable private BlockPos source;
@@ -416,14 +421,14 @@ public class RunnerJobExecutor implements JobExecutor {
 			rtbFails = 0;
 			return;
 		}
-		// walkTo also reports UNREACHABLE while its own 40-tick retry cooldown is pending, and that
-		// cooldown is always set by the failed leg that just freed this runner. Giving up on the
-		// first report killed return-to-base in exactly the case it exists for, so count instead.
-		if (JobHelpers.walkTo(entity, qm.blockPosition(), SPEED) == JobHelpers.WalkResult.UNREACHABLE
-				&& ++rtbFails >= MAX_PATH_FAILS) {
-			entity.getNavigation().stop();
-			homeQm = null;
-			rtbFails = 0;
+		if (JobHelpers.walkTo(entity, qm.blockPosition(), SPEED) == JobHelpers.WalkResult.UNREACHABLE) {
+			if (++rtbFails >= RTB_GIVE_UP_TICKS) {
+				entity.getNavigation().stop();
+				homeQm = null;
+				rtbFails = 0;
+			}
+		} else {
+			rtbFails = 0; // any progress at all resets the window
 		}
 	}
 
