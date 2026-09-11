@@ -20,8 +20,8 @@ import dev.duzo.players.network.c2s.ToggleFakePlayerFlagPacketC2S;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -30,6 +30,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -86,6 +87,16 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton filterToggle;
 	private FlatButton startStopButton;
 
+	/**
+	 * Hover text, drawn by hand rather than by {@link AbstractWidget#setTooltip}. A widget tooltip
+	 * positions itself with the mouse coordinates it was rendered with, which here are already
+	 * divided by {@link #uiScale}, and the deferred draw then happens outside the scaled matrix.
+	 * The result lands nowhere near the cursor whenever the panel is shrunk.
+	 */
+	private record Hint(AbstractWidget widget, Component text) {}
+
+	private final List<Hint> hints = new ArrayList<>();
+
 	private int ownerSectionY;
 	private int behaviourSectionY;
 	private int markerSectionY;
@@ -116,6 +127,7 @@ public class AISubMenuScreen extends Screen {
 	@Override
 	protected void init() {
 		super.init();
+		hints.clear();
 		if (entity == null) {
 			Minecraft.getInstance().setScreen(null);
 			return;
@@ -183,9 +195,9 @@ public class AISubMenuScreen extends Screen {
 		filterEdit = new EditBox(this.font, innerLeft + 52, markerSectionY, FILTER_EDIT_W, BTN_H, Component.literal("filter"));
 		filterEdit.setMaxLength(512);
 		filterEdit.setValue(filterText(entity.getAIState()));
-		filterEdit.setTooltip(Tooltip.create(Component.literal(
-				"Item/block ids or #tags, comma-separated. * or blank matches everything.")));
 		this.addRenderableWidget(filterEdit);
+		hints.add(new Hint(filterEdit, Component.literal(
+				"Item/block ids or #tags, comma-separated. * or blank matches everything.")));
 		filterButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyFilter);
 		this.addRenderableWidget(filterButton);
 		filterToggle = new FlatButton(filterToggleX, markerSectionY, FILTER_TOGGLE_W, BTN_H, Component.literal("ON"), this::toggleFilter);
@@ -195,9 +207,9 @@ public class AISubMenuScreen extends Screen {
 		this.addRenderableWidget(poolButton);
 		requestButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H,
 				Component.literal("Browse"), this::browseStock);
-		requestButton.setTooltip(Tooltip.create(Component.literal(
-				"See what this quartermaster has pooled, and click to request it.")));
 		this.addRenderableWidget(requestButton);
+		hints.add(new Hint(requestButton, Component.literal(
+				"See what this quartermaster has pooled, and click to request it.")));
 
 		int startStopY = markerSectionY + 18 + 4 * ROW_H + 48;
 		startStopButton = new FlatButton(innerLeft, startStopY, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
@@ -371,6 +383,16 @@ public class AISubMenuScreen extends Screen {
 
 		super.render(ctx, sMouseX, sMouseY, partialTick);
 		ctx.pose().popMatrix();
+
+		drawHint(ctx, sMouseX, sMouseY, mouseX, mouseY);
+	}
+
+	private void drawHint(GuiGraphics ctx, int sMouseX, int sMouseY, int mouseX, int mouseY) {
+		for (Hint hint : hints) {
+			if (!hint.widget().visible || !hint.widget().isMouseOver(sMouseX, sMouseY)) continue;
+			ctx.setTooltipForNextFrame(this.font, this.font.split(hint.text(), 180), mouseX, mouseY);
+			return;
+		}
 	}
 
 	// Map real cursor coordinates into the scaled panel space so widget hit-testing lines up.
