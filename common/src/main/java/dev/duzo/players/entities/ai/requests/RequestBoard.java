@@ -83,7 +83,9 @@ public final class RequestBoard {
 		if (!existing.isOpen()) {
 			existing.setStage(RequestStage.PENDING);
 			existing.resetFailures();
-			existing.setRetryAfter(0L);
+			// deliberately NOT setRetryAfter(0): a consumer that re-raises on a timer would
+			// otherwise revive its own shortfall every raise, re-resolve against the same empty
+			// pool, and charge a failure every second, defeating the retry backoff entirely
 		}
 		requests.sort(ORDER);
 	}
