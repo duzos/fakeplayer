@@ -10,7 +10,6 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.requests.Haul;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
 import dev.duzo.players.entities.ai.requests.RequestBoard;
-import dev.duzo.players.entities.ai.requests.RequestDebug;
 import dev.duzo.players.entities.ai.requests.RequestRouting;
 import dev.duzo.players.entities.ai.requests.StoragePool;
 import net.minecraft.nbt.CompoundTag;
@@ -72,9 +71,6 @@ public class QuartermasterJobExecutor implements JobExecutor {
 
 		if (StoragePool.read(entity.getAIState()).isEmpty()) return;
 
-		RequestDebug.state(entity, "board", "pool={} open={} total={} next={}",
-				StoragePool.read(entity.getAIState()).size(), board.openCount(), board.all().size(),
-				RequestDebug.describe(board.nextPending(now)));
 		ItemRequest request = board.nextPending(now);
 		if (request != null) resolve(level, entity, request, now);
 	}
@@ -108,8 +104,6 @@ public class QuartermasterJobExecutor implements JobExecutor {
 			}
 		}
 
-		RequestDebug.state(entity, "resolve", "{} have={} need={}",
-				request.key().item(), have, request.remaining());
 		// trust the index, never a resolver's word
 		if (have <= 0) {
 			shortfall(level, entity, request, liar, now);
@@ -117,8 +111,6 @@ public class QuartermasterJobExecutor implements JobExecutor {
 		}
 
 		FakePlayerEntity runner = RequestRouting.nearestFreeRunner(level, entity);
-		RequestDebug.state(entity, "runner", "free={}",
-				runner == null ? "none" : RequestDebug.shortId(runner.getUUID()));
 		if (runner == null) {
 			// the most common first-run misconfiguration, and silent in every earlier revision
 			announce(level, entity, request, "norunner", "no free runner for " + request.key().item());
@@ -148,8 +140,6 @@ public class QuartermasterJobExecutor implements JobExecutor {
 		board.clearLatch(request.key(), "haulfailed");
 		board.clearLatch(request.key(), "orphaned");
 
-		RequestDebug.event(entity, "dispatch", "{} to {}",
-				RequestDebug.describe(request), RequestDebug.shortId(runner.getUUID()));
 		RequestStage from = request.stage();
 		request.assignTo(runner.getUUID(), now);
 		request.setStage(RequestStage.DISPATCHED);
@@ -173,7 +163,6 @@ public class QuartermasterJobExecutor implements JobExecutor {
 			RequestRouting.AssignmentFault fault =
 					RequestRouting.assignmentFault(level, entity.getUUID(), request, now);
 			if (fault == null) continue;
-			RequestDebug.event(entity, "audit", "{} fault={}", RequestDebug.describe(request), fault);
 			RequestStage from = request.stage();
 			request.assignTo(null, now);
 			request.setStage(RequestStage.PENDING);
@@ -194,7 +183,6 @@ public class QuartermasterJobExecutor implements JobExecutor {
 	 */
 	public void noteRunnerFailure(ServerLevel level, FakePlayerEntity entity, ItemRequest request,
 	                              long now, RequestStage from, String reason) {
-		RequestDebug.event(entity, "runnerfail", "{} reason={}", RequestDebug.describe(request), reason);
 		request.noteFailure();
 		request.setRetryAfter(now + BACKOFF_TICKS);
 		if (request.failures() >= MAX_FAILURES) {
@@ -231,7 +219,6 @@ public class QuartermasterJobExecutor implements JobExecutor {
 
 	private void shortfall(ServerLevel level, FakePlayerEntity entity, ItemRequest request,
 	                      @Nullable String liar, long now) {
-		RequestDebug.event(entity, "shortfall", "{} liar={}", RequestDebug.describe(request), liar);
 		RequestStage from = request.stage();
 		request.setStage(RequestStage.SHORTFALL);
 		// counted, or prune can never drop it and a request from a dead requester re-dispatches forever

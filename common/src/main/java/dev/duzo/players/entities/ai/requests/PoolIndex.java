@@ -147,8 +147,6 @@ public final class PoolIndex {
 		rebuild(level, quartermaster);
 		rebuiltAt = now;
 		dirty = false;
-		RequestDebug.event(quartermaster, "index", "rebuilt: {} kinds, {}",
-				counts.size(), counts.isEmpty() ? "empty" : counts.toString());
 	}
 
 	private void rebuild(ServerLevel level, FakePlayerEntity quartermaster) {
