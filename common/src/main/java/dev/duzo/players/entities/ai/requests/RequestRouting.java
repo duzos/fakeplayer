@@ -68,7 +68,26 @@ public final class RequestRouting {
 	/** Quartermasters with a marked pool that could serve this owner, nearest first. */
 	public static List<FakePlayerEntity> quartermastersFor(ServerLevel level, Entity around, @Nullable UUID owner) {
 		List<FakePlayerEntity> found = new ArrayList<>(peers(level, around, Job.QUARTERMASTER, owner));
+		int beforePool = found.size();
 		found.removeIf(qm -> StoragePool.read(qm.getAIState()).isEmpty());
+		if (dev.duzo.players.platform.Services.PLATFORM.isDevelopmentEnvironment()
+				&& found.isEmpty() && around instanceof FakePlayerEntity asker) {
+			// enumerate every quartermaster in the level and say why each was excluded
+			StringBuilder why = new StringBuilder();
+			for (Entity e : level.getAllEntities()) {
+				if (!(e instanceof FakePlayerEntity fake)) continue;
+				if (fake.getAIState().job() != Job.QUARTERMASTER) continue;
+				why.append(" [").append(fake.getUUID().toString(), 0, 8)
+						.append(" owner=").append(fake.getAIState().ownerUUID())
+						.append(" running=").append(fake.getAIState().running())
+						.append(" dist=").append(String.format("%.1f", Math.sqrt(fake.distanceToSqr(around))))
+						.append(" pool=").append(StoragePool.read(fake.getAIState()).size())
+						.append("]");
+			}
+			RequestDebug.state(asker, "qmscan", "want-owner={} radius={} inRadius={} afterPoolFilter={} candidates:{}",
+					owner, PlayersConfig.get().requestRadius, beforePool, found.size(),
+					why.length() == 0 ? " NONE IN LEVEL" : why);
+		}
 		found.sort(Comparator.comparingDouble(qm -> qm.distanceToSqr(around)));
 		return found;
 	}
@@ -81,6 +100,18 @@ public final class RequestRouting {
 	@Nullable
 	public static FakePlayerEntity nearestCapable(ServerLevel level, Entity requester, @Nullable UUID owner, Identifier item) {
 		List<FakePlayerEntity> found = quartermastersFor(level, requester, owner);
+		if (dev.duzo.players.platform.Services.PLATFORM.isDevelopmentEnvironment()
+				&& !found.isEmpty() && requester instanceof FakePlayerEntity asker) {
+			StringBuilder why = new StringBuilder();
+			for (FakePlayerEntity qm : found) {
+				why.append(" [").append(qm.getUUID().toString(), 0, 8)
+						.append(" board=").append(boardOf(qm) == null ? "NOT-TICKED" : "live")
+						.append(" stock=").append(boardOf(qm) == null ? "?"
+								: String.valueOf(PoolIndex.of((ServerLevel) qm.level(), qm).count(item)))
+						.append("]");
+			}
+			RequestDebug.state(asker, "capable", "{} candidates:{}", item, why);
+		}
 		for (FakePlayerEntity qm : found) {
 			if (boardOf(qm) == null) continue;
 			if (PoolIndex.of((ServerLevel) qm.level(), qm).count(item) > 0) return qm;
