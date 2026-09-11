@@ -3,9 +3,6 @@ package dev.duzo.players.network.s2c;
 import commonnetwork.networking.data.PacketContext;
 import commonnetwork.networking.data.Side;
 import dev.duzo.players.PlayersCommon;
-import dev.duzo.players.client.screen.QuartermasterStockScreen;
-import dev.duzo.players.entities.FakePlayerEntity;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 
@@ -59,14 +56,31 @@ public record StockListPacketS2C(int id, List<Entry> stock, int total, List<Pend
 		return new StockListPacketS2C(id, stock, total, pending);
 	}
 
+	/**
+	 * What to do with a received stock list. Filled in by the client entrypoint.
+	 *
+	 * <p>A plain JDK interface on purpose. Naming a Screen anywhere reachable from {@link #handle}
+	 * makes registering this packet verify that code, and proving a Screen subclass is assignable
+	 * to Screen loads Screen, which a dedicated server refuses outright. Going through a field the
+	 * server never fills keeps every client type out of the verifier's path.
+	 */
+	@FunctionalInterface
+	public interface Opener {
+		void open(int entityId, List<Entry> stock, int total, List<Pending> pending);
+	}
+
+	private static Opener opener;
+
+	public static void setOpener(Opener value) {
+		opener = value;
+	}
+
 	public static void handle(PacketContext<StockListPacketS2C> ctx) {
 		if (!Side.CLIENT.equals(ctx.side())) return;
-		Minecraft minecraft = Minecraft.getInstance();
-		if (minecraft.level == null) return;
-		if (!(minecraft.level.getEntity(ctx.message().id()) instanceof FakePlayerEntity entity)) return;
+		if (opener == null) return;
 		StockListPacketS2C msg = ctx.message();
 		// reopened rather than mutated, so a refresh and a first open take the same path
-		minecraft.setScreen(new QuartermasterStockScreen(entity, msg.stock(), msg.total(), msg.pending()));
+		opener.open(msg.id(), msg.stock(), msg.total(), msg.pending());
 	}
 
 	public void encode(FriendlyByteBuf buf) {
