@@ -181,7 +181,7 @@ public class QuartermasterStockScreen extends Screen {
 			ItemStack stack = stackOf(entry);
 			if (stack.isEmpty()) continue;
 			ctx.renderItem(stack, cx + 1, cy + 1);
-			ctx.renderItemDecorations(this.font, stack, cx + 1, cy + 1, shortCount(entry.count()));
+			drawCount(ctx, cx, cy, entry.count());
 			if (over) hovered = i;
 		}
 
@@ -191,17 +191,20 @@ public class QuartermasterStockScreen extends Screen {
 							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_MUTED & 0xFFFFFF))),
 					x + PADDING, gridY + 4, 0xFFFFFFFF, false);
 		} else {
-			String hint = "Click a stack, sneak-click for one, ctrl-click for all";
+			String hint = "Click: stack, shift: one, ctrl: all";
 			ctx.drawString(this.font, Component.literal(hint)
 							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_MUTED & 0xFFFFFF))),
 					x + PADDING, gridY + ROWS * CELL + 6, 0xFFFFFFFF, false);
-			String pages = "page " + (page + 1) + "/" + (maxPage() + 1);
-			ctx.drawString(this.font, Component.literal(pages)
-							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_BODY & 0xFFFFFF))),
-					x + PANEL_W - PADDING - this.font.width(pages), gridY + ROWS * CELL + 6, 0xFFFFFFFF, false);
 		}
 
 		drawPending(ctx, x, pendingTop(y), sMouseX, sMouseY);
+
+		if (!stock.isEmpty()) {
+			String pages = (page + 1) + "/" + (maxPage() + 1);
+			ctx.drawString(this.font, Component.literal(pages)
+							.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(COL_BODY & 0xFFFFFF))),
+					x + PADDING + 92, y + PANEL_H - PADDING - 16 + 4, 0xFFFFFFFF, false);
+		}
 
 		super.render(ctx, sMouseX, sMouseY, partialTick);
 		ctx.pose().popMatrix();
@@ -288,6 +291,25 @@ public class QuartermasterStockScreen extends Screen {
 		if (count < 1000) return String.valueOf(count);
 		if (count < 100000) return (count / 1000) + "k";
 		return "lots";
+	}
+
+	/**
+	 * Stack counts, drawn small. The vanilla decoration is sized for a 16px slot holding at most
+	 * two digits, and a pooled count of several hundred simply runs into the next cell.
+	 */
+	private void drawCount(GuiGraphics ctx, int cx, int cy, int count) {
+		if (count <= 1) return;
+		String text = shortCount(count);
+		float scale = 0.6F;
+		int w = Math.round(this.font.width(text) * scale);
+		int tx = cx + CELL - 2 - w;
+		int ty = cy + CELL - 2 - Math.round(this.font.lineHeight * scale);
+		ctx.pose().pushMatrix();
+		ctx.pose().translate(tx, ty);
+		ctx.pose().scale(scale, scale);
+		ctx.drawString(this.font, text, 1, 1, 0xFF000000, false);
+		ctx.drawString(this.font, text, 0, 0, 0xFFFFFFFF, false);
+		ctx.pose().popMatrix();
 	}
 
 	// Map real cursor coordinates into the scaled panel space so hit-testing lines up.
