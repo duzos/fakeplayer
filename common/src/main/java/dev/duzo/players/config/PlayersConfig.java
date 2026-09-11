@@ -29,8 +29,13 @@ public class PlayersConfig {
 	/** How far a fake may path in one search, clamped to 16-2048. Costs server tick time to raise: the pathfinder
 	 * searches a cube of this radius and gets 16 nodes of budget per block of it. */
 	public double pathRange = 256.0;
-	/** How far a blocked fake looks for a Quartermaster, and a Quartermaster for a Runner. */
-	public double requestRadius = 64.0;
+	/** How far a blocked fake looks for a Quartermaster, and a Quartermaster for a Runner.
+	 * 256 is 16 chunks in each direction. Raising it costs server tick time on a path that runs
+	 * about once a second per waiting fake, and buys little past simulation distance, because only
+	 * loaded entities are ever found. */
+	public double requestRadius = 256.0;
+	/** Config schema version, used only to migrate defaults that changed between releases. */
+	public int configVersion = 0;
 	/** Ticks between pool index revalidations. Players and hoppers can touch pool chests, so the
 	 * dirty flag alone is not enough to keep counts exact. */
 	public int requestIndexInterval = 100;
@@ -79,9 +84,19 @@ public class PlayersConfig {
 					INSTANCE.minerSpoil, MINER_SPOIL_VALUES);
 			INSTANCE.minerSpoil = "ground";
 		}
-		if (INSTANCE.requestRadius < 8.0 || INSTANCE.requestRadius > 256.0) {
-			Constants.LOG.warn("players.json: requestRadius {} out of range 8-256, falling back to 64", INSTANCE.requestRadius);
-			INSTANCE.requestRadius = 64.0;
+		// 2.2.0 shipped requestRadius=64, which is smaller than a lot of real bases and made
+		// requests fail silently. Move anyone still on that untouched default up once, then record
+		// that it has been done so a deliberate 64 is never overwritten again.
+		if (INSTANCE.configVersion < 1) {
+			if (INSTANCE.requestRadius == 64.0) {
+				Constants.LOG.info("players.json: migrating requestRadius from the old 64 default to 256");
+				INSTANCE.requestRadius = 256.0;
+			}
+			INSTANCE.configVersion = 1;
+		}
+		if (INSTANCE.requestRadius < 8.0 || INSTANCE.requestRadius > 2048.0) {
+			Constants.LOG.warn("players.json: requestRadius {} out of range 8-2048, falling back to 256", INSTANCE.requestRadius);
+			INSTANCE.requestRadius = 256.0;
 		}
 		if (INSTANCE.requestIndexInterval < 20) INSTANCE.requestIndexInterval = 20;
 		if (INSTANCE.requestMaxPerQuartermaster < 1 || INSTANCE.requestMaxPerQuartermaster > 64) {
