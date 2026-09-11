@@ -35,6 +35,9 @@ public class ClientModEvents {
 			MenuScreens.register(FPMenus.FAKE_PLAYER.get(), FakePlayerInventoryScreen::new);
 			MenuScreens.register(FPMenus.CRAFTER_LEARN.get(), FakeCrafterScreen::new);
 			LegacyRodCast.register();
+			// fabric does this from its client entrypoint. without it here the stock list packet has no
+			// opener and pressing Browse does nothing at all on this loader
+			PlayersCommonClient.init();
 		});
 	}
 }
