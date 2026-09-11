@@ -8,7 +8,7 @@ import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.entities.ai.JobExecutor;
 import dev.duzo.players.entities.ai.QuartermasterJobExecutor;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -79,7 +79,7 @@ public final class RequestRouting {
 	 * and report a false shortfall.
 	 */
 	@Nullable
-	public static FakePlayerEntity nearestCapable(ServerLevel level, Entity requester, @Nullable UUID owner, Identifier item) {
+	public static FakePlayerEntity nearestCapable(ServerLevel level, Entity requester, @Nullable UUID owner, ResourceLocation item) {
 		List<FakePlayerEntity> found = quartermastersFor(level, requester, owner);
 		for (FakePlayerEntity qm : found) {
 			if (boardOf(qm) == null) continue;

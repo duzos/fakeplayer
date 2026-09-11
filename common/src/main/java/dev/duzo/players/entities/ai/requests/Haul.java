@@ -6,7 +6,7 @@ import dev.duzo.players.entities.ai.AIState;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.ApiStatus;
@@ -26,19 +26,19 @@ import java.util.UUID;
  * double-assignment impossible rather than merely unlikely.
  */
 @ApiStatus.Internal
-public record Haul(UUID quartermaster, Identifier item, int baseline, long since, int wanted) {
+public record Haul(UUID quartermaster, ResourceLocation item, int baseline, long since, int wanted) {
 	private static final String TAG = "Haul";
 
 	@Nullable
 	public static Haul of(AIState state) {
-		CompoundTag tag = state.jobParams().getCompoundOrEmpty(TAG);
+		CompoundTag tag = state.jobParams().getCompound(TAG);
 		if (tag.isEmpty()) return null;
-		int[] raw = tag.getIntArray("Qm").orElse(null);
-		if (raw == null || raw.length != 4) return null;
-		Identifier item = Identifier.tryParse(tag.getStringOr("Item", ""));
+		int[] raw = tag.getIntArray("Qm");
+		if (raw.length != 4) return null;
+		ResourceLocation item = ResourceLocation.tryParse(tag.getString("Item"));
 		if (item == null) return null;
 		return new Haul(UUIDUtil.uuidFromIntArray(raw), item,
-				tag.getIntOr("Base", 0), tag.getLongOr("Since", 0L), tag.getIntOr("Want", 0));
+				tag.getInt("Base"), tag.getLong("Since"), tag.getInt("Want"));
 	}
 
 	public static boolean isBusy(FakePlayerEntity runner) {
@@ -51,12 +51,12 @@ public record Haul(UUID quartermaster, Identifier item, int baseline, long since
 	 * @return false when the receipt could not be stored, in which case the Runner is NOT marked
 	 *         busy and must not be dispatched.
 	 */
-	public static boolean write(FakePlayerEntity runner, UUID quartermaster, Identifier item, int wanted, long now) {
+	public static boolean write(FakePlayerEntity runner, UUID quartermaster, ResourceLocation item, int wanted, long now) {
 		return write(runner, quartermaster, item, countOf(runner, item), now, wanted);
 	}
 
 	/** Write an explicit baseline, used to correct one that has gone stale without resetting the clock. */
-	public static boolean write(FakePlayerEntity runner, UUID quartermaster, Identifier item, int baseline, long since, int wanted) {
+	public static boolean write(FakePlayerEntity runner, UUID quartermaster, ResourceLocation item, int baseline, long since, int wanted) {
 		return runner.mutateAIState(state -> {
 			CompoundTag tag = new CompoundTag();
 			tag.putIntArray("Qm", UUIDUtil.uuidToIntArray(quartermaster));
@@ -104,7 +104,7 @@ public record Haul(UUID quartermaster, Identifier item, int baseline, long since
 		return held - baseline;
 	}
 
-	public static int countOf(FakePlayerEntity runner, Identifier item) {
+	public static int countOf(FakePlayerEntity runner, ResourceLocation item) {
 		int n = 0;
 		SimpleContainer inv = runner.getInventory();
 		for (int i = 0; i < inv.getContainerSize(); i++) {

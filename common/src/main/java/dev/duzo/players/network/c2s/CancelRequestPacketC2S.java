@@ -10,7 +10,7 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.Job;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.UUID;
@@ -24,7 +24,7 @@ import java.util.UUID;
  * would look broken rather than helpful.
  */
 public record CancelRequestPacketC2S(int id, String item) {
-	public static final Identifier LOCATION = PlayersCommon.id("ai_cancel_request");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_cancel_request");
 	private static final int MAX_ITEM_LENGTH = 256;
 
 	public static CancelRequestPacketC2S decode(FriendlyByteBuf buf) {
@@ -41,7 +41,7 @@ public record CancelRequestPacketC2S(int id, String item) {
 		UUID owner = entity.getAIState().ownerUUID();
 		if (owner == null || !owner.equals(sender.getUUID())) return;
 
-		Identifier item = Identifier.tryParse(ctx.message().item().trim());
+		ResourceLocation item = ResourceLocation.tryParse(ctx.message().item().trim());
 		if (item == null) return;
 
 		RequestKey key = new RequestKey(sender.getUUID(), RequesterKind.PLAYER, Job.NONE, item);

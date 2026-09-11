@@ -3,7 +3,7 @@ package dev.duzo.players.api.requests;
 import dev.duzo.players.entities.ai.Job;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -16,7 +16,7 @@ import java.util.UUID;
  *
  * <p>Addressed by persistent UUID because synced entity ids change on reload.
  */
-public record RequestKey(UUID requester, RequesterKind kind, Job job, Identifier item) {
+public record RequestKey(UUID requester, RequesterKind kind, Job job, ResourceLocation item) {
 
 	public CompoundTag toNbt() {
 		CompoundTag tag = new CompoundTag();
@@ -29,18 +29,18 @@ public record RequestKey(UUID requester, RequesterKind kind, Job job, Identifier
 
 	@Nullable
 	public static RequestKey fromNbt(CompoundTag tag) {
-		int[] raw = tag.getIntArray("Requester").orElse(null);
-		if (raw == null || raw.length != 4) return null;
-		Identifier item = Identifier.tryParse(tag.getStringOr("Item", ""));
+		int[] raw = tag.getIntArray("Requester");
+		if (raw.length != 4) return null;
+		ResourceLocation item = ResourceLocation.tryParse(tag.getString("Item"));
 		if (item == null) return null;
 		Job job;
 		try {
-			job = Job.valueOf(tag.getStringOr("Job", Job.NONE.name()));
+			job = Job.valueOf(tag.contains("Job") ? tag.getString("Job") : Job.NONE.name());
 		} catch (IllegalArgumentException e) {
 			job = Job.NONE;
 		}
 		return new RequestKey(UUIDUtil.uuidFromIntArray(raw),
-				RequesterKind.byName(tag.getStringOr("Kind", RequesterKind.FAKE.name()), RequesterKind.FAKE),
+				RequesterKind.byName(tag.contains("Kind") ? tag.getString("Kind") : RequesterKind.FAKE.name(), RequesterKind.FAKE),
 				job, item);
 	}
 }

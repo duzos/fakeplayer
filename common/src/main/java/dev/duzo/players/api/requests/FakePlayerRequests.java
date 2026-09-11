@@ -10,7 +10,7 @@ import dev.duzo.players.entities.ai.requests.RequestRouting;
 import dev.duzo.players.entities.ai.requests.StoragePool;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
@@ -315,7 +315,7 @@ public final class FakePlayerRequests {
 	}
 
 	/** How many of an item a Quartermaster's pool currently holds. */
-	public static int stock(ServerLevel level, FakePlayerEntity quartermaster, Identifier item) {
+	public static int stock(ServerLevel level, FakePlayerEntity quartermaster, ResourceLocation item) {
 		return PoolIndex.of(level, quartermaster).count(item);
 	}
 
@@ -331,7 +331,7 @@ public final class FakePlayerRequests {
 	 * outside this package for the container lookup, which is exactly what these two helpers exist
 	 * to avoid.
 	 */
-	public static List<ItemStack> withdraw(ServerLevel level, FakePlayerEntity quartermaster, Identifier item, int count) {
+	public static List<ItemStack> withdraw(ServerLevel level, FakePlayerEntity quartermaster, ResourceLocation item, int count) {
 		List<ItemStack> taken = new ArrayList<>();
 		int owed = Math.max(0, count);
 		for (BlockPos pos : poolOf(quartermaster)) {

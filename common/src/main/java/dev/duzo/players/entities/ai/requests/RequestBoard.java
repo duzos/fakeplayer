@@ -197,9 +197,9 @@ public final class RequestBoard {
 	 */
 	public static RequestBoard fromNbt(CompoundTag tag) {
 		RequestBoard board = new RequestBoard();
-		ListTag list = tag.getListOrEmpty("Requests");
+		ListTag list = tag.getList("Requests", net.minecraft.nbt.Tag.TAG_COMPOUND);
 		for (int i = 0; i < list.size(); i++) {
-			ItemRequest r = ItemRequest.fromNbt(list.getCompoundOrEmpty(i));
+			ItemRequest r = ItemRequest.fromNbt(list.getCompound(i));
 			if (r != null) board.requests.add(r);
 		}
 		board.requests.sort(ORDER);

@@ -124,19 +124,19 @@ public final class ItemRequest {
 
 	@Nullable
 	public static ItemRequest fromNbt(CompoundTag tag) {
-		RequestKey key = RequestKey.fromNbt(tag.getCompoundOrEmpty("Key"));
+		RequestKey key = RequestKey.fromNbt(tag.getCompound("Key"));
 		if (key == null) return null;
-		ItemRequest req = new ItemRequest(key, tag.getIntOr("Wanted", 1),
-				tag.getIntOr("Priority", 0), tag.getLongOr("RaisedAt", 0L));
+		ItemRequest req = new ItemRequest(key, tag.contains("Wanted") ? tag.getInt("Wanted") : 1,
+				tag.getInt("Priority"), tag.getLong("RaisedAt"));
 		// clamped to wanted: topUp derives delivered as wanted - remaining, and a hand-edited or
 		// truncated board could otherwise make that negative and inflate the ask
-		req.remaining = Math.min(req.wanted, Math.max(0, tag.getIntOr("Remaining", req.wanted)));
-		req.stage = RequestStage.byName(tag.getStringOr("Stage", RequestStage.PENDING.name()), RequestStage.PENDING);
-		req.lifetimeFailures = tag.getIntOr("LifeFail", 0);
-		int[] raw = tag.getIntArray("Assignee").orElse(null);
-		if (raw != null && raw.length == 4) {
+		req.remaining = Math.min(req.wanted, Math.max(0, tag.contains("Remaining") ? tag.getInt("Remaining") : req.wanted));
+		req.stage = RequestStage.byName(tag.contains("Stage") ? tag.getString("Stage") : RequestStage.PENDING.name(), RequestStage.PENDING);
+		req.lifetimeFailures = tag.getInt("LifeFail");
+		int[] raw = tag.getIntArray("Assignee");
+		if (raw.length == 4) {
 			req.assignee = UUIDUtil.uuidFromIntArray(raw);
-			req.assignedAt = tag.getLongOr("AssignedAt", 0L);
+			req.assignedAt = tag.getLong("AssignedAt");
 		}
 		return req;
 	}
