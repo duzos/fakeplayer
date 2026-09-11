@@ -61,18 +61,20 @@ storeroom and works out who can fill the request; a **Runner** does the carrying
 - Start both. A Fisherman with no rod now asks for one and waits, and the rod arrives if the pool has
   one. If nothing can fill the request you are told **once** and the fake keeps waiting rather than
   unbonding itself.
-- Ask for something yourself from the **Request** row on a Quartermaster: an item id, optionally with
-  a count, like `minecraft:oak_planks 64`. Asking again for more tops the request up instead of
-  queuing a second one.
+- Ask for something yourself from the **Request** row on a Quartermaster. Press Browse to see
+  everything the storeroom holds, then click an item: a click asks for a stack, sneak-click asks for
+  one, ctrl-click asks for all of it. Asking again for more tops the request up instead of queuing a
+  second one. The list is a snapshot from when you opened it, so use Refresh if a Runner has been
+  busy since.
 
 Worth knowing:
 
-- Only **your own** Quartermasters serve you, so pressing Ask on a teammate's reports that none is in
-  range.
+- Only **your own** Quartermasters serve you: browsing a teammate's storeroom is refused.
 - The nearest Quartermaster that actually **has stock** wins, so an empty storeroom standing closer
   does not shadow a full one.
 - Items are matched by id, so a damaged or enchanted one already in the Runner's own inventory can be
-  handed over in place of a fresh one from the pool.
+  handed over in place of a fresh one from the pool. For the same reason Browse merges variants:
+  three tools of different durability show as one icon with a count of three.
 - Re-jobbing a Runner mid-delivery leaves the goods in its inventory. Open it to take them back, or
   set it back to Runner and it returns them to the pool itself.
 
