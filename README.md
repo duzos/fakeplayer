@@ -38,7 +38,7 @@ Shift + right-click a fake (or press your **Open Fake Player Menu** key, see bel
 | **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. Filter grammar and the on/off toggle are covered below. |
 | **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
 | **Courier** | source + deposit | Hauls matching items from one chest to another. Shares the Miner's filter. |
-| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. |
+| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. Rods from other mods work, and so do the fish they add. |
 | **Farmer** | region + deposit | Tills a plot, waters it, plants any seed (modded too), bonemeals, then harvests and replants on a loop. |
 | **Crafter** | table + source + deposit | Walks to a crafting table and lays out a recipe you teach it by hand; chain it onto another job's chest for a pipeline. |
 | **Quartermaster** | storage pool | Owns a pool of marked containers, answers requests from your other fakes and from you, and sends Runners. Never leaves the storeroom. |
@@ -78,6 +78,28 @@ Worth knowing:
   With nothing to carry it walks back to its Quartermaster rather than standing where it stopped.
 - Re-jobbing a Runner mid-delivery leaves the goods in its inventory. Open it to take them back, or
   set it back to Runner and it returns them to the pool itself.
+
+### Fishing with modded rods
+
+A Fisherman takes any mod's fishing rod, and what it pulls out of the water comes from the same loot
+table a real angler's rod rolls. Add a fishing mod and its species start turning up in the deposit
+chest without either mod knowing about the other. Vanilla treasure still appears, and still only from
+open water, so a Fisherman now picks a cast that can satisfy that test instead of dropping its bobber
+against the nearest bank.
+
+**Aquaculture**, on Forge and NeoForge, goes further. A Fisherman reads the tackle fitted to the rod
+at a Tackle Box and fishes to it:
+
+- the hook's luck, its chance of a double catch, and its chance of sparing the rod a point of durability
+- bait, which is used up as it fishes
+- the hook's own texture on the bobber, and a dyed fishing line's colour on the line
+- lava, if you have the lava fishing addon and a hook that can take it. Put the waypoint by lava and it
+  casts there, the bobber sits in it without burning, and the catch survives the trip back
+
+The redstone hook's longer bite window makes no difference, because a fake never misses a bite. Tackle
+systems belonging to other fishing mods are not read: their rods are accepted and their fish are caught,
+but their own hooks and bait do nothing. Mods in the style of Fishing Real, which swap a catch for a live
+entity when a real player reels in, hand a Fisherman the item instead, on every loader.
 
 ### Miner / Courier filter
 
