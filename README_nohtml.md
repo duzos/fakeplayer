@@ -12,21 +12,21 @@
 [![neoforge](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/neoforge_vector.svg)](https://neoforged.net/)
 [![forge](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/forge_vector.svg)](https://files.minecraftforge.net)
 
-## 🤖 What is it?
+## What is it?
 
 Entities that look **exactly** like real players - auto-grabbed skins, armour, full inventories, the lot. Bond one to yourself, give it a job, and it gets to work.
 
-## 🎬 Showcase
+## Showcase
 
 <iframe allowfullscreen="allowfullscreen" src="https://www.youtube.com/embed/ZVp2m_3AAxg" height="358" width="638"></iframe>
 
-## 🧍 The Fake Player
+## The Fake Player
 
 - **Looks like a player** - real model with a skin grabbed from any username (or URL / the trending list); slim & classic.
 - **Acts like one** - wanders, sits, sleeps, wears armour, holds items, chats, fights back.
 - **Carries an inventory** - managed through its GUI.
 
-## 🧠 AI Jobs
+## AI Jobs
 
 Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI hands you markers (waypoint, region, chests); right-click to place them - the fake follows you while you do. Each job's menu shows only the markers it needs, and fakes visibly open the chests and barrels they work from.
 
@@ -65,7 +65,7 @@ Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `miner
 ![Crafter](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/crafter.png)
 **Crafter** crafting by hand at its table
 
-## 🎨 Skins
+## Skins
 
 Name a fake after a player and it wears their skin - always matching. Also:
 
@@ -75,7 +75,7 @@ Name a fake after a player and it wears their skin - always matching. Also:
 
 ![A skin grabbed from a username and applied to a fake player](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/skin-example.png)
 
-## 🛠️ Get one
+## Get one
 
 Craft a `Robot Shell` and a `Robot AI` and combine them in a crafting table (or use a Player Spawn Egg).
 
@@ -85,13 +85,13 @@ Craft a `Robot Shell` and a `Robot AI` and combine them in a crafting table (or 
 
 ![Player Spawn Egg recipe](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/recipe-spawn-egg.png)
 
-## 🔗 Links
+## Links
 
 - [CurseForge](https://www.curseforge.com/minecraft/mc-mods/fake-player)
 - [Modrinth](https://modrinth.com/mod/fake-players)
 - [Discord](https://discord.gg/ZgssqpUMHS)
 - [Showcase video](https://www.youtube.com/watch?v=ZVp2m_3AAxg)
 
-## 🙏 Credits
+## Credits
 
 - [Jeryn](https://modrinth.com/user/Jeryn/) - skin API and downloading code.
