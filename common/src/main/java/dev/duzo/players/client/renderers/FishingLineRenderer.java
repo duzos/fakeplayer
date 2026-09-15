@@ -4,6 +4,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.duzo.players.entities.FakeFishingHook;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.TackleLook;
+import dev.duzo.players.platform.Services;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -46,17 +48,30 @@ public final class FishingLineRenderer {
 		for (Entity e : level.entitiesForRendering()) {
 			if (!(e instanceof FakeFishingHook hook)) continue;
 			Vec3 bobber = bobberPos(hook, partial).subtract(cam);
+			TackleLook look = Services.TACKLE.read(hook.rod()).look();
 
 			Entity owner = level.getEntity(hook.ownerId());
 			if (owner instanceof LivingEntity living) {
 				Vec3 hand = handPos(living, partial).subtract(cam);
-				drawLine(pose, buffers.getBuffer(RenderTypes.lines()), hand, bobber);
+				drawLine(pose, buffers.getBuffer(RenderTypes.lines()), hand, bobber,
+						look.lineColor() < 0 ? LINE_COLOR : look.lineColor());
 			}
-			drawBobber(pose, buffers.getBuffer(RenderTypes.entityCutout(BOBBER_TEXTURE)), camRot, bobber);
+
+			if (look.isPlain()) {
+				drawQuad(pose, buffers.getBuffer(RenderTypes.entityCutout(BOBBER_TEXTURE)), camRot, bobber, 0xFFFFFFFF);
+			} else {
+				// Same layering their own renderer uses: bobber background, a tinted overlay, then the hook.
+				if (look.bobberTexture() != null)
+					drawQuad(pose, buffers.getBuffer(RenderTypes.entityCutout(look.bobberTexture())), camRot, bobber, 0xFFFFFFFF);
+				if (look.bobberOverlay() != null)
+					drawQuad(pose, buffers.getBuffer(RenderTypes.entityCutout(look.bobberOverlay())), camRot, bobber,
+							look.bobberColor() < 0 ? 0xFFFFFFFF : look.bobberColor());
+				if (look.hookTexture() != null)
+					drawQuad(pose, buffers.getBuffer(RenderTypes.entityCutout(look.hookTexture())), camRot, bobber, 0xFFFFFFFF);
+			}
 		}
 
-		buffers.endBatch(RenderTypes.lines());
-		buffers.endBatch(RenderTypes.entityCutout(BOBBER_TEXTURE));
+		buffers.endBatch();
 	}
 
 	private static Vec3 bobberPos(FakeFishingHook hook, float partial) {
@@ -81,10 +96,10 @@ public final class FishingLineRenderer {
 		return new Vec3(x, y, z);
 	}
 
-	private static void drawLine(PoseStack pose, VertexConsumer lines, Vec3 from, Vec3 to) {
+	private static void drawLine(PoseStack pose, VertexConsumer lines, Vec3 from, Vec3 to, int color) {
 		Matrix4f mat = pose.last().pose();
 		double sag = Math.min(0.6, from.distanceTo(to) * 0.12);
-		int r = (LINE_COLOR >> 16) & 0xFF, g = (LINE_COLOR >> 8) & 0xFF, b = LINE_COLOR & 0xFF, a = (LINE_COLOR >> 24) & 0xFF;
+		int r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF, a = 0xFF;
 		Vec3 prev = null;
 		for (int i = 0; i <= SEGMENTS; i++) {
 			float f = i / (float) SEGMENTS;
@@ -101,24 +116,24 @@ public final class FishingLineRenderer {
 		}
 	}
 
-	private static void drawBobber(PoseStack pose, VertexConsumer buf, Quaternionf camRot, Vec3 c) {
+	private static void drawQuad(PoseStack pose, VertexConsumer buf, Quaternionf camRot, Vec3 c, int color) {
 		Matrix4f mat = pose.last().pose();
 		Vector3f right = camRot.transform(new Vector3f(1, 0, 0));
 		Vector3f up = camRot.transform(new Vector3f(0, 1, 0));
 		Vector3f normal = camRot.transform(new Vector3f(0, 0, 1));
-		quadVertex(buf, mat, c, right, up, -1, -1, 0, 1, normal);
-		quadVertex(buf, mat, c, right, up, 1, -1, 1, 1, normal);
-		quadVertex(buf, mat, c, right, up, 1, 1, 1, 0, normal);
-		quadVertex(buf, mat, c, right, up, -1, 1, 0, 0, normal);
+		quadVertex(buf, mat, c, right, up, -1, -1, 0, 1, normal, color);
+		quadVertex(buf, mat, c, right, up, 1, -1, 1, 1, normal, color);
+		quadVertex(buf, mat, c, right, up, 1, 1, 1, 0, normal, color);
+		quadVertex(buf, mat, c, right, up, -1, 1, 0, 0, normal, color);
 	}
 
 	private static void quadVertex(VertexConsumer buf, Matrix4f mat, Vec3 c, Vector3f right, Vector3f up,
-	                               float sx, float sy, float u, float v, Vector3f normal) {
+	                               float sx, float sy, float u, float v, Vector3f normal, int color) {
 		float x = (float) c.x + (right.x * sx + up.x * sy) * BOBBER_HALF;
 		float y = (float) c.y + (right.y * sx + up.y * sy) * BOBBER_HALF;
 		float z = (float) c.z + (right.z * sx + up.z * sy) * BOBBER_HALF;
 		buf.addVertex(mat, x, y, z)
-			.setColor(255, 255, 255, 255)
+			.setColor((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, (color >>> 24) & 0xFF)
 			.setUv(u, v)
 			.setOverlay(OverlayTexture.NO_OVERLAY)
 			.setLight(FULL_BRIGHT)
