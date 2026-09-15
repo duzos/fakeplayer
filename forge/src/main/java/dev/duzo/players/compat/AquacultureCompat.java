@@ -11,8 +11,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.util.ARGB;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.item.component.ItemContainerContents;
@@ -57,7 +55,7 @@ public final class AquacultureCompat {
 	private static final Identifier BOBBER_OVERLAY_TEXTURE = texture("bobber/bobber_overlay");
 	private static final Identifier BOBBER_VANILLA_TEXTURE = texture("bobber/bobber_vanilla");
 	/** The red their renderer tints an unfitted bobber with. */
-	private static final int DEFAULT_BOBBER_COLOR = ARGB.color(193, 38, 38);
+	private static final int DEFAULT_BOBBER_COLOR = 0xFFC12626;
 
 	/** Aquaculture's own hook numbers, plus the lava hooks the aq2lava addon registers under their namespace. */
 	private record HookStats(int luck, double doubleCatch, double durabilitySkip, boolean water, boolean lava,
@@ -180,7 +178,7 @@ public final class AquacultureCompat {
 				hasBobber ? BOBBER_TEXTURE : null,
 				hasBobber ? BOBBER_OVERLAY_TEXTURE : BOBBER_VANILLA_TEXTURE,
 				bobberColor,
-				dye(slot(slots, LINE_SLOT), ARGB.color(0, 0, 0)));
+				dye(slot(slots, LINE_SLOT), 0xFF000000));
 	}
 
 	private static ItemStack slot(List<ItemStack> slots, int index) {
@@ -188,9 +186,9 @@ public final class AquacultureCompat {
 	}
 
 	private static int dye(ItemStack stack, int fallback) {
-		if (stack.isEmpty() || !stack.is(ItemTags.DYEABLE)) return fallback;
+		if (stack.isEmpty()) return fallback;
 		DyedItemColor dyed = stack.get(DataComponents.DYED_COLOR);
-		return dyed == null ? fallback : ARGB.opaque(dyed.rgb());
+		return dyed == null ? fallback : 0xFF000000 | dyed.rgb();
 	}
 
 	private static Identifier texture(String path) {
