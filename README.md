@@ -44,7 +44,7 @@ Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI han
 | **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. |
 | **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
 | **Courier** | source + deposit | Hauls matching items from one chest to another. |
-| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. |
+| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. Rods from other mods work, and so do the fish they add. |
 | **Farmer** | region + deposit | Tills a plot, waters it, plants any seed (modded too), bonemeals, then harvests and replants on a loop. |
 | **Crafter** | table + source + deposit | Walks to a crafting table and lays out a recipe you teach it by hand; chain it onto another job's chest for a pipeline. |
 
