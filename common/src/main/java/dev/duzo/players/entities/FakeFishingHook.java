@@ -7,10 +7,11 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.item.ItemStack;
 import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.Job;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.Vec3;
@@ -24,6 +25,11 @@ import net.minecraft.world.phys.Vec3;
 public class FakeFishingHook extends Projectile {
 	private static final EntityDataAccessor<Integer> DATA_OWNER_ID = SynchedEntityData.defineId(FakeFishingHook.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<Boolean> DATA_BITING = SynchedEntityData.defineId(FakeFishingHook.class, EntityDataSerializers.BOOLEAN);
+	// The rod this was cast with, so the client can draw whatever tackle is fitted to it.
+	private static final EntityDataAccessor<ItemStack> DATA_ROD = SynchedEntityData.defineId(FakeFishingHook.class, EntityDataSerializers.ITEM_STACK);
+	// Synced, not server-only: the client ticks this entity too, and an unsynced flag would let it run
+	// vanilla's lavaHurt locally and set the bobber alight on screen while the server knows better.
+	private static final EntityDataAccessor<Boolean> DATA_LAVA_PROOF = SynchedEntityData.defineId(FakeFishingHook.class, EntityDataSerializers.BOOLEAN);
 	private static final int MAX_LIFE = 20 * 90;
 
 	private enum State { FLYING, BOBBING }
@@ -47,6 +53,26 @@ public class FakeFishingHook extends Projectile {
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
 		builder.define(DATA_OWNER_ID, 0);
 		builder.define(DATA_BITING, false);
+		builder.define(DATA_ROD, ItemStack.EMPTY);
+		builder.define(DATA_LAVA_PROOF, false);
+	}
+
+	/** The rod this bobber was cast with, for the renderer. Empty if it was cast without one. */
+	public ItemStack rod() {
+		return this.entityData.get(DATA_ROD);
+	}
+
+	public void setRod(ItemStack rod) {
+		this.entityData.set(DATA_ROD, rod.copy());
+	}
+
+	/** This cast can sit in lava as well as water, and does not burn. */
+	public void setLavaProof(boolean lavaProof) {
+		this.entityData.set(DATA_LAVA_PROOF, lavaProof);
+	}
+
+	public boolean isLavaProof() {
+		return this.entityData.get(DATA_LAVA_PROOF);
 	}
 
 	/** Server-side: the water surface the bobber should settle on. */
@@ -93,7 +119,8 @@ public class FakeFishingHook extends Projectile {
 
 		Vec3 dm = this.getDeltaMovement();
 		FluidState fluid = this.level().getFluidState(this.blockPosition());
-		float fluidHeight = fluid.is(FluidTags.WATER) ? fluid.getHeight(this.level(), this.blockPosition()) : 0F;
+		boolean fishable = fluid.is(FluidTags.WATER) || (isLavaProof() && fluid.is(FluidTags.LAVA));
+		float fluidHeight = fishable ? fluid.getHeight(this.level(), this.blockPosition()) : 0F;
 		boolean inWater = fluidHeight > 0;
 
 		switch (state) {
@@ -147,10 +174,21 @@ public class FakeFishingHook extends Projectile {
 	}
 
 	@Override
+	public void lavaHurt() {
+		if (!this.isLavaProof()) super.lavaHurt();
+	}
+
+	@Override
+	public boolean displayFireAnimation() {
+		return !this.isLavaProof() && super.displayFireAnimation();
+	}
+
+	@Override
 	protected void addAdditionalSaveData(CompoundTag tag) {
 		super.addAdditionalSaveData(tag);
 		tag.putString("HookState", state.name());
 		tag.putInt("Life", life);
+		tag.putBoolean("LavaProof", isLavaProof());
 	}
 
 	@Override
@@ -158,5 +196,6 @@ public class FakeFishingHook extends Projectile {
 		super.readAdditionalSaveData(tag);
 		try { state = State.valueOf(tag.getStringOr("HookState", "FLYING")); } catch (IllegalArgumentException ignored) {}
 		life = tag.getIntOr("Life", 0);
+		setLavaProof(tag.getBooleanOr("LavaProof", false));
 	}
 }
