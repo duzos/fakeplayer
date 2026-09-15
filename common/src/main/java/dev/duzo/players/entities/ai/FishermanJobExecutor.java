@@ -3,14 +3,18 @@ package dev.duzo.players.entities.ai;
 import dev.duzo.players.entities.FakeFishingHook;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.LavaProofItemEntity;
+import dev.duzo.players.entities.OpenWaterProbe;
+import dev.duzo.players.platform.Services;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
@@ -32,6 +36,7 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class FishermanJobExecutor implements JobExecutor {
@@ -75,7 +80,8 @@ public class FishermanJobExecutor implements JobExecutor {
 				}
 			}
 			case CAST -> {
-				if (rod(entity).isEmpty()) {
+				ItemStack held = rod(entity);
+				if (held.isEmpty()) {
 					// raise() scans for a quartermaster before it can dedupe, so ask about once a
 					// second rather than paying that scan every tick while blocked
 					if (--requestCooldown <= 0) {
@@ -84,14 +90,15 @@ public class FishermanJobExecutor implements JobExecutor {
 					}
 					return;
 				}
-				BlockPos water = findCastTarget(level, spot, entity);
-				if (water == null) return; // no water near the waypoint: idle
+				Tackle tackle = Services.TACKLE.read(held);
+				BlockPos water = findCastTarget(level, spot, entity, tackle);
+				if (water == null) return; // no fishable fluid near the waypoint: idle
 				double surfaceY = water.getY() + 0.9;
 				Vec3 target = new Vec3(water.getX() + 0.5, surfaceY, water.getZ() + 0.5);
 				entity.getLookControl().setLookAt(target.x, target.y, target.z);
 				entity.swing(InteractionHand.MAIN_HAND);
-				castHook(level, entity, target, surfaceY);
-				int lure = enchant(entity, Enchantments.LURE);
+				castHook(level, entity, target, surfaceY, level.getFluidState(water).is(FluidTags.LAVA), held);
+				int lure = enchant(entity, Enchantments.LURE) + tackle.lureBonus();
 				waitUntil = level.getGameTime() + Math.max(20, BASE_WAIT_TICKS - lure * 20 * 5L);
 				phase = Phase.WAIT;
 			}
@@ -109,8 +116,18 @@ public class FishermanJobExecutor implements JobExecutor {
 				if (level.getGameTime() >= waitUntil) {
 					activeHook.setBiting(true);
 					Vec3 b = activeHook.position();
-					level.sendParticles(ParticleTypes.FISHING, b.x, b.y + 0.1, b.z, 8, 0.1, 0.0, 0.1, 0.0);
-					level.sendParticles(ParticleTypes.BUBBLE, b.x, b.y, b.z, 6, 0.1, 0.0, 0.1, 0.1);
+					if (activeHook.isLavaProof() && level.getFluidState(activeHook.blockPosition()).is(FluidTags.LAVA)) {
+						level.sendParticles(ParticleTypes.LAVA, b.x, b.y + 0.1, b.z, 4, 0.1, 0.0, 0.1, 0.0);
+						level.sendParticles(ParticleTypes.SMOKE, b.x, b.y, b.z, 6, 0.1, 0.0, 0.1, 0.1);
+					} else {
+						level.sendParticles(ParticleTypes.FISHING, b.x, b.y + 0.1, b.z, 8, 0.1, 0.0, 0.1, 0.0);
+						level.sendParticles(ParticleTypes.BUBBLE, b.x, b.y, b.z, 6, 0.1, 0.0, 0.1, 0.1);
+					}
+					SoundEvent catchSound = Services.TACKLE.read(rod(entity)).catchSound();
+					if (catchSound != null) level.playSound(null, b.x, b.y, b.z, catchSound, SoundSource.NEUTRAL, 0.5F, 1.0F);
+					// A hook that widens the catchable window (Aquaculture's redstone hook) is deliberately not
+					// applied: it only buys a real player reaction time, and a fake never misses a bite, so
+					// honouring it would do nothing but make every cast slower.
 					biteUntil = level.getGameTime() + BITE_TICKS;
 					phase = Phase.BITE;
 				}
@@ -125,10 +142,18 @@ public class FishermanJobExecutor implements JobExecutor {
 					return;
 				}
 				entity.swing(InteractionHand.MAIN_HAND);
+				Tackle reeled = Services.TACKLE.read(rod(entity));
 				Vec3 from = activeHook != null ? activeHook.position() : Vec3.atCenterOf(spot);
-				for (ItemStack drop : rollCatch(level, entity, spot)) flingCatch(level, entity, from, drop);
+				List<ItemStack> drops = rollCatch(level, entity, spot, reeled);
+				if (!drops.isEmpty() && reeled.doubleCatchChance() > 0
+						&& level.getRandom().nextDouble() <= reeled.doubleCatchChance()) {
+					drops = new ArrayList<>(drops);
+					drops.addAll(rollCatch(level, entity, spot, reeled));
+				}
+				for (ItemStack drop : drops) flingCatch(level, entity, from, drop);
+				if (!drops.isEmpty()) Services.TACKLE.consumeBait(level, rod(entity));
 				clearHook();
-				damageRod(entity);
+				damageRod(entity, reeled);
 				caught++;
 				boolean rodBroken = rod(entity).isEmpty();
 				if ((caught >= DEPOSIT_EVERY || rodBroken) && deposit != null) {
@@ -151,7 +176,7 @@ public class FishermanJobExecutor implements JobExecutor {
 		}
 	}
 
-	private void castHook(ServerLevel level, FakePlayerEntity entity, Vec3 target, double surfaceY) {
+	private void castHook(ServerLevel level, FakePlayerEntity entity, Vec3 target, double surfaceY, boolean lava, ItemStack rod) {
 		clearHook();
 		// sweep any stray bobbers this fake owns (reload orphans, double-casts) before spawning a new one
 		for (FakeFishingHook old : level.getEntitiesOfClass(FakeFishingHook.class,
@@ -159,6 +184,8 @@ public class FishermanJobExecutor implements JobExecutor {
 			old.discard();
 		}
 		FakeFishingHook hook = new FakeFishingHook(level, entity);
+		hook.setLavaProof(lava);
+		hook.setRod(rod);
 		double sx = entity.getX(), sy = entity.getEyeY(), sz = entity.getZ();
 		hook.setPos(sx, sy, sz);
 		hook.aimAt(target, surfaceY);
@@ -169,10 +196,11 @@ public class FishermanJobExecutor implements JobExecutor {
 	}
 
 	private static final int PUSH_INTO_WATER = 3; // cast this many blocks past the shore, into open water
+	private static final int OPEN_WATER_SEARCH = 5;  // how far to look for a spot treasure can actually roll from
 
-	/** Find water near the waypoint, then push the target a few blocks further in (away from the fake). */
-	private BlockPos findCastTarget(ServerLevel level, BlockPos near, FakePlayerEntity e) {
-		BlockPos shore = nearestWaterSurface(level, near);
+	/** Find fishable fluid near the waypoint, then push the target a few blocks further in (away from the fake). */
+	private BlockPos findCastTarget(ServerLevel level, BlockPos near, FakePlayerEntity e, Tackle tackle) {
+		BlockPos shore = nearestFishableSurface(level, near, tackle);
 		if (shore == null) return null;
 		double dx = (shore.getX() + 0.5) - e.getX();
 		double dz = (shore.getZ() + 0.5) - e.getZ();
@@ -182,13 +210,35 @@ public class FishermanJobExecutor implements JobExecutor {
 		BlockPos best = shore;
 		for (int i = 1; i <= PUSH_INTO_WATER; i++) {
 			BlockPos cand = shore.offset(ux * i, 0, uz * i);
-			if (isWaterSurface(level, cand)) best = cand; else break;
+			if (isFishableSurface(level, cand, tackle)) best = cand; else break;
 		}
-		return best;
+		if (level.getFluidState(best).is(FluidTags.LAVA)) return best; // lava has no open water rule
+		// Vanilla pays treasure out only in open water, a 5x5 column of uncovered source water around the
+		// bobber. Pushing straight out from the first shore block the scan happened to find lands the bobber
+		// against a bank on anything but a big lake, which silently denies treasure forever, so prefer a spot
+		// that passes the test when one is within reach.
+		BlockPos open = nearestOpenWater(level, best, tackle);
+		return open != null ? open : best;
 	}
 
-	/** Nearest water surface (water with air above) within a small radius of the waypoint, or null. */
-	private BlockPos nearestWaterSurface(ServerLevel level, BlockPos near) {
+	/** The closest spot to {@code from} whose bobber column satisfies vanilla's open water test, or null. */
+	private BlockPos nearestOpenWater(ServerLevel level, BlockPos from, Tackle tackle) {
+		if (isOpenWater(level, from)) return from;
+		BlockPos.MutableBlockPos c = new BlockPos.MutableBlockPos();
+		for (int r = 1; r <= OPEN_WATER_SEARCH; r++) {
+			for (int dx = -r; dx <= r; dx++) {
+				for (int dz = -r; dz <= r; dz++) {
+					if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue; // expanding ring
+					c.set(from.getX() + dx, from.getY(), from.getZ() + dz);
+					if (isFishableSurface(level, c, tackle) && isOpenWater(level, c)) return c.immutable();
+				}
+			}
+		}
+		return null;
+	}
+
+	/** Nearest fishable surface (source fluid with air above) within a small radius of the waypoint, or null. */
+	private BlockPos nearestFishableSurface(ServerLevel level, BlockPos near, Tackle tackle) {
 		BlockPos.MutableBlockPos c = new BlockPos.MutableBlockPos();
 		for (int r = 0; r <= 4; r++) {
 			for (int dx = -r; dx <= r; dx++) {
@@ -196,7 +246,7 @@ public class FishermanJobExecutor implements JobExecutor {
 					if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue; // expanding ring
 					for (int dy = 3; dy >= -3; dy--) {
 						c.set(near.getX() + dx, near.getY() + dy, near.getZ() + dz);
-						if (isWaterSurface(level, c)) return c.immutable();
+						if (isFishableSurface(level, c, tackle)) return c.immutable();
 					}
 				}
 			}
@@ -204,17 +254,27 @@ public class FishermanJobExecutor implements JobExecutor {
 		return null;
 	}
 
-	/** Source water only. Flowing water never satisfies the open water test, so aiming at it silently denies treasure. */
-	private boolean isWaterSurface(ServerLevel level, BlockPos pos) {
-		return level.getFluidState(pos).is(FluidTags.WATER) && level.getFluidState(pos).isSource()
-				&& level.getBlockState(pos.above()).isAir();
+	/** Source fluid only. Flowing water never satisfies the open water test, so aiming at it silently denies treasure. */
+	private boolean isFishableSurface(ServerLevel level, BlockPos pos, Tackle tackle) {
+		FluidState fluid = level.getFluidState(pos);
+		if (!fluid.isSource() || !level.getBlockState(pos.above()).isAir()) return false;
+		if (fluid.is(FluidTags.WATER)) return tackle.water();
+		if (fluid.is(FluidTags.LAVA)) return tackle.lava();
+		return false;
 	}
 
 	private void ensureRod(FakePlayerEntity e) {
-		if (e.getMainHandItem().getItem() == Items.FISHING_ROD) return;
+		if (FishingRods.isFishingRod(e.getMainHandItem())) return;
+		ItemStack offhand = e.getOffhandItem();
+		if (FishingRods.isFishingRod(offhand)) {
+			ItemStack prev = e.getMainHandItem().copy();
+			e.setItemSlot(EquipmentSlot.MAINHAND, offhand.copy());
+			e.setItemSlot(EquipmentSlot.OFFHAND, prev);
+			return;
+		}
 		SimpleContainer inv = e.getInventory();
 		for (int i = 0; i < inv.getContainerSize(); i++) {
-			if (inv.getItem(i).getItem() != Items.FISHING_ROD) continue;
+			if (!FishingRods.isFishingRod(inv.getItem(i))) continue;
 			ItemStack rod = inv.removeItemNoUpdate(i);
 			ItemStack prev = e.getMainHandItem();
 			e.setItemSlot(EquipmentSlot.MAINHAND, rod);
@@ -227,7 +287,13 @@ public class FishermanJobExecutor implements JobExecutor {
 	}
 
 	private void flingCatch(ServerLevel level, FakePlayerEntity entity, Vec3 from, ItemStack drop) {
-		ItemEntity item = new ItemEntity(level, from.x, from.y, from.z, drop);
+		// A catch reeled out of lava is spawned in the lava, where a normal item entity burns up long
+		// before the fisherman can collect it.
+		boolean inLava = activeHook != null && activeHook.isLavaProof()
+				&& level.getFluidState(activeHook.blockPosition()).is(FluidTags.LAVA);
+		ItemEntity item = inLava
+				? new LavaProofItemEntity(level, from.x, from.y, from.z, drop)
+				: new ItemEntity(level, from.x, from.y, from.z, drop);
 		double dx = entity.getX() - from.x, dy = entity.getEyeY() - from.y, dz = entity.getZ() - from.z;
 		double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 		item.setDeltaMovement(dx * 0.1, dy * 0.1 + Math.max(0.1, dist * 0.08), dz * 0.1);
@@ -249,37 +315,37 @@ public class FishermanJobExecutor implements JobExecutor {
 		e.getLookControl().setLookAt(activeHook.getX(), activeHook.getY(), activeHook.getZ());
 	}
 
-	private List<ItemStack> rollCatch(ServerLevel level, FakePlayerEntity e, BlockPos spot) {
-		int luck = enchant(e, Enchantments.LUCK_OF_THE_SEA);
+	/**
+	 * Rolls the top-level gameplay/fishing table, which is what fishing mods inject their own species into, so
+	 * any of them is picked up with no further work. That table gates treasure behind a fishing_hook predicate,
+	 * which our Projectile bobber cannot satisfy, so an {@link OpenWaterProbe} carries the Fisherman's own open
+	 * water answer into the loot context as THIS_ENTITY.
+	 */
+	private List<ItemStack> rollCatch(ServerLevel level, FakePlayerEntity e, BlockPos spot, Tackle tackle) {
+		int luck = enchant(e, Enchantments.LUCK_OF_THE_SEA) + tackle.luckBonus();
 		BlockPos bobber = activeHook != null ? activeHook.blockPosition() : spot;
-		// The top-level gameplay/fishing table gates treasure behind a fishing_hook predicate, and our bobber is
-		// a Projectile rather than a vanilla FishingHook, so that condition can never pass. Pick the sub-table
-		// with vanilla's own weights instead and roll it directly.
-		ResourceKey<LootTable> pool = pickPool(level.getRandom(), luck, isOpenWater(level, bobber));
-		LootTable table = level.getServer().reloadableRegistries().getLootTable(pool);
+		Vec3 origin = activeHook != null ? activeHook.position() : Vec3.atCenterOf(spot);
+		boolean inLava = tackle.lava() && level.getFluidState(bobber).is(FluidTags.LAVA);
+
+		ResourceKey<LootTable> key = BuiltInLootTables.FISHING;
+		if (inLava) {
+			ResourceKey<LootTable> modded = level.dimensionType().hasCeiling() ? tackle.netherTable() : tackle.lavaTable();
+			if (modded != null) key = modded;
+		}
+
+		OpenWaterProbe probe = new OpenWaterProbe(level, inLava || isOpenWater(level, bobber));
+		probe.setPos(origin.x, origin.y, origin.z);
+
+		LootTable table = level.getServer().reloadableRegistries().getLootTable(key);
 		LootParams params = new LootParams.Builder(level)
-			.withParameter(LootContextParams.ORIGIN, activeHook != null ? activeHook.position() : Vec3.atCenterOf(spot))
+			.withParameter(LootContextParams.ORIGIN, origin)
 			.withParameter(LootContextParams.TOOL, rod(e))
+			.withParameter(LootContextParams.THIS_ENTITY, probe)
+			// A real angler would also add their own getLuck(); a fake has no luck attribute, so parity with a
+			// player holding the same rod is approximate rather than exact.
 			.withLuck(luck)
 			.create(LootContextParamSets.FISHING);
 		return table.getRandomItems(params);
-	}
-
-	/** Vanilla's own entry weights and quality: junk 10/-2, treasure 5/+2, fish 85/-1, treasure open water only. */
-	private ResourceKey<LootTable> pickPool(RandomSource random, int luck, boolean openWater) {
-		int junk = entryWeight(10, -2, luck);
-		int treasure = openWater ? entryWeight(5, 2, luck) : 0;
-		int fish = entryWeight(85, -1, luck);
-		int total = junk + treasure + fish;
-		if (total <= 0) return BuiltInLootTables.FISHING_FISH;
-		int roll = random.nextInt(total);
-		if (roll < junk) return BuiltInLootTables.FISHING_JUNK;
-		if (roll < junk + treasure) return BuiltInLootTables.FISHING_TREASURE;
-		return BuiltInLootTables.FISHING_FISH;
-	}
-
-	private int entryWeight(int weight, int quality, int luck) {
-		return Math.max(0, weight + quality * luck);
 	}
 
 	private enum WaterCell { ABOVE, INSIDE, INVALID }
@@ -326,10 +392,12 @@ public class FishermanJobExecutor implements JobExecutor {
 
 	private ItemStack rod(FakePlayerEntity e) {
 		ItemStack main = e.getMainHandItem();
-		if (main.getItem() == Items.FISHING_ROD) return main;
+		if (FishingRods.isFishingRod(main)) return main;
+		ItemStack offhand = e.getOffhandItem();
+		if (FishingRods.isFishingRod(offhand)) return offhand;
 		SimpleContainer inv = e.getInventory();
 		for (int i = 0; i < inv.getContainerSize(); i++)
-			if (inv.getItem(i).getItem() == Items.FISHING_ROD) return inv.getItem(i);
+			if (FishingRods.isFishingRod(inv.getItem(i))) return inv.getItem(i);
 		return ItemStack.EMPTY;
 	}
 
@@ -340,17 +408,29 @@ public class FishermanJobExecutor implements JobExecutor {
 		return reg.get(key).map(holder -> EnchantmentHelper.getItemEnchantmentLevel(holder, r)).orElse(0);
 	}
 
-	private void damageRod(FakePlayerEntity e) {
-		ItemStack r = rod(e);
-		if (r.isDamageableItem())
-			r.hurtAndBreak(1, e, EquipmentSlot.MAINHAND);
+	/** Damage the rod in the slot it is actually held in, so break handling fires on the right one. */
+	private void damageRod(FakePlayerEntity e, Tackle tackle) {
+		if (tackle.durabilitySkipChance() > 0
+				&& e.level().getRandom().nextDouble() < tackle.durabilitySkipChance()) return;
+		ItemStack main = e.getMainHandItem();
+		if (FishingRods.isFishingRod(main)) {
+			if (main.isDamageableItem()) main.hurtAndBreak(1, e, EquipmentSlot.MAINHAND);
+			return;
+		}
+		ItemStack offhand = e.getOffhandItem();
+		if (FishingRods.isFishingRod(offhand) && offhand.isDamageableItem())
+			offhand.hurtAndBreak(1, e, EquipmentSlot.OFFHAND);
 	}
 
 	private void dumpFish(FakePlayerEntity e, Container dst) {
 		SimpleContainer inv = e.getInventory();
+		// Now that any rod counts, refusing to deposit all of them would hoard every spare forever. Keep one
+		// only if neither hand already holds one, and deposit the rest.
+		boolean keepRod = !FishingRods.isFishingRod(e.getMainHandItem()) && !FishingRods.isFishingRod(e.getOffhandItem());
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack stack = inv.getItem(i);
-			if (stack.isEmpty() || stack.getItem() == Items.FISHING_ROD) continue; // keep the rod
+			if (stack.isEmpty()) continue;
+			if (FishingRods.isFishingRod(stack) && keepRod) { keepRod = false; continue; }
 			ItemStack rem = HopperBlockEntity.addItem(null, dst, stack, null);
 			inv.setItem(i, rem.isEmpty() ? ItemStack.EMPTY : rem);
 		}
@@ -362,7 +442,7 @@ public class FishermanJobExecutor implements JobExecutor {
 		if (!rod(e).isEmpty()) return;
 		for (int i = 0; i < chest.getContainerSize(); i++) {
 			ItemStack stack = chest.getItem(i);
-			if (stack.getItem() != Items.FISHING_ROD) continue;
+			if (!FishingRods.isFishingRod(stack)) continue;
 			ItemStack one = stack.split(1);
 			ItemStack leftover = e.getInventory().addItem(one);
 			if (!leftover.isEmpty()) stack.grow(leftover.getCount());
