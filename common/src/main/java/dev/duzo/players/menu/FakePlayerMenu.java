@@ -25,10 +25,10 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 	public static final int ARMOR_END = 4;            // [0, 4)
 	public static final int OFFHAND_INDEX = 4;
 	public static final int FP_STORAGE_START = 5;
-	public static final int FP_STORAGE_END = 32;      // [5, 32) — 27 row slots
+	public static final int FP_STORAGE_END = 32;      // [5, 32) - 27 row slots
 	public static final int MAINHAND_INDEX = 32;
 	public static final int FP_HOTBAR_START = 33;
-	public static final int FP_HOTBAR_END = 41;       // [33, 41) — 8 hotbar slots (1..8)
+	public static final int FP_HOTBAR_END = 41;       // [33, 41) - 8 hotbar slots (1..8)
 	public static final int PLAYER_START = 41;
 	public static final int PLAYER_END = 77;          // [41, 77)
 
@@ -59,17 +59,17 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 		// 4: offhand at vanilla position
 		this.addSlot(new EquipmentBoundSlot(entity, EquipmentSlot.OFFHAND, 77, 62));
 
-		// 5..31 storage rows (3 x 9) — backed by storage[0..26]
+		// 5..31 storage rows (3 x 9) - backed by storage[0..26]
 		for (int row = 0; row < 3; row++) {
 			for (int col = 0; col < 9; col++) {
 				this.addSlot(new Slot(this.storage, col + row * 9, 8 + col * 18, 84 + row * 18));
 			}
 		}
 
-		// 32: main hand — first hotbar slot
+		// 32: main hand - first hotbar slot
 		this.addSlot(new EquipmentBoundSlot(entity, EquipmentSlot.MAINHAND, 8, 142));
 
-		// 33..40 hotbar 1..8 — backed by storage[27..34]
+		// 33..40 hotbar 1..8 - backed by storage[27..34]
 		for (int col = 1; col < 9; col++) {
 			this.addSlot(new Slot(this.storage, 27 + (col - 1), 8 + col * 18, 142));
 		}
