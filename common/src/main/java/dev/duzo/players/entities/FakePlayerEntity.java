@@ -11,7 +11,9 @@ import dev.duzo.players.core.FPItems;
 import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.JobExecutor;
+import dev.duzo.players.entities.ai.JobRow;
 import dev.duzo.players.entities.ai.JobType;
+import dev.duzo.players.entities.ai.requests.StockKeeper;
 import net.minecraft.nbt.CompoundTag;
 import dev.duzo.players.entities.ai.RangedWeapon;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
@@ -88,6 +90,11 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	private JobExecutor jobExecutor;
 	private Identifier jobExecutorJob = FPJobs.NONE_ID;
 	private boolean jobExecutorBound;
+	// cached with the executor, so the stock check is not a registry lookup per fake per tick
+	private boolean jobKeepsStock;
+	// counts down rather than matching a tick phase, so a fake that stops ticking for a while
+	// resumes its checks instead of skipping every period whose tick it happened to miss
+	private int stockCountdown;
 	private boolean jobPaused;
 	private boolean jobActivePrev;
 
@@ -128,6 +135,10 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			// the next save. flushJobState returns early on null, so an absent mod's job survives.
 			jobExecutor = type == null ? null : type.createExecutor();
 			if (jobExecutor != null) jobExecutor.deserialize(state.jobState());
+			jobKeepsStock = type != null && type.rows().contains(JobRow.STOCK);
+			// staggered by entity, so a base of fakes bound on the same tick does not run every
+			// quartermaster scan on the same tick for ever after
+			stockCountdown = 1 + Math.floorMod(this.getUUID().hashCode(), StockKeeper.checkTicks());
 			jobExecutorJob = job;
 			jobExecutorBound = true;
 			jobActivePrev = false;
@@ -142,6 +153,12 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			jobActivePrev = active;
 		}
 		if (active) {
+			// before the job runs, and outside the executor, so a job keeps stock by declaring the
+			// row rather than by calling this itself. It never blocks: it raises and returns.
+			if (jobKeepsStock && --stockCountdown <= 0) {
+				stockCountdown = StockKeeper.checkTicks();
+				StockKeeper.tick(level, this);
+			}
 			jobExecutor.tick(level, this);
 		}
 	}
@@ -432,6 +449,11 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		if (this.level() instanceof ServerLevel level) {
 			dev.duzo.players.entities.ai.requests.PoolIndex.forget(level, this.getUUID());
 		}
+		// server side only, and only when the fake is really gone: this map is touched from the
+		// server thread, and remove() also fires on the client and on every chunk unload
+		if (this.level() instanceof ServerLevel && reason.shouldDestroy()) {
+			dev.duzo.players.entities.ai.requests.SenderAlerts.forget(this.getUUID());
+		}
 		super.remove(reason);
 	}
 
@@ -453,6 +475,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.jobExecutor = null;
 		this.jobExecutorBound = false;
 		this.jobExecutorJob = FPJobs.NONE_ID;
+		this.jobKeepsStock = false;
 		this.jobActivePrev = false;
 	}
 
