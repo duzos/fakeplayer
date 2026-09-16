@@ -6,7 +6,7 @@ import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.GuardJobExecutor;
-import dev.duzo.players.entities.ai.Job;
+import dev.duzo.players.core.FPJobs;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -87,7 +87,7 @@ public final class SessionItemRenderer {
 
 	private static void renderWaypoint(PoseStack pose, VertexConsumer lines, Vec3 cam,
 	                                   FakePlayerEntity bound, BlockPos crosshair) {
-		if (bound != null && bound.getAIState().job() == Job.GUARD) {
+		if (bound != null && FPJobs.is(bound.getAIState().jobId(), FPJobs.GUARD)) {
 			renderPatrolEditor(pose, lines, cam, bound, crosshair);
 			return;
 		}
