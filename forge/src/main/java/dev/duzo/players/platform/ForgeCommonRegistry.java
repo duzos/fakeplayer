@@ -138,7 +138,7 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 		@Nullable
 		@Override
 		public T get(ResourceLocation id) {
-			return registry.getValue(id);
+			return registry.get(id);
 		}
 	}
 }
