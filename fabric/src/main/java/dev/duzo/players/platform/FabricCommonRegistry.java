@@ -118,7 +118,7 @@ public class FabricCommonRegistry implements ICommonRegistry {
 
 	@Override
 	public <T> ICustomRegistry<T> createRegistry(ResourceKey<Registry<T>> key) {
-		MappedRegistry<T> registry = FabricRegistryBuilder.createSimple(key).buildAndRegister();
+		MappedRegistry<T> registry = FabricRegistryBuilder.create(key).buildAndRegister();
 		return new FabricCustomRegistry<>(registry);
 	}
 
