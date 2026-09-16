@@ -55,6 +55,9 @@ public class CrafterJobExecutor implements JobExecutor {
 	private int runsDone;
 	// which step the run counter belongs to, so re-entering a step does not redo its finished runs
 	private int activeCursor = -1;
+	/** A write to the orders that could not be stored, and has to land before anything else runs. */
+	private enum PendingWrite { NONE, ADVANCE, CLEAR }
+	private PendingWrite pending = PendingWrite.NONE;
 
 	private Phase phase = Phase.TO_SOURCE;
 	private int craftIndex;
@@ -66,10 +69,20 @@ public class CrafterJobExecutor implements JobExecutor {
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
 		AIState state = entity.getAIState();
-		Commission commission = Commission.of(state);
-		if (commission != null) {
+		if (Commission.isPresent(state)) {
 			// commissioned work outranks the standing recipe, and needs only a table: the
 			// storeroom stands in for both the source and the deposit container
+			Commission commission = Commission.of(state);
+			if (commission == null) {
+				// orders that cannot be read. Dropping through to the standing recipe would bank
+				// the storeroom's goods in this fake's own chest, so give up loudly instead.
+				resetCommissionLegs();
+				if (Commission.clear(entity)) {
+					SenderAlerts.alert(level, entity, "badorders",
+							"could not read its crafting orders and has given them up");
+				}
+				return;
+			}
 			tickCommission(level, entity, commission);
 			return;
 		}
@@ -106,7 +119,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				if (src == null) {
 					JobHelpers.closeContainer(level, entity);
 					entity.getNavigation().stop();
-					if (hasOutputs(inv, need)) phase = Phase.TO_DEPOSIT;
+					if (hasOutputs(entity, inv, need)) phase = Phase.TO_DEPOSIT;
 					return;
 				}
 				if (!JobHelpers.atTarget(entity, source)) { JobHelpers.closeContainer(level, entity); phase = Phase.TO_SOURCE; return; }
@@ -114,7 +127,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				int moved = JobHelpers.inventoryFull(entity) ? 0 : pullNeeded(src, inv, need);
 				if (moved == 0) {
 					if (hasFullSet(inv, need)) phase = Phase.TO_TABLE;
-					else if (hasOutputs(inv, need)) phase = Phase.TO_DEPOSIT;
+					else if (hasOutputs(entity, inv, need)) phase = Phase.TO_DEPOSIT;
 					else entity.getNavigation().stop(); // source dry, nothing to craft or bank: idle and poll
 				}
 			}
@@ -183,6 +196,24 @@ public class CrafterJobExecutor implements JobExecutor {
 		if (level.getGameTime() < waitUntil) return;
 		JobHelpers.closeContainer(level, entity);
 
+		// a write that could not be stored is retried here and nowhere else. Falling past it ran
+		// the step again, and again every retry, drawing the pool down a run at a time.
+		if (pending != PendingWrite.NONE) {
+			entity.getNavigation().stop();
+			boolean stored = pending == PendingWrite.CLEAR
+					? Commission.clear(entity)
+					: Commission.advance(entity, commission);
+			if (!stored) {
+				stall(level, entity);
+				return;
+			}
+			PendingWrite done = pending;
+			pending = PendingWrite.NONE;
+			if (done == PendingWrite.CLEAR) resetCommissionLegs();
+			else commissionPhase = CommissionPhase.TO_POOL;
+			return;
+		}
+
 		FakePlayerEntity qm = quartermasterOf(level, commission);
 		if (qm == null) {
 			// unobservable is not gone: an unloaded storeroom must not throw away a commission,
@@ -193,6 +224,13 @@ public class CrafterJobExecutor implements JobExecutor {
 			} else {
 				entity.getNavigation().stop();
 			}
+			return;
+		}
+
+		if (commission.cancelled()) {
+			// the quartermaster gave up waiting. It flags rather than clears, so the goods it paid
+			// for come back here rather than being banked in this fake's own chest.
+			abandon(level, entity, commission, "calledoff", "was called off its craft");
 			return;
 		}
 
@@ -252,7 +290,8 @@ public class CrafterJobExecutor implements JobExecutor {
 				// the goods, rather than a freed crafter holding a storeroom's worth of stock
 				if (!Commission.clear(entity)) {
 					// the orders would survive and the whole step would run again, drawing the pool
-					// down each cycle, so stop rather than loop
+					// down each cycle, so queue the write and do nothing until it lands
+					pending = PendingWrite.CLEAR;
 					stall(level, entity);
 					return;
 				}
@@ -303,6 +342,7 @@ public class CrafterJobExecutor implements JobExecutor {
 		if (commission.cursor() + 1 < commission.steps().size()) {
 			if (!Commission.advance(entity, commission)) {
 				// the cursor did not move, so carrying on would re-run this step for ever
+				pending = PendingWrite.ADVANCE;
 				stall(level, entity);
 				return;
 			}
@@ -392,15 +432,35 @@ public class CrafterJobExecutor implements JobExecutor {
 		entity.setDisplayItem(ItemStack.EMPTY);
 		entity.getNavigation().stop();
 		FakePlayerEntity qm = quartermasterOf(level, commission);
+		// the commonest reason to abandon is that the storeroom itself has gone, and then there is
+		// nowhere to put its goods back. The floor is the only honest option left, as it is for a
+		// runner that loses its quartermaster: banking them in this fake's own deposit chest would
+		// quietly move another player's stock into its chest.
 		if (qm != null) bank(level, entity, qm, commission);
+		else dropInvolved(level, entity, commission);
 		resetCommissionLegs();
 		if (!Commission.clear(entity)) {
+			pending = PendingWrite.CLEAR;
 			stall(level, entity);
 			return;
 		}
 		// deduped per kind: an escalation that keeps failing re-commissions on a timer, and an
 		// unlatched message there is a chat line every cycle for as long as the pool is short
 		SenderAlerts.alert(level, entity, kind, reason);
+	}
+
+	/** Put the commission's goods on the ground, for when the storeroom they belong to has gone. */
+	private void dropInvolved(ServerLevel level, FakePlayerEntity entity, Commission commission) {
+		Set<ResourceLocation> theirs = commission.itemsInvolved();
+		SimpleContainer inv = entity.getInventory();
+		for (int slot = 0; slot < inv.getContainerSize(); slot++) {
+			ItemStack stack = inv.getItem(slot);
+			if (stack.isEmpty()) continue;
+			if (!theirs.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()))) continue;
+			entity.spawnAtLocation(stack.copy());
+			inv.setItem(slot, ItemStack.EMPTY);
+		}
+		inv.setChanged();
 	}
 
 	/** The commissioning Quartermaster, or null while it is unloaded, gone or re-jobbed. */
@@ -412,8 +472,8 @@ public class CrafterJobExecutor implements JobExecutor {
 	}
 
 	/**
-	 * The orders could not be written, so there is no safe way to go on: re-running the step would
-	 * draw the pool down every cycle. Stand still and say so, once.
+	 * Wait before retrying a write that would not store. The caller sets {@link #pending} first,
+	 * which is what actually holds the job: this only spaces the retries out and says so once.
 	 */
 	private void stall(ServerLevel level, FakePlayerEntity entity) {
 		entity.getNavigation().stop();
@@ -438,6 +498,7 @@ public class CrafterJobExecutor implements JobExecutor {
 		commissionPhase = CommissionPhase.TO_POOL;
 		runsDone = 0;
 		activeCursor = -1;
+		pending = PendingWrite.NONE;
 	}
 
 	/** Whether the Crafter holds enough for this many runs of the step. */
@@ -530,10 +591,18 @@ public class CrafterJobExecutor implements JobExecutor {
 		return true;
 	}
 
-	private boolean hasOutputs(SimpleContainer inv, Map<Item, Integer> need) {
+	/**
+	 * Whether there is anything worth walking to the deposit chest for. Stock this fake is holding
+	 * back does not count: the dump would refuse every slot, and the job would walk back and forth
+	 * between its source and its chest for ever once the source ran dry.
+	 */
+	private boolean hasOutputs(FakePlayerEntity entity, SimpleContainer inv, Map<Item, Integer> need) {
+		StockReserve reserve = StockReserve.of(entity);
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack s = inv.getItem(i);
-			if (!s.isEmpty() && !need.containsKey(s.getItem())) return true;
+			if (s.isEmpty() || need.containsKey(s.getItem())) continue;
+			if (reserve.holdBack(s) >= s.getCount()) continue;
+			return true;
 		}
 		return false;
 	}
