@@ -29,12 +29,16 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.IForgeRegistry;
+import net.minecraftforge.registries.NewRegistryEvent;
+import net.minecraftforge.registries.RegisterEvent;
 import net.minecraftforge.registries.RegistryBuilder;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -52,7 +56,16 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 		ITEMS.register(bus);
 		ENTITIES.register(bus);
 		MENUS.register(bus);
-		CUSTOM.forEach(custom -> custom.deferred.register(bus));
+		bus.addListener(ForgeCommonRegistry::newRegistries);
+		bus.addListener(ForgeCommonRegistry::registerCustom);
+	}
+
+	private static void newRegistries(NewRegistryEvent e) {
+		CUSTOM.forEach(custom -> custom.create(e));
+	}
+
+	private static void registerCustom(RegisterEvent e) {
+		CUSTOM.forEach(custom -> custom.flush(e));
 	}
 
 	@Override
@@ -110,8 +123,7 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 
 	@Override
 	public <T> ICustomRegistry<T> createRegistry(ResourceKey<Registry<T>> key) {
-		DeferredRegister<T> deferred = DeferredRegister.create(key, Constants.MOD_ID);
-		ForgeCustomRegistry<T> custom = new ForgeCustomRegistry<>(deferred);
+		ForgeCustomRegistry<T> custom = new ForgeCustomRegistry<>(key);
 		CUSTOM.add(custom);
 		return custom;
 	}
@@ -119,23 +131,53 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 	// a named class rather than an anonymous one: this branch's javac rejects an anonymous inner
 	// subclass of a remapped Minecraft type, and Supplier<IForgeRegistry<T>> qualifies.
 	private static final class ForgeCustomRegistry<T> implements ICustomRegistry<T> {
-		private final DeferredRegister<T> deferred;
-		private final Supplier<IForgeRegistry<T>> registry;
+		private final ResourceKey<Registry<T>> key;
+		// DeferredRegister would compose every key from its own namespace, dropping an addon's
+		// modid, so pending entries carry the full identifier and RegisterEvent honours it.
+		private final Map<ResourceLocation, Supplier<T>> pending = new LinkedHashMap<>();
+		private Supplier<IForgeRegistry<T>> registry;
+		private boolean flushed;
 
-		private ForgeCustomRegistry(DeferredRegister<T> deferred) {
-			this.deferred = deferred;
-			this.registry = deferred.makeRegistry(RegistryBuilder::new);
+		private ForgeCustomRegistry(ResourceKey<Registry<T>> key) {
+			this.key = key;
+		}
+
+		private void create(NewRegistryEvent e) {
+			// disableSync: nothing sends a raw registry id over the wire, and a synced mod registry
+			// would turn "the server has a job this client cannot resolve" into a login rejection
+			// instead of the intended "(missing)" label. RegistryBuilder defaults sync to true.
+			this.registry = e.create(new RegistryBuilder<T>()
+					.setName(this.key.location())
+					.disableSync());
 		}
 
 		@Override
 		public Supplier<T> register(String modid, String name, Supplier<T> value) {
-			return deferred.register(name, value);
+			ResourceLocation id = new ResourceLocation(modid, name);
+			if (flushed) {
+				throw new IllegalStateException("cannot register " + id + " into " + key.location()
+						+ ": that registry has already been populated, so register during mod construction");
+			}
+			if (pending.containsKey(id)) {
+				throw new IllegalStateException("duplicate registration of " + id + " into " + key.location());
+			}
+			pending.put(id, value);
+			return () -> get(id);
+		}
+
+		private void flush(RegisterEvent e) {
+			if (!this.key.equals(e.getRegistryKey())) {
+				return;
+			}
+			this.flushed = true;
+			this.pending.forEach((id, value) -> e.register(this.key, id, value));
+			this.pending.clear();
 		}
 
 		@Nullable
 		@Override
 		public T get(ResourceLocation id) {
-			IForgeRegistry<T> reg = registry.get();
+			IForgeRegistry<T> reg = registry == null ? null : registry.get();
 			return reg == null ? null : reg.getValue(id);
 		}
 	}
