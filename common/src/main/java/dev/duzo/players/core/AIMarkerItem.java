@@ -2,7 +2,6 @@ package dev.duzo.players.core;
 
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.GuardJobExecutor;
-import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
 import dev.duzo.players.entities.ai.requests.StoragePool;
 import net.minecraft.ChatFormatting;
@@ -71,7 +70,7 @@ public class AIMarkerItem extends Item {
 		tag.putString(TAG_PURPOSE, purposeName(purpose));
 		tag.putLong(TAG_EXPIRES, now + SESSION_TICKS);
 		if (purpose == PURPOSE_CHEST_PICKER) tag.putByte(TAG_CHEST_SLOT, chestSlot);
-		if (purpose == PURPOSE_WAYPOINT && entity.getAIState().job() == Job.GUARD) tag.putBoolean(TAG_GUARD, true);
+		if (purpose == PURPOSE_WAYPOINT && FPJobs.is(entity.getAIState().jobId(), FPJobs.GUARD)) tag.putBoolean(TAG_GUARD, true);
 		writeTag(stack, tag);
 		stack.set(DataComponents.CUSTOM_NAME, Component.literal(purposeLabel(purpose, chestSlot)).withStyle(ChatFormatting.AQUA));
 		return stack;
@@ -197,7 +196,7 @@ public class AIMarkerItem extends Item {
 
 		switch (purpose) {
 			case PURPOSE_WAYPOINT -> {
-				if (entity.getAIState().job() == Job.GUARD) {
+				if (FPJobs.is(entity.getAIState().jobId(), FPJobs.GUARD)) {
 					// Reusable patrol editor: right-click adds a point, shift-right-click removes one.
 					BlockPos point = pos.immutable();
 					if (player.isShiftKeyDown()) {

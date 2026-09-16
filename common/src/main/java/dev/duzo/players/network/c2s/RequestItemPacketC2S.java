@@ -7,7 +7,7 @@ import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.api.requests.ItemRequest;
 import dev.duzo.players.api.requests.RaisedRequest;
 import dev.duzo.players.entities.FakePlayerEntity;
-import dev.duzo.players.entities.ai.Job;
+import dev.duzo.players.core.FPJobs;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -33,7 +33,7 @@ public record RequestItemPacketC2S(int id, String item, int count) {
 		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
 		// the clicked entity is validated only to confirm the menu belonged to a quartermaster; the
 		// request itself goes to the nearest stocked one, so a small pool does not shadow a big one
-		if (entity.getAIState().job() != Job.QUARTERMASTER) return;
+		if (!FPJobs.is(entity.getAIState().jobId(), FPJobs.QUARTERMASTER)) return;
 
 		Identifier id = Identifier.tryParse(ctx.message().item().trim());
 		Optional<Item> found = id == null ? Optional.empty() : BuiltInRegistries.ITEM.getOptional(id);
