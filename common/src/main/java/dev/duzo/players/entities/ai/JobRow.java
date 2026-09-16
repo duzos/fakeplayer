@@ -13,5 +13,6 @@ public enum JobRow {
 	FILTER,
 	PATROL,
 	POOL,
-	REQUEST
+	REQUEST,
+	STOCK
 }

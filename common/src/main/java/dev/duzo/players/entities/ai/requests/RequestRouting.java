@@ -190,6 +190,28 @@ public final class RequestRouting {
 		return best;
 	}
 
+	/**
+	 * Nearest same-owner Crafter that could take a commission: free, and with a table marked.
+	 * Busy-ness and the table both come from AIState, so a Crafter that has not ticked since a
+	 * reload still reads as busy and cannot be commissioned twice.
+	 */
+	@Nullable
+	public static FakePlayerEntity nearestFreeCrafter(ServerLevel level, FakePlayerEntity quartermaster) {
+		FakePlayerEntity best = null;
+		double bestDist = Double.MAX_VALUE;
+		for (FakePlayerEntity fake : peers(level, quartermaster, FPJobs.CRAFTER, quartermaster.getAIState().ownerUUID())) {
+			if (Commission.isBusy(fake)) continue;
+			// no marked table means nowhere to craft, and the commission would stall on arrival
+			if (fake.getAIState().waypoint() == null) continue;
+			double d = fake.distanceToSqr(quartermaster);
+			if (d < bestDist) {
+				bestDist = d;
+				best = fake;
+			}
+		}
+		return best;
+	}
+
 	/** Why an assignment is no longer valid, or null while it is fine or merely unobservable. */
 	public enum AssignmentFault { RE_JOBBED, ORPHANED }
 
