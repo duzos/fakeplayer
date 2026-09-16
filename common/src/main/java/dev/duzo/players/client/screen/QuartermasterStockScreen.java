@@ -2,8 +2,8 @@ package dev.duzo.players.client.screen;
 
 import commonnetwork.api.Network;
 import dev.duzo.players.api.requests.ItemRequest;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
-import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.network.c2s.CancelRequestPacketC2S;
 import dev.duzo.players.network.c2s.RequestItemPacketC2S;
 import dev.duzo.players.network.c2s.RequestStockPacketC2S;
@@ -151,7 +151,7 @@ public class QuartermasterStockScreen extends Screen {
 		super.tick();
 		// the quartermaster can stop being one while this is open, at which point every click would
 		// be silently swallowed by the server-side guards. Close instead of pretending to work.
-		if (entity == null || entity.isRemoved() || entity.getAIState().job() != Job.QUARTERMASTER) {
+		if (entity == null || entity.isRemoved() || !FPJobs.is(entity.getAIState().jobId(), FPJobs.QUARTERMASTER)) {
 			Minecraft.getInstance().setScreen(null);
 			return;
 		}
