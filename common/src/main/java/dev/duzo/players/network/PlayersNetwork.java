@@ -16,6 +16,7 @@ import dev.duzo.players.network.c2s.CancelRequestPacketC2S;
 import dev.duzo.players.network.c2s.RequestStockPacketC2S;
 import dev.duzo.players.network.s2c.StockListPacketS2C;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
+import dev.duzo.players.network.c2s.SetStockListPacketC2S;
 import dev.duzo.players.network.c2s.SetFakePlayerNamePacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.SetSkinKeyPacketC2S;
@@ -38,6 +39,7 @@ public class PlayersNetwork {
 		Network.registerPacket(SkinDataPacketS2C.TYPE, SkinDataPacketS2C.CODEC, SkinDataPacketS2C::handle);
 		Network.registerPacket(BondPacketC2S.TYPE, BondPacketC2S.CODEC, BondPacketC2S::handle);
 		Network.registerPacket(SetAIFilterPacketC2S.TYPE, SetAIFilterPacketC2S.CODEC, SetAIFilterPacketC2S::handle);
+		Network.registerPacket(SetStockListPacketC2S.TYPE, SetStockListPacketC2S.CODEC, SetStockListPacketC2S::handle);
 		Network.registerPacket(RequestItemPacketC2S.TYPE, RequestItemPacketC2S.CODEC, RequestItemPacketC2S::handle);
 		Network.registerPacket(RequestStockPacketC2S.TYPE, RequestStockPacketC2S.CODEC, RequestStockPacketC2S::handle);
 		Network.registerPacket(StockListPacketS2C.TYPE, StockListPacketS2C.CODEC, StockListPacketS2C::handle);

@@ -8,6 +8,9 @@
 - added modded fishing rod support. thanks to RageQKM for the Aquaculture report and suggestion.
 - added Aquaculture tackle, bait, hook textures and dyed lines on Forge/NeoForge. lava fishing also works with its lava fishing addon and a suitable hook.
 - addons can register jobs and manage item requests through the API.
+- fakes can keep a list of items stocked. type it into the Stock box in the AI menu, like `minecraft:torch 64, minecraft:bread 16`, and the fake asks a Quartermaster whenever it drops below a target, without stopping work.
+- when the storeroom can't fill a request, a bonded Crafter makes up the difference. the Quartermaster plans the whole recipe chain, counts existing stock, and crafts only the shortfall.
+- if a chain can't be finished you get one message listing everything missing. a crafted request needs a bonded, free Crafter with a table marked.
 
 ## CHANGED
 
