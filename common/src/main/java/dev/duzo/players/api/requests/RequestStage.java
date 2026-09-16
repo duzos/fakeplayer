@@ -12,6 +12,8 @@ public enum RequestStage {
 	PENDING,
 	/** Assigned to a Runner. */
 	DISPATCHED,
+	/** A bonded Crafter is making the gap. Still owed, so still open. */
+	CRAFTING,
 	/** The requester has the goods. Terminal, and removed from the board. */
 	DELIVERED,
 	/** No resolver could source it. Retried on a timer, pruned once the requester is provably gone. */

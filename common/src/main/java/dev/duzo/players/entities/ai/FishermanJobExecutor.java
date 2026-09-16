@@ -4,6 +4,7 @@ import dev.duzo.players.entities.FakeFishingHook;
 import dev.duzo.players.compat.RiverFishingBridge;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.requests.StockReserve;
 import dev.duzo.players.entities.LavaProofItemEntity;
 import dev.duzo.players.entities.OpenWaterProbe;
 import dev.duzo.players.platform.Services;
@@ -524,10 +525,12 @@ public class FishermanJobExecutor implements JobExecutor {
 		// Now that any rod counts, refusing to deposit all of them would hoard every spare forever. Keep one
 		// only if neither hand already holds one, and deposit the rest.
 		boolean keepRod = !FishingRods.isFishingRod(e.getMainHandItem()) && !FishingRods.isFishingRod(e.getOffhandItem());
+		StockReserve stock = StockReserve.of(e);
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack stack = inv.getItem(i);
 			if (stack.isEmpty()) continue;
 			if (FishingRods.isFishingRod(stack) && keepRod) { keepRod = false; continue; }
+			if (JobHelpers.depositSurplus(inv, i, dst, stock)) continue;
 			int keep = Math.min(stack.getCount(), Math.max(0, i < reserve.length ? reserve[i] : 0));
 			ItemStack offer = stack.copyWithCount(stack.getCount() - keep);
 			if (offer.isEmpty()) continue;

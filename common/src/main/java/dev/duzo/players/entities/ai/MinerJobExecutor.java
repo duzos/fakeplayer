@@ -2,6 +2,7 @@ package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.requests.StockReserve;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -965,12 +966,16 @@ public class MinerJobExecutor implements JobExecutor {
 
 	private void dumpInto(Container chest, FakePlayerEntity entity) {
 		SimpleContainer inv = entity.getInventory();
+		// whatever this fake is keeping in stock stays with it, or a delivered stack is banked
+		// here, the target goes short again, and the storeroom is pumped into this chest
+		StockReserve reserve = StockReserve.of(entity);
 		int keptBuildBlocks = 0;
 		boolean keptPickaxe = false;
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack stack = inv.getItem(i);
 			if (stack.isEmpty()) continue;
 			if (isFood(stack)) continue;
+			if (JobHelpers.depositSurplus(inv, i, chest, reserve)) continue;
 			// keep at most one usable pickaxe as a spare; deposit any others, including unusable ones
 			if (isMiningTool(stack)) {
 				if (!keptPickaxe && isUsablePickaxe(stack)) {
