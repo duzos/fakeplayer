@@ -1,4 +1,4 @@
-# v2.3.0
+# v3.0.0
 
 - Fakes can ask each other for items, through two new jobs. A **Quartermaster** owns a storeroom you define by marking chests with its Pool marker, keeps track of what is in them, and works out who can fill a request. A **Runner** does the carrying: it collects from the pool and delivers to whoever asked. The Quartermaster never leaves the storeroom, so you scale a base up by bonding more Runners to it rather than by making one fake faster.
 - A Fisherman that has no fishing rod now asks for one and waits, instead of standing there doing nothing. The rod arrives if the pool has one, and it gets back to fishing on its own.
