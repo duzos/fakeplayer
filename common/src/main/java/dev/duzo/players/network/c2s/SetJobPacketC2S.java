@@ -14,7 +14,7 @@ public record SetJobPacketC2S(int id, Identifier jobId) {
 	public static final Identifier LOCATION = PlayersCommon.id("ai_set_job");
 
 	public static SetJobPacketC2S decode(FriendlyByteBuf buf) {
-		return new SetJobPacketC2S(buf.readInt(), Identifier.parse(buf.readUtf()));
+		return new SetJobPacketC2S(buf.readInt(), Identifier.tryParse(buf.readUtf()));
 	}
 
 	public static void handle(PacketContext<SetJobPacketC2S> ctx) {
