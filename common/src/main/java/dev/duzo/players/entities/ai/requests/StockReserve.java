@@ -31,9 +31,11 @@ public final class StockReserve {
 		if (wanted.isEmpty()) return EMPTY;
 		Map<Identifier, Integer> budget = new HashMap<>();
 		for (StockList.Entry entry : wanted) budget.put(entry.item(), entry.target());
-		// a held tool counts towards its own target, so the inventory only owes the rest
-		spend(budget, fake.getMainHandItem());
-		spend(budget, fake.getOffhandItem());
+		// a held tool, or worn armour, counts towards its own target, so the inventory only owes
+		// the rest. The same slots StockKeeper counts, or the two disagree by whatever is worn.
+		for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
+			spend(budget, fake.getItemBySlot(slot));
+		}
 		return new StockReserve(budget);
 	}
 
