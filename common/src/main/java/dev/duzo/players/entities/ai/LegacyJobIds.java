@@ -69,6 +69,14 @@ public final class LegacyJobIds {
 			+ "players:courier,players:miner,players:lumberjack,players:fisherman,players:farmer,"
 			+ "players:crafter,players:quartermaster,players:runner";
 
+	/**
+	 * The same second copy for {@link #NAMES}. Without it, swapping two entries there would leave
+	 * every other check passing while {@link #BY_NAME} mapped a legacy name to the wrong job.
+	 */
+	private static final String FROZEN_NAMES =
+			"NONE,IDLE,GUARD,FOLLOW,PATROL,DEPOSIT,COURIER,"
+			+ "MINER,LUMBERJACK,FISHERMAN,FARMER,CRAFTER,QUARTERMASTER,RUNNER";
+
 	private LegacyJobIds() {}
 
 	private static ResourceLocation id(String path) {
@@ -121,6 +129,11 @@ public final class LegacyJobIds {
 		if (!actualOrder.equals(FROZEN_ORDER)) {
 			throw new IllegalStateException("the frozen job ordinal table has been reordered, "
 					+ "expected [" + FROZEN_ORDER + "] but found [" + actualOrder + "]");
+		}
+		String actualNames = String.join(",", NAMES);
+		if (!actualNames.equals(FROZEN_NAMES)) {
+			throw new IllegalStateException("the frozen job name table has been reordered, "
+					+ "expected [" + FROZEN_NAMES + "] but found [" + actualNames + "]");
 		}
 	}
 }
