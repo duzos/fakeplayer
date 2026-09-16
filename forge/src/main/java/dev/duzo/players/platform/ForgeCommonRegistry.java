@@ -3,10 +3,13 @@ package dev.duzo.players.platform;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.duzo.players.Constants;
 import dev.duzo.players.platform.services.ICommonRegistry;
+import dev.duzo.players.platform.services.ICustomRegistry;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.Entity;
@@ -25,7 +28,10 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.IForgeRegistry;
+import net.minecraftforge.registries.RegistryBuilder;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,11 +46,13 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 	public static final HashMap<Supplier<? extends EntityType<?>>, Supplier<AttributeSupplier.Builder>> ATTRIBUTES = new HashMap<>();
 	public static final HashMap<ResourceKey<CreativeModeTab>, List<Supplier<Item>>> GROUPS = new HashMap<>();
 	public static final List<Consumer<CommandDispatcher<CommandSourceStack>>> COMMANDS = new ArrayList<>();
+	private static final List<ForgeCustomRegistry<?>> CUSTOM = new ArrayList<>();
 
 	public static void init(IEventBus bus) {
 		ITEMS.register(bus);
 		ENTITIES.register(bus);
 		MENUS.register(bus);
+		CUSTOM.forEach(custom -> custom.deferred.register(bus));
 	}
 
 	@Override
@@ -98,5 +106,37 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 	@Override
 	public void openMenu(ServerPlayer player, MenuProvider provider, Consumer<FriendlyByteBuf> data) {
 		NetworkHooks.openScreen(player, provider, data);
+	}
+
+	@Override
+	public <T> ICustomRegistry<T> createRegistry(ResourceKey<Registry<T>> key) {
+		DeferredRegister<T> deferred = DeferredRegister.create(key, Constants.MOD_ID);
+		ForgeCustomRegistry<T> custom = new ForgeCustomRegistry<>(deferred);
+		CUSTOM.add(custom);
+		return custom;
+	}
+
+	// a named class rather than an anonymous one: this branch's javac rejects an anonymous inner
+	// subclass of a remapped Minecraft type, and Supplier<IForgeRegistry<T>> qualifies.
+	private static final class ForgeCustomRegistry<T> implements ICustomRegistry<T> {
+		private final DeferredRegister<T> deferred;
+		private final Supplier<IForgeRegistry<T>> registry;
+
+		private ForgeCustomRegistry(DeferredRegister<T> deferred) {
+			this.deferred = deferred;
+			this.registry = deferred.makeRegistry(RegistryBuilder::new);
+		}
+
+		@Override
+		public Supplier<T> register(String modid, String name, Supplier<T> value) {
+			return deferred.register(name, value);
+		}
+
+		@Nullable
+		@Override
+		public T get(ResourceLocation id) {
+			IForgeRegistry<T> reg = registry.get();
+			return reg == null ? null : reg.getValue(id);
+		}
 	}
 }

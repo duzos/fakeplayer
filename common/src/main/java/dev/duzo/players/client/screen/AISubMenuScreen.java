@@ -3,10 +3,12 @@ package dev.duzo.players.client.screen;
 import com.mojang.blaze3d.platform.InputConstants;
 import commonnetwork.api.Network;
 import dev.duzo.players.core.AIMarkerItem;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.GuardJobExecutor;
-import dev.duzo.players.entities.ai.Job;
+import dev.duzo.players.entities.ai.JobRow;
+import dev.duzo.players.entities.ai.JobType;
 import dev.duzo.players.network.c2s.BondPacketC2S;
 import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
@@ -29,7 +31,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.ResourceLocation;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -102,9 +106,6 @@ public class AISubMenuScreen extends Screen {
 	private int rightBtnX;
 	private int innerLeft;
 	private int filterToggleX;
-
-	// Which marker rows a job actually uses, in display order. Drives both layout and rendering.
-	private enum Row { WAYPOINT, REGION, DEPOSIT, SOURCE, TEACH, FILTER, PATROL, POOL, REQUEST }
 
 	// Shrinks the whole panel when the screen is too small to fit it (large GUI scale).
 	private float uiScale = 1f;
@@ -239,19 +240,8 @@ public class AISubMenuScreen extends Screen {
 		}
 	}
 
-	private List<Row> rowsFor(Job job) {
-		return switch (job) {
-			case IDLE -> List.of(Row.WAYPOINT);
-			case GUARD -> List.of(Row.WAYPOINT, Row.PATROL);
-			case COURIER -> List.of(Row.SOURCE, Row.DEPOSIT, Row.FILTER);
-			case MINER -> List.of(Row.REGION, Row.DEPOSIT, Row.FILTER);
-			case LUMBERJACK -> List.of(Row.REGION, Row.DEPOSIT);
-			case FISHERMAN -> List.of(Row.WAYPOINT, Row.DEPOSIT);
-			case FARMER -> List.of(Row.REGION, Row.DEPOSIT);
-			case CRAFTER -> List.of(Row.WAYPOINT, Row.SOURCE, Row.DEPOSIT, Row.TEACH);
-			case QUARTERMASTER -> List.of(Row.POOL, Row.REQUEST);
-			default -> List.of();
-		};
+	private List<JobRow> rowsFor(@Nullable JobType job) {
+		return job == null ? List.of() : job.rows();
 	}
 
 	private void relayout(AIState s) {
@@ -266,7 +256,7 @@ public class AISubMenuScreen extends Screen {
 		filterToggle.visible = false;
 		poolButton.visible = false;
 		requestButton.visible = false;
-		List<Row> rows = rowsFor(s.job());
+		List<JobRow> rows = rowsFor(s.job());
 		for (int i = 0; i < rows.size(); i++) {
 			int btnY = markerSectionY + 18 + i * ROW_H - 4;
 			switch (rows.get(i)) {
@@ -346,7 +336,7 @@ public class AISubMenuScreen extends Screen {
 		drawAiRow(ctx, x, behaviourSectionY + 18);
 		drawJobRow(ctx, x, behaviourSectionY + 18 + ROW_H, s);
 
-		List<Row> rows = rowsFor(s.job());
+		List<JobRow> rows = rowsFor(s.job());
 		if (!rows.isEmpty()) drawSectionHeader(ctx, x, markerSectionY, "MARKERS");
 		for (int i = 0; i < rows.size(); i++) {
 			int rowY = markerSectionY + 18 + i * ROW_H;
@@ -445,7 +435,13 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	private void drawJobRow(GuiGraphics ctx, int panelX, int y, AIState s) {
-		drawChip(ctx, panelX + PADDING, y, COL_AQUA, "Job: " + s.job().label(), COL_BODY);
+		drawChip(ctx, panelX + PADDING, y, COL_AQUA, "Job: " + jobLabel(s), COL_BODY);
+	}
+
+	/** An unresolved job shows its raw id, so a player can see which mod is missing. */
+	private String jobLabel(AIState s) {
+		JobType job = s.job();
+		return job == null ? s.jobId() + " (missing)" : job.displayName().getString();
 	}
 
 	private void drawMarkerRow(GuiGraphics ctx, int panelX, int y, String name, BlockPos pos) {
@@ -463,7 +459,7 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	private void drawWaypointRow(GuiGraphics ctx, int panelX, int y, AIState s) {
-		if (s.job() == Job.GUARD) {
+		if (FPJobs.is(s.jobId(), FPJobs.GUARD)) {
 			int count = GuardJobExecutor.readPatrolPoints(s).length;
 			int dot = count >= 2 ? COL_GREEN : count == 1 ? COL_YELLOW : COL_MUTED;
 			String text = count == 0 ? "Waypoint  add patrol" : "Waypoint  +1 (" + count + " pts)";
@@ -474,7 +470,7 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	private void drawPatrolRow(GuiGraphics ctx, int panelX, int y, AIState s) {
-		if (s.job() != Job.GUARD) return;
+		if (!FPJobs.is(s.jobId(), FPJobs.GUARD)) return;
 		long[] points = GuardJobExecutor.readPatrolPoints(s);
 		int count = points.length;
 		int radius = GuardJobExecutor.readRadius(s);
@@ -548,17 +544,13 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	private void cycleJob() {
-		Job[] all = Job.values();
-		int current = entity.getAIState().job().ordinal();
-		Job next = Job.NONE;
-		for (int i = 1; i <= all.length; i++) {
-			Job candidate = all[(current + i) % all.length];
-			if (candidate != Job.PATROL && candidate != Job.DEPOSIT) {
-				next = candidate;
-				break;
-			}
-		}
-		Network.getNetworkHandler().sendToServer(new SetJobPacketC2S(entity.getId(), next.ordinal()));
+		List<ResourceLocation> order = FPJobs.selectableOrder();
+		if (order.isEmpty()) return;
+		// an unresolved job has no place in the order, so the cursor lands before the first entry
+		// and one click moves to it. Reassigning is destructive, and it is a deliberate click.
+		int current = order.indexOf(entity.getAIState().jobId());
+		ResourceLocation next = order.get((current + 1) % order.size());
+		Network.getNetworkHandler().sendToServer(new SetJobPacketC2S(entity.getId(), next));
 	}
 
 	private void giveMarker(byte mode) {
@@ -571,7 +563,7 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	private boolean crafterActive() {
-		return entity.getAIState().job() == Job.CRAFTER;
+		return FPJobs.is(entity.getAIState().jobId(), FPJobs.CRAFTER);
 	}
 
 	private void openTeach() {
@@ -612,12 +604,12 @@ public class AISubMenuScreen extends Screen {
 	// CourierJobExecutor#matchesFilter. The canonical constants (MinerJobExecutor.DEFAULT_FILTER,
 	// SetAIFilterPacketC2S.DEFAULT_FILTER) are private and live under entities/ai/** and network/c2s/**,
 	// which this branch doesn't own, so the literals are duplicated here rather than shared.
-	private String defaultFilterFor(Job job) {
-		return job == Job.COURIER ? "*" : MINER_DEFAULT_FILTER;
+	private String defaultFilterFor(ResourceLocation jobId) {
+		return FPJobs.is(jobId, FPJobs.COURIER) ? "*" : MINER_DEFAULT_FILTER;
 	}
 
 	private String effectiveFilterTag(AIState s) {
-		String def = defaultFilterFor(s.job());
+		String def = defaultFilterFor(s.jobId());
 		String tag = s.filter().contains("Tag") ? s.filter().getString("Tag") : def;
 		return tag.isBlank() ? def : tag;
 	}
