@@ -6,6 +6,7 @@ import dev.duzo.players.commands.SpawnCommand;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.core.FPMenus;
 import dev.duzo.players.network.PlayersNetwork;
 import dev.duzo.players.platform.Services;
@@ -16,6 +17,7 @@ public class PlayersCommon {
         PlayersConfig.load();
 
         FPItems.init();
+        FPJobs.init();
         FPEntities.init();
         FPMenus.init();
 
