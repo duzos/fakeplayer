@@ -11,7 +11,6 @@ import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.JobExecutor;
 import dev.duzo.players.entities.ai.JobType;
-import dev.duzo.players.entities.ai.NoopJobExecutor;
 import dev.duzo.players.entities.ai.RangedWeapon;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
 import dev.duzo.players.entities.goal.FollowOwnerGoal;
@@ -82,6 +81,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	private final FakePlayerInventory inventory = new FakePlayerInventory(this);
 	private JobExecutor jobExecutor;
 	private ResourceLocation jobExecutorJob = FPJobs.NONE_ID;
+	private boolean jobExecutorBound;
 	private boolean jobPaused;
 	private boolean jobActivePrev;
 
@@ -115,13 +115,18 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	private void tickJobExecutor(ServerLevel level) {
 		AIState state = this.getAIState();
 		ResourceLocation job = state.jobId();
-		if (jobExecutor == null || !job.equals(jobExecutorJob)) {
+		if (!jobExecutorBound || !job.equals(jobExecutorJob)) {
 			JobType type = FPJobs.get(job);
-			jobExecutor = type == null ? new NoopJobExecutor() : type.createExecutor();
-			jobExecutor.deserialize(state.jobState());
+			// an unresolved job leaves the executor null rather than installing a noop, because a
+			// noop serializes an empty tag and flushJobState would overwrite the real JobState on
+			// the next save. flushJobState returns early on null, so an absent mod's job survives.
+			jobExecutor = type == null ? null : type.createExecutor();
+			if (jobExecutor != null) jobExecutor.deserialize(state.jobState());
 			jobExecutorJob = job;
+			jobExecutorBound = true;
 			jobActivePrev = false;
 		}
+		if (jobExecutor == null) return;
 		boolean active = state.running() && !jobPaused;
 		if (active != jobActivePrev) {
 			if (active) jobExecutor.onResume(this);
@@ -438,6 +443,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			this.flushJobState();
 		}
 		this.jobExecutor = null;
+		this.jobExecutorBound = false;
 		this.jobExecutorJob = FPJobs.NONE_ID;
 		this.jobActivePrev = false;
 	}
