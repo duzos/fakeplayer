@@ -2,6 +2,7 @@ package dev.duzo.players.platform.services;
 
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
@@ -35,6 +36,8 @@ public interface ICommonRegistry {
 	}
 
 	void registerCommand(Consumer<CommandDispatcher<CommandSourceStack>> command);
+
+	<T> ICustomRegistry<T> createRegistry(ResourceKey<Registry<T>> key);
 
 	<T extends AbstractContainerMenu> Supplier<MenuType<T>> registerMenu(String modid, String name, ExtendedMenuFactory<T> factory);
 

@@ -2,13 +2,16 @@ package dev.duzo.players.platform;
 
 import com.mojang.brigadier.CommandDispatcher;
 import dev.duzo.players.platform.services.ICommonRegistry;
+import dev.duzo.players.platform.services.ICustomRegistry;
 import io.netty.buffer.Unpooled;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
@@ -111,5 +114,26 @@ public class FabricCommonRegistry implements ICommonRegistry {
 				return provider.createMenu(containerId, playerInventory, p);
 			}
 		});
+	}
+
+	@Override
+	public <T> ICustomRegistry<T> createRegistry(ResourceKey<Registry<T>> key) {
+		MappedRegistry<T> registry = FabricRegistryBuilder.createSimple(key).buildAndRegister();
+		return new FabricCustomRegistry<>(registry);
+	}
+
+	private record FabricCustomRegistry<T>(Registry<T> registry) implements ICustomRegistry<T> {
+		@Override
+		public Supplier<T> register(String modid, String name, Supplier<T> value) {
+			T registered = Registry.register(registry,
+					ResourceLocation.fromNamespaceAndPath(modid, name), value.get());
+			return () -> registered;
+		}
+
+		@Nullable
+		@Override
+		public T get(ResourceLocation id) {
+			return registry.getValue(id);
+		}
 	}
 }
