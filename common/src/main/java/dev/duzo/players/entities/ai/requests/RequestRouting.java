@@ -3,9 +3,10 @@ package dev.duzo.players.entities.ai.requests;
 import dev.duzo.players.api.requests.ItemRequest;
 import dev.duzo.players.api.requests.RequestKey;
 import dev.duzo.players.config.PlayersConfig;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
-import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.entities.ai.JobExecutor;
+import dev.duzo.players.entities.ai.JobType;
 import dev.duzo.players.entities.ai.QuartermasterJobExecutor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /** Addressing by role and owner rather than by entity id, plus owner-only notification. */
 @ApiStatus.Internal
@@ -55,19 +57,19 @@ public final class RequestRouting {
 	 * Same-owner fakes on the given job within requestRadius. A null owner returns nothing:
 	 * treating it as a wildcard would let an unowned fake raid any player's pool.
 	 */
-	private static List<FakePlayerEntity> peers(ServerLevel level, Entity around, Job job, @Nullable UUID owner) {
+	private static List<FakePlayerEntity> peers(ServerLevel level, Entity around, Supplier<JobType> job, @Nullable UUID owner) {
 		if (owner == null) return List.of();
 		AABB box = around.getBoundingBox().inflate(PlayersConfig.get().requestRadius);
 		return level.getEntitiesOfClass(FakePlayerEntity.class, box, fake -> fake.isAlive()
 				&& fake != around
-				&& fake.getAIState().job() == job
+				&& FPJobs.is(fake.getAIState().jobId(), job)
 				&& fake.getAIState().running()
 				&& owner.equals(fake.getAIState().ownerUUID()));
 	}
 
 	/** Quartermasters with a marked pool that could serve this owner, nearest first. */
 	public static List<FakePlayerEntity> quartermastersFor(ServerLevel level, Entity around, @Nullable UUID owner) {
-		List<FakePlayerEntity> found = new ArrayList<>(peers(level, around, Job.QUARTERMASTER, owner));
+		List<FakePlayerEntity> found = new ArrayList<>(peers(level, around, FPJobs.QUARTERMASTER, owner));
 		found.removeIf(qm -> StoragePool.read(qm.getAIState()).isEmpty());
 		found.sort(Comparator.comparingDouble(qm -> qm.distanceToSqr(around)));
 		return found;
@@ -118,7 +120,7 @@ public final class RequestRouting {
 			for (ServerLevel each : server.getAllLevels()) {
 				for (Entity entity : each.getAllEntities()) {
 					if (!(entity instanceof FakePlayerEntity fake)) continue;
-					if (fake.getAIState().job() != Job.QUARTERMASTER) continue;
+					if (!FPJobs.is(fake.getAIState().jobId(), FPJobs.QUARTERMASTER)) continue;
 					if (!owner.equals(fake.getAIState().ownerUUID())) continue;
 					found.add(fake.getUUID());
 				}
@@ -177,7 +179,7 @@ public final class RequestRouting {
 	public static FakePlayerEntity nearestFreeRunner(ServerLevel level, FakePlayerEntity quartermaster) {
 		FakePlayerEntity best = null;
 		double bestDist = Double.MAX_VALUE;
-		for (FakePlayerEntity fake : peers(level, quartermaster, Job.RUNNER, quartermaster.getAIState().ownerUUID())) {
+		for (FakePlayerEntity fake : peers(level, quartermaster, FPJobs.RUNNER, quartermaster.getAIState().ownerUUID())) {
 			if (Haul.isBusy(fake)) continue;
 			double d = fake.distanceToSqr(quartermaster);
 			if (d < bestDist) {
@@ -209,7 +211,7 @@ public final class RequestRouting {
 		// again on its own. jobPaused is deliberately NOT checked: it is true whenever the owner
 		// merely has the fake's menu open, and treating that as a fault would requeue the request
 		// and charge a failure for an everyday UI action. A pause ends by itself.
-		if (runner.getAIState().job() != Job.RUNNER || !runner.getAIState().running()) {
+		if (!FPJobs.is(runner.getAIState().jobId(), FPJobs.RUNNER) || !runner.getAIState().running()) {
 			return AssignmentFault.RE_JOBBED;
 		}
 		Haul haul = Haul.of(runner.getAIState());

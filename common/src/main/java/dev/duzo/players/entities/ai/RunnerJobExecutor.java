@@ -4,6 +4,7 @@ import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.api.requests.ItemRequest;
 import dev.duzo.players.api.requests.RequestStage;
 import dev.duzo.players.api.requests.RequesterKind;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.requests.Haul;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
@@ -79,7 +80,7 @@ public class RunnerJobExecutor implements JobExecutor {
 			return;
 		}
 
-		if (qm.getAIState().job() != Job.QUARTERMASTER) {
+		if (!FPJobs.is(qm.getAIState().jobId(), FPJobs.QUARTERMASTER)) {
 			// decidable from AIState, so decide it now rather than waiting out the orphan window
 			returnCargo(level, entity, qm, (ServerLevel) qm.level(), haul);
 			releaseHaul(level, entity);
