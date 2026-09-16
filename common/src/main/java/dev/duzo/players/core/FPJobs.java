@@ -9,6 +9,7 @@ import dev.duzo.players.entities.ai.GuardJobExecutor;
 import dev.duzo.players.entities.ai.IdleJobExecutor;
 import dev.duzo.players.entities.ai.JobRow;
 import dev.duzo.players.entities.ai.JobType;
+import dev.duzo.players.entities.ai.LegacyJobIds;
 import dev.duzo.players.entities.ai.LumberjackJobExecutor;
 import dev.duzo.players.entities.ai.MinerJobExecutor;
 import dev.duzo.players.entities.ai.QuartermasterJobExecutor;
@@ -127,5 +128,7 @@ public class FPJobs {
 		return out;
 	}
 
-	public static void init() {}
+	public static void init() {
+		LegacyJobIds.verify();
+	}
 }
