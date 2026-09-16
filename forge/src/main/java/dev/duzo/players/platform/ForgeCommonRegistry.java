@@ -28,12 +28,15 @@ import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NewRegistryEvent;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import net.neoforged.neoforge.registries.RegistryBuilder;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -51,12 +54,16 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 		ITEMS.register(bus);
 		ENTITIES.register(bus);
 		MENUS.register(bus);
-		CUSTOM.forEach(custom -> custom.deferred.register(bus));
 		bus.addListener(ForgeCommonRegistry::newRegistries);
+		bus.addListener(ForgeCommonRegistry::registerCustom);
 	}
 
 	private static void newRegistries(NewRegistryEvent e) {
 		CUSTOM.forEach(custom -> e.register(custom.registry));
+	}
+
+	private static void registerCustom(RegisterEvent e) {
+		CUSTOM.forEach(custom -> custom.flush(e));
 	}
 
 	@Override
@@ -114,25 +121,48 @@ public class ForgeCommonRegistry implements ICommonRegistry {
 
 	@Override
 	public <T> ICustomRegistry<T> createRegistry(ResourceKey<Registry<T>> key) {
-		ForgeCustomRegistry<T> custom = new ForgeCustomRegistry<>(
-				new RegistryBuilder<>(key).sync(true).create(),
-				DeferredRegister.create(key, Constants.MOD_ID));
+		// no sync(true): nothing sends a raw registry id over the wire, and a synced mod registry
+		// would turn "the server has a job this client cannot resolve" into a login rejection
+		// instead of the intended "(missing)" label.
+		ForgeCustomRegistry<T> custom = new ForgeCustomRegistry<>(key, new RegistryBuilder<>(key).create());
 		CUSTOM.add(custom);
 		return custom;
 	}
 
 	private static final class ForgeCustomRegistry<T> implements ICustomRegistry<T> {
+		private final ResourceKey<Registry<T>> key;
 		private final Registry<T> registry;
-		private final DeferredRegister<T> deferred;
+		// DeferredRegister would compose every key from its own namespace, dropping an addon's
+		// modid, so pending entries carry the full identifier and RegisterEvent honours it.
+		private final Map<ResourceLocation, Supplier<T>> pending = new LinkedHashMap<>();
+		private boolean flushed;
 
-		private ForgeCustomRegistry(Registry<T> registry, DeferredRegister<T> deferred) {
+		private ForgeCustomRegistry(ResourceKey<Registry<T>> key, Registry<T> registry) {
+			this.key = key;
 			this.registry = registry;
-			this.deferred = deferred;
 		}
 
 		@Override
 		public Supplier<T> register(String modid, String name, Supplier<T> value) {
-			return deferred.register(name, value);
+			ResourceLocation id = ResourceLocation.fromNamespaceAndPath(modid, name);
+			if (flushed) {
+				throw new IllegalStateException("cannot register " + id + " into " + key.location()
+						+ ": that registry has already been populated, so register during mod construction");
+			}
+			if (pending.containsKey(id)) {
+				throw new IllegalStateException("duplicate registration of " + id + " into " + key.location());
+			}
+			pending.put(id, value);
+			return () -> registry.getValue(id);
+		}
+
+		private void flush(RegisterEvent e) {
+			if (!this.key.equals(e.getRegistryKey())) {
+				return;
+			}
+			this.flushed = true;
+			this.pending.forEach((id, value) -> e.register(this.key, id, value));
+			this.pending.clear();
 		}
 
 		@Nullable
