@@ -3,8 +3,10 @@ package dev.duzo.players.entities.ai;
 import net.minecraft.resources.Identifier;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * The two on-disk encodings the {@code Job} enum left behind, frozen.
@@ -56,6 +58,17 @@ public final class LegacyJobIds {
 		}
 	}
 
+	/**
+	 * A second, independent copy of {@link #BY_ORDINAL} written out as one literal, so
+	 * {@link #verify()} can catch a reorder of any of the fourteen positions, not just the two it
+	 * used to spot-check. Editing the table now means editing this literal too: that friction is
+	 * the point of a frozen table.
+	 */
+	private static final String FROZEN_ORDER =
+			"players:none,players:idle,players:guard,players:follow,players:patrol,players:deposit,"
+			+ "players:courier,players:miner,players:lumberjack,players:fisherman,players:farmer,"
+			+ "players:crafter,players:quartermaster,players:runner";
+
 	private LegacyJobIds() {}
 
 	private static Identifier id(String path) {
@@ -102,8 +115,12 @@ public final class LegacyJobIds {
 			throw new IllegalStateException("the frozen job tables contain duplicates: "
 					+ BY_NAME.size() + " names, " + ORDINAL_OF.size() + " ids");
 		}
-		if (!id("runner").equals(BY_ORDINAL[13]) || !id("idle").equals(BY_ORDINAL[1])) {
-			throw new IllegalStateException("the frozen job ordinal table has been reordered");
+		String actualOrder = Arrays.stream(BY_ORDINAL)
+				.map(Identifier::toString)
+				.collect(Collectors.joining(","));
+		if (!actualOrder.equals(FROZEN_ORDER)) {
+			throw new IllegalStateException("the frozen job ordinal table has been reordered, "
+					+ "expected [" + FROZEN_ORDER + "] but found [" + actualOrder + "]");
 		}
 	}
 }
