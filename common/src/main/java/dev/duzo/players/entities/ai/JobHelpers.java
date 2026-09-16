@@ -1,6 +1,7 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.requests.StockReserve;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -262,6 +263,36 @@ public final class JobHelpers {
 			if (state.is(TagKey.create(Registries.BLOCK, id))) return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Deposit one inventory slot into a chest, holding back whatever this fake's keep-stocked list
+	 * still wants of it.
+	 *
+	 * <p>Without this every job with a deposit leg banks the goods a Runner has just delivered,
+	 * drops below target again and asks for more, which empties a storeroom into a chest one
+	 * delivery at a time.
+	 *
+	 * @return true when the slot has been dealt with here. False means nothing was reserved and the
+	 *         caller should deposit it however it normally would.
+	 */
+	public static boolean depositSurplus(SimpleContainer inv, int slot, Container chest, StockReserve reserve) {
+		ItemStack stack = inv.getItem(slot);
+		if (stack.isEmpty()) return true;
+		int keep = reserve.holdBack(stack);
+		if (keep <= 0) return false;
+		if (keep >= stack.getCount()) return true;
+
+		ItemStack surplus = stack.split(stack.getCount() - keep);
+		// addItem mutates what it is given and, on the partial-merge branch, hands the same object
+		// back, so diff against a captured count rather than comparing references
+		int before = surplus.getCount();
+		ItemStack leftover = HopperBlockEntity.addItem(null, chest, surplus.copy(), null);
+		int moved = before - leftover.getCount();
+		if (moved < before) stack.grow(before - moved);
+		if (stack.isEmpty()) inv.setItem(slot, ItemStack.EMPTY);
+		if (moved > 0) chest.setChanged();
+		return true;
 	}
 
 	/** Vacuum loose items within radius (mirrors Lumberjack.vacuumNearbyItems). */

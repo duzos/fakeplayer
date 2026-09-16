@@ -1,6 +1,7 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.requests.StockReserve;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -72,7 +73,7 @@ public class CourierJobExecutor implements JobExecutor {
 				}
 				if (!JobHelpers.pollContainer(level, entity, deposit)) return; // open + pause ~1s before depositing
 				SimpleContainer src = entity.getInventory();
-				int moved = dumpAll(src, dst, TRANSFER_PER_TICK);
+				int moved = dumpAll(src, dst, TRANSFER_PER_TICK, StockReserve.of(entity));
 				if (moved == 0) {
 					// nothing left our inventory and it's still full: the deposit chest has no room, not just empty
 					// pockets - cycling straight back to PULL would only bounce between the two chests forever
@@ -89,7 +90,7 @@ public class CourierJobExecutor implements JobExecutor {
 	private void tickWaitingAtDeposit(ServerLevel level, FakePlayerEntity entity, BlockPos deposit) {
 		Container dst = HopperBlockEntity.getContainerAt(level, deposit);
 		if (dst != null && entity.blockPosition().distSqr(deposit) <= ARRIVAL_DIST_SQR && JobHelpers.pollContainer(level, entity, deposit)) {
-			int moved = dumpAll(entity.getInventory(), dst, TRANSFER_PER_TICK);
+			int moved = dumpAll(entity.getInventory(), dst, TRANSFER_PER_TICK, StockReserve.of(entity));
 			if (moved > 0) { // owner made room - resume the normal drain
 				entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 				lastBlocker = "";
@@ -148,11 +149,12 @@ public class CourierJobExecutor implements JobExecutor {
 		return moved;
 	}
 
-	private int dumpAll(Container src, Container dst, int budget) {
+	private int dumpAll(Container src, Container dst, int budget, StockReserve reserve) {
 		int moved = 0;
 		for (int i = 0; i < src.getContainerSize() && moved < budget; i++) {
 			ItemStack stack = src.getItem(i);
 			if (stack.isEmpty()) continue;
+			if (src instanceof SimpleContainer inv && JobHelpers.depositSurplus(inv, i, dst, reserve)) continue;
 			ItemStack take = stack.copy();
 			ItemStack remainder = HopperBlockEntity.addItem(src, dst, take, null);
 			int put = stack.getCount() - remainder.getCount();

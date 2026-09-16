@@ -62,7 +62,8 @@ public final class ItemRequest {
 
 	/** Open means a Quartermaster still owes this. Terminal stages are not open. */
 	public boolean isOpen() {
-		return stage == RequestStage.PENDING || stage == RequestStage.DISPATCHED;
+		return stage == RequestStage.PENDING || stage == RequestStage.DISPATCHED
+				|| stage == RequestStage.CRAFTING;
 	}
 
 	@ApiStatus.Internal public void setRemaining(int remaining) { this.remaining = Math.max(0, remaining); }

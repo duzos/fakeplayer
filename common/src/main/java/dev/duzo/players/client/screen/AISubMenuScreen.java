@@ -13,10 +13,12 @@ import dev.duzo.players.network.c2s.BondPacketC2S;
 import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
 import dev.duzo.players.network.c2s.OpenCrafterLearnPacketC2S;
+import dev.duzo.players.entities.ai.requests.StockList;
 import dev.duzo.players.entities.ai.requests.StoragePool;
 import dev.duzo.players.network.c2s.RequestStockPacketC2S;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
+import dev.duzo.players.network.c2s.SetStockListPacketC2S;
 import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
 import dev.duzo.players.network.c2s.ToggleFakePlayerFlagPacketC2S;
 import net.minecraft.ChatFormatting;
@@ -90,6 +92,8 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton poolButton;
 	private FlatButton requestButton;
 	private EditBox filterEdit;
+	private EditBox stockEdit;
+	private FlatButton stockButton;
 	private FlatButton filterButton;
 	private FlatButton filterToggle;
 	private FlatButton startStopButton;
@@ -214,8 +218,18 @@ public class AISubMenuScreen extends Screen {
 		this.addRenderableWidget(requestButton);
 		hints.add(new Hint(requestButton, Component.literal(
 				"See what this quartermaster has pooled, and click to request it.")));
+		stockEdit = new EditBox(this.font, innerLeft + 52, markerSectionY, FILTER_EDIT_W + FILTER_TOGGLE_W + FILTER_TOGGLE_GAP,
+				BTN_H, Component.literal("stock"));
+		stockEdit.setMaxLength(512);
+		stockEdit.setValue(StockList.text(entity.getAIState()));
+		this.addRenderableWidget(stockEdit);
+		hints.add(new Hint(stockEdit, Component.literal(
+				"Items to keep in stock, comma-separated, each with how many: minecraft:torch 64. "
+						+ "This fake asks a quartermaster for whatever it is short of and keeps working.")));
+		stockButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyStock);
+		this.addRenderableWidget(stockButton);
 
-		int startStopY = markerSectionY + 18 + 4 * ROW_H + 48;
+		int startStopY = markerSectionY + 18 + 5 * ROW_H + 30;
 		startStopButton = new FlatButton(innerLeft, startStopY, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
 		this.addRenderableWidget(startStopButton);
 
@@ -232,6 +246,11 @@ public class AISubMenuScreen extends Screen {
 		AIState s = entity.getAIState();
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
 		relayout(s);
+		// the server normalizes the list, so a dropped typo is shown back rather than left in the box
+		if (stockEdit != null && !stockEdit.isFocused()) {
+			String stored = StockList.text(s);
+			if (!stored.equals(stockEdit.getValue())) stockEdit.setValue(stored);
+		}
 		if (patrolClearButton != null && patrolClearButton.visible) {
 			patrolClearButton.active = GuardJobExecutor.readPatrolPoints(s).length > 0;
 		}
@@ -264,6 +283,8 @@ public class AISubMenuScreen extends Screen {
 		filterToggle.visible = false;
 		poolButton.visible = false;
 		requestButton.visible = false;
+		stockButton.visible = false;
+		stockEdit.visible = false;
 		List<JobRow> rows = rowsFor(s.job());
 		for (int i = 0; i < rows.size(); i++) {
 			int btnY = markerSectionY + 18 + i * ROW_H - 4;
@@ -276,6 +297,12 @@ public class AISubMenuScreen extends Screen {
 				case PATROL -> place(patrolClearButton, btnY);
 				case POOL -> place(poolButton, btnY);
 				case REQUEST -> place(requestButton, btnY);
+				case STOCK -> {
+					place(stockButton, btnY);
+					stockEdit.setX(innerLeft + 52);
+					stockEdit.setY(btnY);
+					stockEdit.visible = true;
+				}
 				case FILTER -> {
 					boolean disabled = filterDisabled(s);
 					place(filterButton, btnY);
@@ -361,6 +388,11 @@ public class AISubMenuScreen extends Screen {
 							pooled == 0 ? COL_MUTED : COL_BODY);
 				}
 				case REQUEST -> drawChip(ctx, x + PADDING, rowY, COL_AQUA, "Request", COL_BODY);
+				case STOCK -> {
+					boolean set = !StockList.isEmpty(s);
+					drawChip(ctx, x + PADDING, rowY, set ? COL_GREEN : COL_MUTED, "Stock",
+							set ? COL_BODY : COL_MUTED);
+				}
 				case TEACH -> {
 					CompoundTag recipe = s.jobParams().getCompoundOrEmpty("Recipe");
 					boolean learned = !recipe.isEmpty();
@@ -586,6 +618,11 @@ public class AISubMenuScreen extends Screen {
 
 	private void browseStock() {
 		Network.getNetworkHandler().sendToServer(new RequestStockPacketC2S(entity.getId()));
+	}
+
+	private void applyStock() {
+		if (stockEdit == null) return;
+		Network.getNetworkHandler().sendToServer(new SetStockListPacketC2S(entity.getId(), stockEdit.getValue()));
 	}
 
 	private void applyFilter() {

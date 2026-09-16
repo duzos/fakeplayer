@@ -45,7 +45,7 @@ public class FPJobs {
 			.executor(IdleJobExecutor::new));
 	public static final Supplier<JobType> GUARD = register("guard", b -> b
 			.displayName("Guard")
-			.rows(JobRow.WAYPOINT, JobRow.PATROL)
+			.rows(JobRow.WAYPOINT, JobRow.PATROL, JobRow.STOCK)
 			.executor(GuardJobExecutor::new));
 	public static final Supplier<JobType> FOLLOW = register("follow", b -> b.displayName("Follow"));
 	public static final Supplier<JobType> PATROL = register("patrol", b -> b
@@ -56,27 +56,27 @@ public class FPJobs {
 			.notSelectable());
 	public static final Supplier<JobType> COURIER = register("courier", b -> b
 			.displayName("Courier")
-			.rows(JobRow.SOURCE, JobRow.DEPOSIT, JobRow.FILTER)
+			.rows(JobRow.SOURCE, JobRow.DEPOSIT, JobRow.FILTER, JobRow.STOCK)
 			.executor(CourierJobExecutor::new));
 	public static final Supplier<JobType> MINER = register("miner", b -> b
 			.displayName("Miner")
-			.rows(JobRow.REGION, JobRow.DEPOSIT, JobRow.FILTER)
+			.rows(JobRow.REGION, JobRow.DEPOSIT, JobRow.FILTER, JobRow.STOCK)
 			.executor(MinerJobExecutor::new));
 	public static final Supplier<JobType> LUMBERJACK = register("lumberjack", b -> b
 			.displayName("Lumberjack")
-			.rows(JobRow.REGION, JobRow.DEPOSIT)
+			.rows(JobRow.REGION, JobRow.DEPOSIT, JobRow.STOCK)
 			.executor(LumberjackJobExecutor::new));
 	public static final Supplier<JobType> FISHERMAN = register("fisherman", b -> b
 			.displayName("Fisherman")
-			.rows(JobRow.WAYPOINT, JobRow.DEPOSIT)
+			.rows(JobRow.WAYPOINT, JobRow.DEPOSIT, JobRow.STOCK)
 			.executor(FishermanJobExecutor::new));
 	public static final Supplier<JobType> FARMER = register("farmer", b -> b
 			.displayName("Farmer")
-			.rows(JobRow.REGION, JobRow.DEPOSIT)
+			.rows(JobRow.REGION, JobRow.DEPOSIT, JobRow.STOCK)
 			.executor(FarmerJobExecutor::new));
 	public static final Supplier<JobType> CRAFTER = register("crafter", b -> b
 			.displayName("Crafter")
-			.rows(JobRow.WAYPOINT, JobRow.SOURCE, JobRow.DEPOSIT, JobRow.TEACH)
+			.rows(JobRow.WAYPOINT, JobRow.SOURCE, JobRow.DEPOSIT, JobRow.TEACH, JobRow.STOCK)
 			.executor(CrafterJobExecutor::new));
 	public static final Supplier<JobType> QUARTERMASTER = register("quartermaster", b -> b
 			.displayName("Quartermaster")
