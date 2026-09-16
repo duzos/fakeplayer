@@ -1,6 +1,7 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.requests.StockReserve;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -421,10 +422,12 @@ public class FarmerJobExecutor implements JobExecutor {
 	private void dumpInto(Container chest, FakePlayerEntity entity) {
 		Map<net.minecraft.world.item.Item, Integer> kept = new HashMap<>();
 		SimpleContainer inv = entity.getInventory();
+		StockReserve reserve = StockReserve.of(entity);
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack stack = inv.getItem(i);
 			if (stack.isEmpty()) continue;
 			if (isToolKeep(stack)) continue;
+			if (JobHelpers.depositSurplus(inv, i, chest, reserve)) continue;
 			if (isSeed(stack)) {
 				int already = kept.getOrDefault(stack.getItem(), 0);
 				int room = Math.max(0, SEED_RESERVE - already);
