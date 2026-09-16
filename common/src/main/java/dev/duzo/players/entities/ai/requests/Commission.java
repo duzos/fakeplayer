@@ -28,11 +28,20 @@ import java.util.UUID;
  */
 @ApiStatus.Internal
 public record Commission(UUID quartermaster, List<Entry> steps, int cursor, Identifier goal,
-                         int goalCount, long since) {
+                         int goalCount, long since, boolean cancelled) {
 	/** One planned step: a recipe, how many times to run it, and what one run spends. */
 	public record Entry(Identifier recipe, int times, Map<Identifier, Integer> perRun) {}
 
 	private static final String TAG = "Commission";
+
+	/**
+	 * Whether orders are set at all, parseable or not. {@link #of} returns null for orders it
+	 * cannot read, and treating that as "free" would hand a second commission to a Crafter that is
+	 * still carrying the first one's goods.
+	 */
+	public static boolean isPresent(AIState state) {
+		return !state.jobParams().getCompoundOrEmpty(TAG).isEmpty();
+	}
 
 	@Nullable
 	public static Commission of(AIState state) {
@@ -54,11 +63,12 @@ public record Commission(UUID quartermaster, List<Entry> steps, int cursor, Iden
 		if (steps.isEmpty()) return null;
 		return new Commission(UUIDUtil.uuidFromIntArray(raw), List.copyOf(steps),
 				Math.max(0, tag.getIntOr("Cursor", 0)), goal,
-				Math.max(0, tag.getIntOr("GoalCount", 0)), tag.getLongOr("Since", 0L));
+				Math.max(0, tag.getIntOr("GoalCount", 0)), tag.getLongOr("Since", 0L),
+				tag.getBooleanOr("Cancelled", false));
 	}
 
 	public static boolean isBusy(FakePlayerEntity crafter) {
-		return of(crafter.getAIState()) != null;
+		return isPresent(crafter.getAIState());
 	}
 
 	/** The step being run now, or null once every step is done. */
@@ -91,6 +101,7 @@ public record Commission(UUID quartermaster, List<Entry> steps, int cursor, Iden
 			tag.putInt("GoalCount", commission.goalCount());
 			tag.putInt("Cursor", commission.cursor());
 			tag.putLong("Since", commission.since());
+			if (commission.cancelled()) tag.putBoolean("Cancelled", true);
 			ListTag list = new ListTag();
 			for (Entry step : commission.steps()) {
 				CompoundTag entry = new CompoundTag();
@@ -114,8 +125,21 @@ public record Commission(UUID quartermaster, List<Entry> steps, int cursor, Iden
 	 */
 	public static boolean advance(FakePlayerEntity crafter, Commission commission) {
 		Commission next = new Commission(commission.quartermaster(), commission.steps(),
-				commission.cursor() + 1, commission.goal(), commission.goalCount(), commission.since());
+				commission.cursor() + 1, commission.goal(), commission.goalCount(),
+				commission.since(), commission.cancelled());
 		return next.finished() ? clear(crafter) : write(crafter, next);
+	}
+
+	/**
+	 * Tell the Crafter to give these orders up. Deliberately not a clear: the Crafter is holding
+	 * goods the storeroom paid for, and only the Crafter can walk them back. Clearing from outside
+	 * frees it still carrying them, and its standing recipe then banks them in its own chest.
+	 */
+	public static boolean cancel(FakePlayerEntity crafter, Commission commission) {
+		if (commission.cancelled()) return true;
+		return write(crafter, new Commission(commission.quartermaster(), commission.steps(),
+				commission.cursor(), commission.goal(), commission.goalCount(),
+				commission.since(), true));
 	}
 
 	/** @return false when the orders could not be removed, leaving the Crafter marked busy. */

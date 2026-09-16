@@ -231,7 +231,7 @@ public class QuartermasterJobExecutor implements JobExecutor {
 		for (CraftPlan.Step step : plan.steps()) {
 			steps.add(new Commission.Entry(step.recipe(), step.times(), step.perRun()));
 		}
-		Commission commission = new Commission(entity.getUUID(), steps, 0, item, gap, now);
+		Commission commission = new Commission(entity.getUUID(), steps, 0, item, gap, now, false);
 		if (!Commission.write(crafter, commission)) {
 			announce(level, entity, request, "commissionfailed",
 					"could not hand a crafter its orders for " + item);
@@ -308,12 +308,21 @@ public class QuartermasterJobExecutor implements JobExecutor {
 		FakePlayerRequests.INSTANCE.fireStageChange(entity, request, from);
 	}
 
-	/** Drop a commission this Quartermaster has stopped waiting on, if it is still the one set. */
+	/**
+	 * Ask a Crafter to stand down from a commission this Quartermaster has stopped waiting on.
+	 *
+	 * <p>Flagged rather than cleared. The Crafter is holding ingredients this pool paid for, and
+	 * only it can carry them back: clearing the orders from here frees it mid-load, and its
+	 * standing recipe then banks the storeroom's goods in its own deposit chest.
+	 */
 	private void cancelCommission(ServerLevel level, FakePlayerEntity entity, Craft craft) {
 		if (!(level.getEntity(craft.crafter()) instanceof FakePlayerEntity crafter)) return;
 		Commission commission = Commission.of(crafter.getAIState());
 		if (commission == null || !commission.quartermaster().equals(entity.getUUID())) return;
-		Commission.clear(crafter);
+		if (!Commission.cancel(crafter, commission)) {
+			RequestRouting.notifyOwner(level, crafter,
+					"could not be called off a craft and may still be working on it");
+		}
 	}
 
 	/**
