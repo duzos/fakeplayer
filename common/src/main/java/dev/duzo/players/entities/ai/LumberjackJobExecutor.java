@@ -1,6 +1,7 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.requests.StockReserve;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -590,9 +591,11 @@ public class LumberjackJobExecutor implements JobExecutor {
 
 	private void dumpInto(Container chest, FakePlayerEntity entity) {
 		SimpleContainer inv = entity.getInventory();
+		StockReserve reserve = StockReserve.of(entity);
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack stack = inv.getItem(i);
 			if (stack.isEmpty() || isKeep(stack)) continue;
+			if (JobHelpers.depositSurplus(inv, i, chest, reserve)) continue;
 			ItemStack remaining = HopperBlockEntity.addItem(null, chest, stack, null);
 			inv.setItem(i, remaining.isEmpty() ? ItemStack.EMPTY : remaining);
 		}

@@ -16,6 +16,7 @@ import dev.duzo.players.network.c2s.CancelRequestPacketC2S;
 import dev.duzo.players.network.c2s.RequestStockPacketC2S;
 import dev.duzo.players.network.s2c.StockListPacketS2C;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
+import dev.duzo.players.network.c2s.SetStockListPacketC2S;
 import dev.duzo.players.network.c2s.SetFakePlayerNamePacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.SetSkinKeyPacketC2S;
@@ -38,6 +39,7 @@ public class PlayersNetwork {
 		Network.registerPacket(SkinDataPacketS2C.LOCATION, SkinDataPacketS2C.class, SkinDataPacketS2C::encode, SkinDataPacketS2C::decode, SkinDataPacketS2C::handle);
 		Network.registerPacket(BondPacketC2S.LOCATION, BondPacketC2S.class, BondPacketC2S::encode, BondPacketC2S::decode, BondPacketC2S::handle);
 		Network.registerPacket(SetAIFilterPacketC2S.LOCATION, SetAIFilterPacketC2S.class, SetAIFilterPacketC2S::encode, SetAIFilterPacketC2S::decode, SetAIFilterPacketC2S::handle);
+		Network.registerPacket(SetStockListPacketC2S.LOCATION, SetStockListPacketC2S.class, SetStockListPacketC2S::encode, SetStockListPacketC2S::decode, SetStockListPacketC2S::handle);
 		Network.registerPacket(RequestItemPacketC2S.LOCATION, RequestItemPacketC2S.class, RequestItemPacketC2S::encode, RequestItemPacketC2S::decode, RequestItemPacketC2S::handle);
 		Network.registerPacket(RequestStockPacketC2S.LOCATION, RequestStockPacketC2S.class, RequestStockPacketC2S::encode, RequestStockPacketC2S::decode, RequestStockPacketC2S::handle);
 		Network.registerPacket(StockListPacketS2C.LOCATION, StockListPacketS2C.class, StockListPacketS2C::encode, StockListPacketS2C::decode, StockListPacketS2C::handle);
