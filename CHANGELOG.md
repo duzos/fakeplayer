@@ -23,4 +23,4 @@
 
 The Courier is unchanged and is not involved in requests: it keeps doing standing chest-to-chest runs.
 
-Thanks to user_swkhnmyxio1k2zdw for reporting that a Fisherman ignored Aquaculture's rods and asking for modded fishing support.
+Thanks to RageQKM for reporting that a Fisherman ignored Aquaculture's rods and asking for modded fishing support.
