@@ -3,10 +3,10 @@ package dev.duzo.players.client.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.duzo.players.core.AIMarkerItem;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.GuardJobExecutor;
-import dev.duzo.players.entities.ai.Job;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -129,7 +129,7 @@ public final class SessionItemMarkerRenderer {
 			@Override void render(PoseStack pose, VertexConsumer lines, Vec3 cam, Minecraft mc,
 			                     ItemStack stack, FakePlayerEntity fake, @Nullable BlockPos crosshair) {
 				AIState s = fake.getAIState();
-				if (s != null && s.job() == Job.GUARD) {
+				if (s != null && FPJobs.is(s.jobId(), FPJobs.GUARD)) {
 					boolean crosshairIsPoint = false;
 					for (long packed : GuardJobExecutor.readPatrolPoints(s)) {
 						BlockPos p = BlockPos.of(packed);

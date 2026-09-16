@@ -1,6 +1,7 @@
 package dev.duzo.players.api.requests;
 
-import dev.duzo.players.entities.ai.Job;
+import dev.duzo.players.core.FPJobs;
+import dev.duzo.players.entities.ai.LegacyJobIds;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -16,13 +17,13 @@ import java.util.UUID;
  *
  * <p>Addressed by persistent UUID because synced entity ids change on reload.
  */
-public record RequestKey(UUID requester, RequesterKind kind, Job job, ResourceLocation item) {
+public record RequestKey(UUID requester, RequesterKind kind, ResourceLocation jobId, ResourceLocation item) {
 
 	public CompoundTag toNbt() {
 		CompoundTag tag = new CompoundTag();
 		tag.putIntArray("Requester", UUIDUtil.uuidToIntArray(requester));
 		tag.putString("Kind", kind.name());
-		tag.putString("Job", job.name());
+		tag.putString("JobId", jobId.toString());
 		tag.putString("Item", item.toString());
 		return tag;
 	}
@@ -33,14 +34,27 @@ public record RequestKey(UUID requester, RequesterKind kind, Job job, ResourceLo
 		if (raw == null || raw.length != 4) return null;
 		ResourceLocation item = ResourceLocation.tryParse(tag.contains("Item") ? tag.getString("Item") : "");
 		if (item == null) return null;
-		Job job;
-		try {
-			job = Job.valueOf(tag.contains("Job") ? tag.getString("Job") : Job.NONE.name());
-		} catch (IllegalArgumentException e) {
-			job = Job.NONE;
-		}
+		ResourceLocation jobId = readJobId(tag);
 		return new RequestKey(UUIDUtil.uuidFromIntArray(raw),
 				RequesterKind.byName(tag.contains("Kind") ? tag.getString("Kind") : RequesterKind.FAKE.name(), RequesterKind.FAKE),
-				job, item);
+				jobId, item);
+	}
+
+	/**
+	 * Prefers the identifier. Falls back to the legacy constant name, which is what a request key
+	 * saved before the job registry holds: this key persisted {@code Job.name()}, not the ordinal
+	 * {@code AIState} used, so it needs its own migration.
+	 *
+	 * <p>An unresolvable id is kept as written rather than collapsed to none. Count is deliberately
+	 * not part of this key, so collapsing would make two unrelated fakes' requests one request.
+	 */
+	private static ResourceLocation readJobId(CompoundTag tag) {
+		String rawId = tag.getString("JobId");
+		if (!rawId.isEmpty()) {
+			ResourceLocation parsed = ResourceLocation.tryParse(rawId);
+			if (parsed != null) return parsed;
+		}
+		ResourceLocation migrated = LegacyJobIds.byName(tag.contains("Job") ? tag.getString("Job") : "");
+		return migrated == null ? FPJobs.NONE_ID : migrated;
 	}
 }
