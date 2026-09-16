@@ -2,7 +2,7 @@ package dev.duzo.players.api.requests;
 
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
-import dev.duzo.players.entities.ai.Job;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.ai.JobHelpers;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
 import dev.duzo.players.entities.ai.requests.RequestBoard;
@@ -42,9 +42,10 @@ import java.util.UUID;
  *   <li>{@link Listener} observes the full lifecycle, which is what a fleet dashboard needs.
  * </ul>
  *
- * <p>Known limits, both deliberate: {@link Job} is a positional enum, so an addon can replace an
- * existing job's behaviour through {@code JobExecutors.register} but cannot add a new job. And a
- * request must be raised on behalf of a fake or a real player; there is no block-entity requester.
+ * <p>Addons can register a job of their own through {@code FPJobs.register}, in their own
+ * namespace. A request whose job is not registered is kept and left alone rather than reassigned.
+ * And a request must be raised on behalf of a fake or a real player; there is no block-entity
+ * requester.
  */
 public final class FakePlayerRequests {
 	/** Registration entry point. */
@@ -149,7 +150,7 @@ public final class FakePlayerRequests {
 			return RaisedRequest.failed(RaiseResult.INVALID);
 		}
 		RequestKey key = new RequestKey(requester.getUUID(), RequesterKind.FAKE,
-				requester.getAIState().job(), BuiltInRegistries.ITEM.getKey(want.getItem()));
+				requester.getAIState().jobId(), BuiltInRegistries.ITEM.getKey(want.getItem()));
 		return post(level, requester, owner, key, want.getCount(), priority);
 	}
 
@@ -159,7 +160,7 @@ public final class FakePlayerRequests {
 			return RaisedRequest.failed(RaiseResult.INVALID);
 		}
 		RequestKey key = new RequestKey(requester.getUUID(), RequesterKind.PLAYER,
-				Job.NONE, BuiltInRegistries.ITEM.getKey(want.getItem()));
+				FPJobs.NONE_ID, BuiltInRegistries.ITEM.getKey(want.getItem()));
 		return post(level, requester, requester.getUUID(), key, want.getCount(), priority);
 	}
 
@@ -302,7 +303,7 @@ public final class FakePlayerRequests {
 		List<FakePlayerEntity> found = new ArrayList<>();
 		for (Entity entity : level.getAllEntities()) {
 			if (!(entity instanceof FakePlayerEntity fake)) continue;
-			if (fake.getAIState().job() != Job.QUARTERMASTER) continue;
+			if (!FPJobs.is(fake.getAIState().jobId(), FPJobs.QUARTERMASTER)) continue;
 			if (!owner.equals(fake.getAIState().ownerUUID())) continue;
 			found.add(fake);
 		}
