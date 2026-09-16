@@ -6,8 +6,8 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.api.requests.RequestKey;
 import dev.duzo.players.api.requests.RequesterKind;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
-import dev.duzo.players.entities.ai.Job;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
@@ -40,7 +40,7 @@ public record CancelRequestPacketC2S(int id, String item) implements CustomPacke
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
 		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
-		if (entity.getAIState().job() != Job.QUARTERMASTER) return;
+		if (!FPJobs.is(entity.getAIState().jobId(), FPJobs.QUARTERMASTER)) return;
 
 		UUID owner = entity.getAIState().ownerUUID();
 		if (owner == null || !owner.equals(sender.getUUID())) return;
@@ -48,7 +48,7 @@ public record CancelRequestPacketC2S(int id, String item) implements CustomPacke
 		Identifier item = Identifier.tryParse(ctx.message().item().trim());
 		if (item == null) return;
 
-		RequestKey key = new RequestKey(sender.getUUID(), RequesterKind.PLAYER, Job.NONE, item);
+		RequestKey key = new RequestKey(sender.getUUID(), RequesterKind.PLAYER, FPJobs.NONE_ID, item);
 		if (FakePlayerRequests.cancel(entity, key)) {
 			sender.sendSystemMessage(Component.literal("Cancelled the request for " + item));
 		}

@@ -8,8 +8,8 @@ import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.api.requests.ItemRequest;
 import dev.duzo.players.api.requests.RequestStage;
 import dev.duzo.players.api.requests.RequesterKind;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
-import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
 import dev.duzo.players.network.s2c.StockListPacketS2C;
 import net.minecraft.network.FriendlyByteBuf;
@@ -42,7 +42,7 @@ public record RequestStockPacketC2S(int id) implements CustomPacketPayload {
 		if (sender == null) return;
 		if (!(sender.level() instanceof ServerLevel level)) return;
 		if (!(level.getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
-		if (entity.getAIState().job() != Job.QUARTERMASTER) return;
+		if (!FPJobs.is(entity.getAIState().jobId(), FPJobs.QUARTERMASTER)) return;
 
 		// The first ownership check in this codebase. Without it any client could read any player's
 		// storeroom contents by entity id, and that is information the synced AIState does not
