@@ -1,15 +1,19 @@
 package dev.duzo.players.entities.ai;
 
+import dev.duzo.players.core.FPJobs;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
+import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
 
 public final class AIState {
 	@Nullable private UUID ownerUUID;
-	private Job job = Job.NONE;
+	// the identifier is the stored truth, not the resolved JobType. A job whose mod is absent must
+	// survive a read, a mutation and a save untouched, and toNbt rebuilds from scratch every time.
+	private ResourceLocation jobId = FPJobs.NONE_ID;
 	private boolean running;
 	@Nullable private BlockPos waypoint;
 	@Nullable private BlockPos regionA;
@@ -23,7 +27,10 @@ public final class AIState {
 	public AIState() {}
 
 	@Nullable public UUID ownerUUID() { return ownerUUID; }
-	public Job job() { return job; }
+	public ResourceLocation jobId() { return jobId; }
+
+	/** @return the registered job, or null when nothing is registered under {@link #jobId()}. */
+	@Nullable public JobType job() { return FPJobs.get(jobId); }
 	public boolean running() { return running; }
 	@Nullable public BlockPos waypoint() { return waypoint; }
 	@Nullable public BlockPos regionA() { return regionA; }
@@ -35,7 +42,7 @@ public final class AIState {
 	public CompoundTag jobState() { return jobState; }
 
 	public void setOwnerUUID(@Nullable UUID uuid) { this.ownerUUID = uuid; }
-	public void setJob(Job job) { this.job = job; }
+	public void setJobId(ResourceLocation id) { this.jobId = id == null ? FPJobs.NONE_ID : id; }
 	public void setRunning(boolean running) { this.running = running; }
 	public void setWaypoint(@Nullable BlockPos pos) { this.waypoint = pos; }
 	public void setRegionA(@Nullable BlockPos pos) { this.regionA = pos; }
@@ -51,7 +58,11 @@ public final class AIState {
 	public CompoundTag toNbt() {
 		CompoundTag tag = new CompoundTag();
 		if (ownerUUID != null) tag.putUUID("Owner", ownerUUID);
-		tag.putInt("Job", job.ordinal());
+		tag.putString("JobId", jobId.toString());
+		// one release of dual-writing, so the first downgrade read of a legacy job still lands on
+		// the right one. An addon job has no legacy ordinal, so it reads back as none.
+		int legacy = LegacyJobIds.ordinalOf(jobId);
+		tag.putInt("Job", legacy < 0 ? 0 : legacy);
 		tag.putBoolean("Running", running);
 		if (waypoint != null) tag.put("Waypoint", NbtUtils.writeBlockPos(waypoint));
 		if (regionA != null) tag.put("RegionA", NbtUtils.writeBlockPos(regionA));
@@ -68,7 +79,7 @@ public final class AIState {
 		AIState s = new AIState();
 		if (tag == null || tag.isEmpty()) return s;
 		if (tag.hasUUID("Owner")) s.ownerUUID = tag.getUUID("Owner");
-		s.job = Job.byOrdinal(tag.getInt("Job"));
+		s.jobId = readJobId(tag);
 		s.running = tag.getBoolean("Running");
 		NbtUtils.readBlockPos(tag, "Waypoint").ifPresent(p -> s.waypoint = p);
 		NbtUtils.readBlockPos(tag, "RegionA").ifPresent(p -> s.regionA = p);
@@ -79,5 +90,25 @@ public final class AIState {
 		if (tag.contains("JobParams")) s.jobParams = tag.getCompound("JobParams");
 		if (tag.contains("JobState")) s.jobState = tag.getCompound("JobState");
 		return s;
+	}
+
+	/**
+	 * Prefers the identifier. Falls back to migrating the legacy ordinal, which is what a world
+	 * saved before the job registry holds. An ordinal the frozen table does not know is left as
+	 * none, because there is nothing better to say about it.
+	 *
+	 * <p>The ordinal is read as {@code contains("Job") ? getInt("Job") : -1}, deliberately not a
+	 * bare {@code getInt} defaulting to 0: {@code getInt} on a missing key returns 0 on this branch,
+	 * and 0 is a real job (none, but also the legacy ordinal for it), so a tag with no {@code Job}
+	 * entry at all must miss the frozen table rather than silently land on none by coincidence.
+	 */
+	private static ResourceLocation readJobId(CompoundTag tag) {
+		if (tag.contains("JobId")) {
+			ResourceLocation parsed = ResourceLocation.tryParse(tag.getString("JobId"));
+			if (parsed != null) return parsed;
+		}
+		int legacy = tag.contains("Job") ? tag.getInt("Job") : -1;
+		ResourceLocation migrated = LegacyJobIds.byOrdinal(legacy);
+		return migrated == null ? FPJobs.NONE_ID : migrated;
 	}
 }

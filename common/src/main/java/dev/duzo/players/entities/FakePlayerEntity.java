@@ -7,10 +7,11 @@ import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.FPEntities;
 import dev.duzo.players.core.FPItems;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.ai.AIState;
-import dev.duzo.players.entities.ai.Job;
 import dev.duzo.players.entities.ai.JobExecutor;
-import dev.duzo.players.entities.ai.JobExecutors;
+import dev.duzo.players.entities.ai.JobType;
+import dev.duzo.players.entities.ai.NoopJobExecutor;
 import dev.duzo.players.entities.ai.RangedWeapon;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
 import dev.duzo.players.entities.goal.FollowOwnerGoal;
@@ -82,7 +83,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	private Component nameCache;
 	private final FakePlayerInventory inventory = new FakePlayerInventory(this);
 	private JobExecutor jobExecutor;
-	private Job jobExecutorJob = Job.NONE;
+	private ResourceLocation jobExecutorJob = FPJobs.NONE_ID;
 	private boolean jobPaused;
 	private boolean jobActivePrev;
 
@@ -115,9 +116,10 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	private void tickJobExecutor(ServerLevel level) {
 		AIState state = this.getAIState();
-		Job job = state.job();
-		if (jobExecutor == null || job != jobExecutorJob) {
-			jobExecutor = JobExecutors.create(job);
+		ResourceLocation job = state.jobId();
+		if (jobExecutor == null || !job.equals(jobExecutorJob)) {
+			JobType type = FPJobs.get(job);
+			jobExecutor = type == null ? new NoopJobExecutor() : type.createExecutor();
 			jobExecutor.deserialize(state.jobState());
 			jobExecutorJob = job;
 			jobActivePrev = false;
@@ -168,7 +170,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		Player owner = resolveOwnerInRange();
 		if (owner == null) return null;
 		AIState state = this.getAIState();
-		boolean jobFollow = state.running() && state.job() == Job.FOLLOW;
+		boolean jobFollow = state.running() && FPJobs.is(state.jobId(), FPJobs.FOLLOW);
 		return (jobFollow || isFollowOverride(owner)) ? owner : null;
 	}
 
@@ -200,7 +202,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	public boolean isMovementManagedByJob() {
 		AIState state = this.getAIState();
 		if (!state.running() || jobPaused) return false;
-		return state.job() != Job.NONE;
+		return !FPJobs.NONE_ID.equals(state.jobId());
 	}
 
 	@Override
@@ -260,7 +262,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	/** Whether a combat goal may drive movement, or a working job is actively pathing and must not be fought. */
 	public boolean allowsCombatMovement() {
 		// the Guard job yields navigation to its target, so combat is free to take over there
-		return !this.isMovementManagedByJob() || this.getAIState().job() == Job.GUARD;
+		return !this.isMovementManagedByJob() || FPJobs.is(this.getAIState().jobId(), FPJobs.GUARD);
 	}
 
 	// Ammunition comes out of the fake's own inventory, so it runs dry like a player rather than
@@ -434,7 +436,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			this.flushJobState();
 		}
 		this.jobExecutor = null;
-		this.jobExecutorJob = Job.NONE;
+		this.jobExecutorJob = FPJobs.NONE_ID;
 		this.jobActivePrev = false;
 	}
 

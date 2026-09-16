@@ -1,4 +1,9 @@
-# v2.3.0
+# v3.0.0
+
+- Jobs are now named rather than numbered, so a mod can add a job of its own. Existing fakes keep the job they had: every job from earlier versions is recognised and carried over the first time a world is opened.
+- A fake whose job came from a mod you have since removed keeps its job, its markers and its filter, and simply stands still. Its AI menu names the job it is waiting on, so you can see which mod is missing. Putting the mod back picks it up where it left off, and pressing Cycle reassigns it if you would rather move on.
+- Addons can register a job. Build one with `JobType.builder`, giving it an executor, a display name and the marker rows it offers. Hand that to `dev.duzo.players.core.FPJobs.register` under your own modid and name. Requests raised for an addon's job are kept separate from each other even when the addon is absent.
+- For addon authors: the request API now identifies a job by its namespaced id rather than by the old `Job` value. `dev.duzo.players.api.requests.RequestKey` and the `FakePlayerRequests` methods that take a job change shape with it. Nothing published was built against the old form.
 
 - Fakes can ask each other for items, through two new jobs. A **Quartermaster** owns a storeroom you define by marking chests with its Pool marker, keeps track of what is in them, and works out who can fill a request. A **Runner** does the carrying: it collects from the pool and delivers to whoever asked. The Quartermaster never leaves the storeroom, so you scale a base up by bonding more Runners to it rather than by making one fake faster.
 - A Fisherman that has no fishing rod now asks for one and waits, instead of standing there doing nothing. The rod arrives if the pool has one, and it gets back to fishing on its own.
