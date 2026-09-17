@@ -21,14 +21,16 @@
 - fishermen use vanilla fishing loot, including mod additions, unless using River Fishing rods. Fishing Real catches stay as items.
 - fishermen keep their equipped rod, deposit spares and take a replacement from storage when needed. offhand rods work too.
 - the addon request API now takes namespaced job IDs.
+- tool requests pick the best usable tool in storage, including supported modded tools. worn-out tools are skipped.
 
 ## FIXED
 
 - River Fishing lines now start at the rod tip.
 
 - fishermen now aim for open water so they can catch treasure.
-- fishermen request a missing rod and resume when it arrives.
+- miners, lumberjacks, farmers and fishermen request missing tools and resume when they arrive.
 - working fakes no longer follow a held redstone torch.
+- Runners now tell you if a delivery's recipient is missing. they wait, then return the items if the request times out.
 
 ## REMOVED
 
