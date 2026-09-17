@@ -88,9 +88,12 @@ public final class AIState {
 		tag.getLong("RegionB").ifPresent(l -> s.regionB = BlockPos.of(l));
 		tag.getLong("DepositChest").ifPresent(l -> s.depositChest = BlockPos.of(l));
 		tag.getLong("SourceChest").ifPresent(l -> s.sourceChest = BlockPos.of(l));
-		s.filter = tag.getCompoundOrEmpty("Filter");
-		s.jobParams = tag.getCompoundOrEmpty("JobParams");
-		s.jobState = tag.getCompoundOrEmpty("JobState");
+		// copied, never aliased into the parsed tree. getCompoundOrEmpty hands back the live child,
+		// and two of these can be the same instance, so writing a Haul into jobParams also wrote it
+		// into filter, and into every other fake whose state shared that instance.
+		s.filter = tag.getCompoundOrEmpty("Filter").copy();
+		s.jobParams = tag.getCompoundOrEmpty("JobParams").copy();
+		s.jobState = tag.getCompoundOrEmpty("JobState").copy();
 		return s;
 	}
 
