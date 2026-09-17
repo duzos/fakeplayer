@@ -10,6 +10,8 @@
 - fakes can keep a list of items stocked. type it into the Stock box in the AI menu, like `minecraft:torch 64, minecraft:bread 16`, and the fake asks a Quartermaster whenever it drops below a target, without stopping work.
 - when the storeroom can't fill a request, a bonded Crafter makes up the difference. the Quartermaster plans the whole recipe chain, counts existing stock, and crafts only the shortfall.
 - if a chain can't be finished you get one message listing everything missing. a crafted request needs a bonded, free Crafter with a table marked.
+- a miner with no pickaxe, a lumberjack with no axe, a farmer with no hoe and a fisherman with no rod now request one and carry on once it arrives. it asks for the best tool the storeroom holds, judged on real stats, so modded tools count and worn ones are passed over.
+- a Runner that finds its requester gone now says so once, then still waits out the orphan window.
 
 ## CHANGED
 
