@@ -9,6 +9,8 @@
 - addons can register jobs and manage item requests through the API.
 - fakes can keep a list of items to have on hand: type them into the Stock box in the AI menu, like `minecraft:torch 64, minecraft:bread 16`, and they request top-ups from a Quartermaster without stopping work.
 - when the storeroom can't fill a request, a bonded Crafter makes up the difference. the Quartermaster plans the whole recipe chain, counts existing stock, and sends one message listing everything still missing.
+- jobs blocked without a tool now request one: Miners without a pickaxe, Lumberjacks without an axe, Farmers without a hoe and Fishermen without a rod. they ask for the best tool the storeroom holds, judged by the real stack rather than its name, so modded tools work and worn ones are passed over.
+- a Runner whose requester has gone now says so once instead of sitting silent for five minutes. it still waits and returns the goods if nobody turns up.
 
 ## CHANGED
 
