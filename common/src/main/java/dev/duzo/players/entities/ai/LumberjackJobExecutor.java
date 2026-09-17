@@ -2,6 +2,7 @@ package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.requests.StockReserve;
+import dev.duzo.players.entities.ai.requests.ToolRequest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -58,6 +59,9 @@ public class LumberjackJobExecutor implements JobExecutor {
 	private int breakTotalTicks = 0;
 	private int breakStage = -1;
 	private int pathFailCount = 0;
+	// about a second, matching the fisherman's rod request
+	private static final int TOOL_REQUEST_EVERY = 20;
+	private int toolRequestCooldown;
 	private int actionCooldown = 0;
 	private boolean bailed = false;
 	private long waitUntilTick = 0L;
@@ -71,6 +75,13 @@ public class LumberjackJobExecutor implements JobExecutor {
 		if (bailed) return;
 		vacuumNearbyItems(level, entity);
 		if (actionCooldown > 0) actionCooldown--;
+
+		// blocked for want of a tool is the on-demand half of the request models. Throttled
+		// like the fisherman's rod: raise() scans for a quartermaster before it can dedupe.
+		if (!hasUsableAxe(entity) && --toolRequestCooldown <= 0) {
+			toolRequestCooldown = TOOL_REQUEST_EVERY;
+			ToolRequest.raiseBest(level, entity, this::isUsableAxe, this::axeSpeed, "noaxe", "axe");
+		}
 
 		// work phases never touch a container; only chest phases re-open it inside serviceAtChest
 		switch (phase) {
