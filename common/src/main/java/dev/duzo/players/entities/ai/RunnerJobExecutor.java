@@ -10,6 +10,7 @@ import dev.duzo.players.entities.ai.requests.Haul;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
 import dev.duzo.players.entities.ai.requests.RequestBoard;
 import dev.duzo.players.entities.ai.requests.RequestRouting;
+import dev.duzo.players.entities.ai.requests.SenderAlerts;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -194,12 +195,19 @@ public class RunnerJobExecutor implements JobExecutor {
 				entity.getNavigation().stop();
 				handoffWaited = 0;
 				entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
+				// said once, or a runner sitting out a five minute window is indistinguishable from
+				// a broken one. Every other way this leg can fail already reports itself.
+				SenderAlerts.alert(level, entity, "lostrequester",
+						"is waiting with " + haul.item() + " for whoever asked for it");
 				return;
 			}
+			SenderAlerts.clear(entity, "lostrequester");
 			fail(level, entity, qm, qmLevel, haul, request, "cannot find the requester");
 			return;
 		}
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
+		// the requester turned up, so the next disappearance is news again rather than a repeat
+		SenderAlerts.clear(entity, "lostrequester");
 
 		if (!JobHelpers.atTarget(entity, target.blockPosition())) {
 			entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);

@@ -3,6 +3,7 @@ package dev.duzo.players.entities.ai;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.requests.StockReserve;
+import dev.duzo.players.entities.ai.requests.ToolRequest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -35,6 +36,8 @@ public class MinerJobExecutor implements JobExecutor {
 
 	private static final int MAX_PATH_FAIL = 3;
 	private static final int RETRY_WAIT_TICKS = 20 * 15;
+	// about a second, matching the fisherman's rod request
+	private static final int TOOL_REQUEST_EVERY = 20;
 	private static final int DURABILITY_RESERVE = 8;
 	private static final int BUILD_RESERVE = 64;
 	private static final int LIQUID_SCAN_RADIUS = 6;
@@ -56,6 +59,7 @@ public class MinerJobExecutor implements JobExecutor {
 	private float miningProgress;
 	private int miningStage = -1;
 	private boolean waiting;
+	private int toolRequestCooldown;
 	private long waitUntilTick;
 	private String waitMessage = "";
 
@@ -65,6 +69,15 @@ public class MinerJobExecutor implements JobExecutor {
 		if (waiting) {
 			if (level.getGameTime() < waitUntilTick) return;
 			clearWait(entity);
+		}
+
+		// blocked for want of a tool is the on-demand half of the request models, and it is the
+		// commonest way a miner stalls. Throttled like the fisherman's rod: raise() scans for a
+		// quartermaster before it can dedupe, so asking every tick pays that scan every tick.
+		if (!hasUsablePickaxe(entity) && --toolRequestCooldown <= 0) {
+			toolRequestCooldown = TOOL_REQUEST_EVERY;
+			ToolRequest.raiseBest(level, entity, this::isUsablePickaxe, this::pickaxeSpeed,
+					"nopickaxe", "pickaxe");
 		}
 
 		// only the deposit run opens a container; every other phase is out at the quarry

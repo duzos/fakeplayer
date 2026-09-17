@@ -4,6 +4,7 @@ import dev.duzo.players.entities.FakeFishingHook;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.requests.StockReserve;
+import dev.duzo.players.entities.ai.requests.ToolRequest;
 import dev.duzo.players.entities.LavaProofItemEntity;
 import dev.duzo.players.entities.OpenWaterProbe;
 import dev.duzo.players.platform.Services;
@@ -87,7 +88,11 @@ public class FishermanJobExecutor implements JobExecutor {
 					// second rather than paying that scan every tick while blocked
 					if (--requestCooldown <= 0) {
 						requestCooldown = 20;
-						FakePlayerRequests.raise(entity, new ItemStack(Items.FISHING_ROD), FakePlayerRequests.PRIORITY_FAKE);
+						// the best rod the storeroom actually holds, not the vanilla one: a fisherman
+						// fishes with any modded rod, so asking for minecraft:fishing_rod by name left
+						// it waiting next to a storeroom full of rods it would happily have used
+						ToolRequest.raiseBest(level, entity, FishingRods::isFishingRod,
+								ToolRequest::byDurability, "norod", "fishing rod");
 					}
 					return;
 				}
