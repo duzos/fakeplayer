@@ -21,6 +21,8 @@
 
 ## FIXED
 
+- River Fishing lines now start at the rod tip.
+
 - fishermen now aim for open water so they can catch treasure.
 - fishermen request a missing rod and resume when it arrives.
 - working fakes no longer follow a held redstone torch.

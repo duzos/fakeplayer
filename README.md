@@ -102,6 +102,7 @@ Give the fisherman a rod blank and compatible parts. It assembles the rod and re
 from your Quartermaster, keeping a small bait reserve when depositing catches. Existing fitted parts
 are kept. Its catches use River Fishing's habitat, tackle, species and bite timing, with a simplified
 fight that can fail and consumes bait and wears tackle. It earns no player XP or journal progress.
+The fishing line follows the rendered rod tip, including its arm pose and seated position.
 
 Fly, winter, boat and trolling rods, claimed ponds and stocked water are not supported. Catches have
 River Fishing's basic fish data, but not its full catch-card, breeding or contract provenance.
