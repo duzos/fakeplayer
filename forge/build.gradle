@@ -51,6 +51,8 @@ neoForge {
 sourceSets.main.resources.srcDir 'src/generated/resources'
 
 dependencies {
+    compileOnly('maven.modrinth:5acJO3EU:Yx2ULbgf') { transitive = false }
+    compileOnly 'dev.architectury:architectury-neoforge:13.0.8'
     compileOnly project(":common")
     annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
     jarJar(implementation("mysticdrew:common-networking-neoforge:${project.common_network_version}")) {

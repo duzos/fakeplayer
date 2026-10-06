@@ -90,6 +90,11 @@ public class FakeFishingHook extends Projectile {
 		return this.state == State.BOBBING;
 	}
 
+	/** The owning executor is still waiting on a valid, potentially long River Fishing bite. */
+	public void keepAlive() {
+		if (!level().isClientSide()) life = 0;
+	}
+
 	public boolean isBiting() {
 		return this.entityData.get(DATA_BITING);
 	}

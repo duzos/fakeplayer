@@ -81,11 +81,8 @@ Worth knowing:
 
 ### Fishing with modded rods
 
-A Fisherman takes any mod's fishing rod, and what it pulls out of the water comes from the same loot
-table a real angler's rod rolls. Add a fishing mod and its species start turning up in the deposit
-chest without either mod knowing about the other. Vanilla treasure still appears, and still only from
-open water, so a Fisherman now picks a cast that can satisfy that test instead of dropping its bobber
-against the nearest bank.
+A Fisherman accepts rods using the vanilla rod class or common fishing tags. It catches items from
+vanilla fishing loot, including fish added there by mods. Treasure still needs open water.
 
 **Aquaculture**, on Forge and NeoForge, goes further. A Fisherman reads the tackle fitted to the rod
 at a Tackle Box and fishes to it:
@@ -97,9 +94,17 @@ at a Tackle Box and fishes to it:
   casts there, the bobber sits in it without burning, and the catch survives the trip back
 
 The redstone hook's longer bite window makes no difference, because a fake never misses a bite. Tackle
-systems belonging to other fishing mods are not read: their rods are accepted and their fish are caught,
-but their own hooks and bait do nothing. Mods in the style of Fishing Real, which swap a catch for a live
+systems belonging to other fishing mods need their own integration. Mods in the style of Fishing Real, which swap a catch for a live
 entity when a real player reels in, hand a Fisherman the item instead, on every loader.
+
+**River Fishing 1.0.0**, on Minecraft 1.21.1 Fabric and NeoForge, supports ordinary shore fishing.
+Give the fisherman a rod blank and compatible parts. It assembles the rod and requests missing parts
+from your Quartermaster, keeping a small bait reserve when depositing catches. Existing fitted parts
+are kept. Its catches use River Fishing's habitat, tackle, species and bite timing, with a simplified
+fight that can fail and consumes bait and wears tackle. It earns no player XP or journal progress.
+
+Fly, winter, boat and trolling rods, claimed ponds and stocked water are not supported. Catches have
+River Fishing's basic fish data, but not its full catch-card, breeding or contract provenance.
 
 ### Miner / Courier filter
 

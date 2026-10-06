@@ -4,6 +4,8 @@ plugins {
     id 'me.modmuss50.mod-publish-plugin'
 }
 dependencies {
+    modCompileOnly('maven.modrinth:5acJO3EU:PGyjmtH7') { transitive = false }
+    modCompileOnly 'dev.architectury:architectury-fabric:13.0.8'
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.layered() {
         officialMojangMappings()
