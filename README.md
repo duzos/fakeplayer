@@ -113,7 +113,8 @@ Aquaculture is supported on Minecraft 1.21.1 NeoForge. Its lava fishing addon is
 Aquaculture is not available on Fabric.
 
 River Fishing is optional on both loaders. This branch contains the 1.21.1 prototype;
-its in-game visual test is still pending. See the assembly and fishing limits above.
+its rod-tip rendering has passed the in-game check. Broader gameplay sign-off is still pending.
+See the assembly and fishing limits above.
 
 Tide's own catch system and modded storage support are still planned.
 
