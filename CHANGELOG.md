@@ -1,31 +1,29 @@
 # v3.0.0
 
-- Jobs are now named rather than numbered, so a mod can add a job of its own. Existing fakes keep the job they had: every job from earlier versions is recognised and carried over the first time a world is opened.
-- A fake whose job came from a mod you have since removed keeps its job, its markers and its filter, and simply stands still. Its AI menu names the job it is waiting on, so you can see which mod is missing. Putting the mod back picks it up where it left off, and pressing Cycle reassigns it if you would rather move on.
-- Addons can register a job. Build one with `JobType.builder`, giving it an executor, a display name and the marker rows it offers. Hand that to `dev.duzo.players.core.FPJobs.register` under your own modid and name. Requests raised for an addon's job are kept separate from each other even when the addon is absent.
-- For addon authors: the request API now identifies a job by its namespaced id rather than by the old `Job` value. `dev.duzo.players.api.requests.RequestKey` and the `FakePlayerRequests` methods that take a job change shape with it. Nothing published was built against the old form.
+## NEW
 
-- Fakes can ask each other for items, through two new jobs. A **Quartermaster** owns a storeroom you define by marking chests with its Pool marker, keeps track of what is in them, and works out who can fill a request. A **Runner** does the carrying: it collects from the pool and delivers to whoever asked. The Quartermaster never leaves the storeroom, so you scale a base up by bonding more Runners to it rather than by making one fake faster.
-- A Fisherman that has no fishing rod now asks for one and waits, instead of standing there doing nothing. The rod arrives if the pool has one, and it gets back to fishing on its own.
-- You can ask a Quartermaster for items yourself. Press Browse in its AI menu to see everything the storeroom holds and click what you want: a click asks for a stack, sneak-click asks for one, ctrl-click asks for all of it. A Runner brings it to wherever you are standing, following you if you move. Asking again for a larger amount tops up the request you already have rather than starting a second one.
-- The Browse screen lists what you have on order under the grid, with an x to call one off, and keeps itself up to date while it is open.
-- Requests that cannot be filled tell you once and then stay quiet. The fake keeps waiting rather than unbonding itself, and you get one message per problem rather than a repeat every few seconds. A message that arrives while you are logged out is held until you are back.
-- The nearest Quartermaster that actually has the item wins, so a nearby empty storeroom does not shadow a stocked one further away.
-- Runners head back to their Quartermaster once they have nothing to carry, instead of idling wherever the last delivery happened to end.
-- A Runner carries what it is delivering in its hand, so you can tell a loaded one from an idle one across the base.
-- How far all of this reaches is set by `requestRadius` in `players.json`: how far a waiting fake looks for a Quartermaster, and how far a Quartermaster looks for a Runner. It defaults to 256 blocks, about 16 chunks. An existing config from an earlier version is moved up to 256 once, automatically, unless you had already changed it yourself.
-- Addons can use all of this. `dev.duzo.players.api.requests.FakePlayerRequests` is a single entry point for raising a request, following it, and cancelling it, plus two hooks: a resolver chain for sourcing items the pool does not have, and a listener for watching requests through their whole life.
+- added Quartermaster and Runner jobs. mark storage with the Pool marker, and Runners collect and deliver requested items.
+- request items from the Quartermaster's Browse menu: click for a stack, sneak-click for one, ctrl-click for all. you can track and cancel orders there too.
+- added modded fishing rod support. thanks to RageQKM for the Aquaculture report and suggestion.
+- added Aquaculture tackle, bait, hook textures and dyed lines on Forge/NeoForge. lava fishing also works with its lava fishing addon and a suitable hook.
+- addons can register jobs and manage item requests through the API.
 
-- A Fisherman will use a fishing rod from any mod, where before it only recognised the vanilla one. It equips the rod, fishes with it, keeps hold of it when it banks a catch, and takes a fresh one from the deposit chest when the old one breaks. A rod in the off hand counts, and spare rods get deposited instead of piling up forever.
-- Catches are rolled from the same table a real angler's rod rolls, so any mod that adds fish to fishing turns up in a Fisherman's haul with no work on either side. Vanilla treasure still appears, and still only from open water.
-- Full Aquaculture support on Forge and NeoForge. A Fisherman reads the tackle fitted to an Aquaculture rod and fishes accordingly: the hook's luck, its chance of a double catch, its chance of sparing the rod a point of durability, and its catch sound, plus bait, which is used up as it fishes. The redstone hook's longer bite window makes no difference, because a fake never misses a bite.
-- With the Aquaculture lava fishing addon installed, a Fisherman fitted with a lava capable hook will fish a lava pool. Put its waypoint by lava and it casts there, its bobber sits in the lava without burning, and what it hooks survives the lava on the way back. Overworld lava draws on Aquaculture's lava catches and a dimension with a ceiling draws on its Nether ones.
-- A modded bobber now looks the part. The hook fitted to the rod is drawn with its own texture instead of the vanilla bobber, and a dyed fishing line colours the line back to the fake's hand.
-- Fishermen now aim at open water. A cast used to be pushed straight out from the first water block found near the waypoint, which steered the bobber into the corner of a pond and quietly denied treasure, since vanilla only pays treasure out with five by five of clear water around the bobber. It now prefers a spot that actually qualifies, so enchanted books and nautilus shells turn up on ordinary ponds, not just on big open lakes.
-- Tackle bonuses from fishing mods other than Aquaculture do not apply. Their rods are accepted and their fish are caught, but any bespoke hook, bait or line system of their own is ignored. Mods in the style of Fishing Real, which replace a catch with a live entity when a real player reels in, will hand a Fisherman the item instead, on every loader.
+## CHANGED
 
-- Fakes no longer wander off after a held redstone torch while they are working. Previously a player could lead a Miner off its region, a Courier off its route, or a Runner away from a delivery it was carrying.
+- jobs now use namespaced IDs. existing jobs carry over; missing addon jobs keep their settings until you reinstall the addon or change the job.
+- Runners show deliveries in their hand and return to their Quartermaster when idle. requests use the nearest Quartermaster with stock.
+- requests wait if they can't be filled, with one message per problem. messages sent while you're offline arrive when you log back in.
+- request range now defaults to 256 blocks. custom settings are kept.
+- fishermen use vanilla fishing loot, including mod additions. custom tackle bonuses currently only work with Aquaculture; Fishing Real catches stay as items.
+- fishermen keep their equipped rod, deposit spares and take a replacement from storage when needed. offhand rods work too.
+- the addon request API now takes namespaced job IDs.
 
-The Courier is unchanged and is not involved in requests: it keeps doing standing chest-to-chest runs.
+## FIXED
 
-Thanks to RageQKM for reporting that a Fisherman ignored Aquaculture's rods and asking for modded fishing support.
+- fishermen now aim for open water so they can catch treasure.
+- fishermen request a missing rod and resume when it arrives.
+- working fakes no longer follow a held redstone torch.
+
+## REMOVED
+
+- none.
