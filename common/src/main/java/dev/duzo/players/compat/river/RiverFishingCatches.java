@@ -63,17 +63,12 @@ public final class RiverFishingCatches {
 
 		BiteContext context = context(level, fake, rod, hookPos);
 		FishingPressureData.get(level).addCast(new ChunkPos(hookPos).toLong(), level.getGameTime());
-		BiteEngine.Outcome outcome = BiteEngine.evaluate(baselineProfiles(), context, level.random);
+		BiteEngine.Outcome outcome = BiteEngine.evaluate(FishProfileManager.get().all(), context, level.random);
 		if (!outcome.willBite()) return new Attempt(Status.NO_BITE, "Nothing is biting on this tackle here.");
 		ResourceLocation species = outcome.pickSpecies(level.random);
 		FishProfile profile = FishProfileManager.get().byId(species);
 		if (profile == null) return new Attempt(Status.NO_BITE, "Nothing is biting on this tackle here.");
 		return new Attempt(rod, hookPos, species, outcome.ticksToBite, level.getGameTime());
-	}
-
-	private static List<FishProfile> baselineProfiles() {
-		// River's player level only reduces higher-tier odds. NPCs deliberately stay in the starter tier.
-		return FishProfileManager.get().all().stream().filter(profile -> profile.minAnglerLevel <= 0).toList();
 	}
 
 	private static boolean validTackle(ItemStack rod) {
@@ -211,7 +206,7 @@ public final class RiverFishingCatches {
 			FishProfile profile = FishProfileManager.get().byId(species);
 			// Revalidate the bait that was actually taken, even after the strike consumed its last item.
 			ItemStack query = struck ? baitBeforeStrike : rod;
-			if (profile == null || profile.minAnglerLevel > 0 || query == null || !validTackle(query)) return null;
+			if (profile == null || query == null || !validTackle(query)) return null;
 			return BiteEngine.speciesWeight(profile, context(level, fake, query, pos)) > 1.0e-6 ? profile : null;
 		}
 
