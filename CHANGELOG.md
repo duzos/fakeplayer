@@ -1,5 +1,7 @@
 # v3.0.0
 
+- Fixed a Fabric startup crash caused by the fishing rod's cast model.
+
 - Jobs are now named rather than numbered, so a mod can add a job of its own. Existing fakes keep the job they had: every job from earlier versions is recognised and carried over the first time a world is opened.
 - A fake whose job came from a mod you have since removed keeps its job, its markers and its filter, and simply stands still. Its AI menu names the job it is waiting on, so you can see which mod is missing. Putting the mod back picks it up where it left off, and pressing Cycle reassigns it if you would rather move on.
 - Addons can register a job. Build one with `JobType.builder`, giving it an executor, a display name and the marker rows it offers. Hand that to `dev.duzo.players.core.FPJobs.register` under your own modid and name. Requests raised for an addon's job are kept separate from each other even when the addon is absent.
