@@ -103,8 +103,8 @@ entity when a real player reels in, hand a Fisherman the item instead, on every 
 Aquaculture has no matching release for Minecraft 26.2 in the versions checked.
 Aquaculture is not available on Fabric.
 
-River Fishing assembly and catches are being tested in a separate 1.21.1 prototype.
-They are not included in this branch yet.
+River Fishing assembly and catches are available on the 1.21.1 branch.
+They are not included in this branch.
 
 Tide's own catch system and modded storage support are still planned.
 
