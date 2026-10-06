@@ -97,12 +97,12 @@ These changes are being prepared on the version branches and are not published y
   Its lava fishing addon is supported on 1.21.1, 1.21.11 and 26.1. These mods are optional.
 - The Fabric fishing rod launch fix is implemented for 1.21.4, 1.21.5, 1.21.8 and 1.21.11.
 
-The **River Fishing** prototype is on Minecraft 1.21.1, for Fabric and NeoForge. Fishermen assemble
+**River Fishing** support is on Minecraft 1.21.1, for Fabric and NeoForge. Fishermen assemble
 rods from supplied parts, request missing parts and catch fish using River Fishing's habitat and
 bite timing. It supports ordinary shore fishing, with a simplified fight and no player XP or journal
 progress. Fly, winter, boat and trolling rods, claimed ponds and stocked water are not supported.
-Both loaders passed automated checks. The line now follows the rendered rod tip and passed its
-in-game visual check. Broader River Fishing gameplay sign-off is still pending.
+Both loaders passed automated checks. The line now follows the rendered rod tip, and the
+1.21.1 integration has been approved in game.
 
 Tide's own catch system, modded storage and the 26.3 port are still to do. Each version branch's
 README describes its own support; accepting a rod does not mean every feature of its mod is supported.
