@@ -215,7 +215,9 @@ public class FishermanJobExecutor implements JobExecutor {
 	private boolean tickRiver(ServerLevel level, FakePlayerEntity entity, BlockPos deposit) {
 		if (phase != Phase.WAIT && phase != Phase.BITE && phase != Phase.REEL) return false;
 		if (activeHook == null || !activeHook.isAlive()) { clearHook(); phase = Phase.CAST; return true; }
-		if (riverHookPos != null && !riverHookPos.equals(activeHook.blockPosition())) {
+		BlockPos current = activeHook.blockPosition();
+		if (riverHookPos != null && (riverHookPos.getX() != current.getX()
+				|| riverHookPos.getZ() != current.getZ() || Math.abs(riverHookPos.getY() - current.getY()) > 1)) {
 			clearHook(); phase = Phase.CAST; return true;
 		}
 		faceHook(entity);
@@ -227,8 +229,11 @@ public class FishermanJobExecutor implements JobExecutor {
 				return true;
 			}
 			if (!river.started()) {
-				riverHookPos = activeHook.blockPosition();
-				long wait = river.settle(level, entity, held, activeHook.blockPosition());
+				// Touching water changes the hook's state before its horizontal motion has settled.
+				// Starting then treats its remaining glide (or surface bob) as a moved fishing spot.
+				if (activeHook.getDeltaMovement().horizontalDistanceSqr() > 0.00001) return true;
+				riverHookPos = level.getFluidState(current).is(FluidTags.WATER) ? current : current.below();
+				long wait = river.settle(level, entity, held, riverHookPos);
 				if (wait < 0) { clearHook(); riverRetryAt = now + 400; phase = Phase.CAST; return true; }
 				waitUntil = now + Math.min(wait, Long.MAX_VALUE - now);
 			}
