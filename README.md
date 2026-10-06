@@ -110,8 +110,8 @@ The **River Fishing** prototype is on Minecraft 1.21.1, for Fabric and NeoForge.
 rods from supplied parts, request missing parts and catch fish using River Fishing's habitat and
 bite timing. It supports ordinary shore fishing, with a simplified fight and no player XP or journal
 progress. Fly, winter, boat and trolling rods, claimed ponds and stocked water are not supported.
-Both loaders passed automated checks. A reported line offset is fixed using the rendered rod tip;
-the in-game visual retest is pending.
+Both loaders passed automated checks. The line now follows the rendered rod tip and passed its
+in-game visual check. Broader River Fishing gameplay sign-off is still pending.
 
 Tide's own catch system, modded storage and the 26.3 port are still to do. Each version branch's
 README describes its own support; accepting a rod does not mean every feature of its mod is supported.
