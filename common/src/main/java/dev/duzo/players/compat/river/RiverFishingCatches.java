@@ -225,7 +225,7 @@ public final class RiverFishingCatches {
 			double capacity = Math.min(((RodItem) rod.getItem()).rodType().fightPowerKg(),
 					((LineItem) line.getItem()).breakingStrainKg() * WearData.lineStrainMultiplier(WearData.get(line)));
 			double kg = weight / 1000.0;
-			double demand = Math.max(kg, FishingManager.sizeStrength(profile, kg) * kg);
+			double demand = Math.max(kg, profile.fightStrength * FishingManager.sizeStrength(profile, kg) * kg);
 			landed = demand <= capacity && weight >= RigData.livebaitWeightG(rig) * BiteEngine.PREY_RATIO;
 			var contents = RigData.load(rig);
 			int hook = -1;
