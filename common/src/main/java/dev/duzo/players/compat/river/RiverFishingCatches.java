@@ -68,7 +68,7 @@ public final class RiverFishingCatches {
 		ResourceLocation species = outcome.pickSpecies(level.random);
 		FishProfile profile = FishProfileManager.get().byId(species);
 		if (profile == null) return new Attempt(Status.NO_BITE, "Nothing is biting on this tackle here.");
-		return new Attempt(rod, hookPos, species, outcome.ticksToBite);
+		return new Attempt(rod, hookPos, species, outcome.ticksToBite, level.getGameTime());
 	}
 
 	private static boolean validTackle(ItemStack rod) {
@@ -161,6 +161,7 @@ public final class RiverFishingCatches {
 		private final BlockPos pos;
 		private final ResourceLocation species;
 		private final long delay;
+		private final long preparedAt;
 		private boolean struck;
 		private boolean finished;
 		private boolean landed;
@@ -177,9 +178,10 @@ public final class RiverFishingCatches {
 			pos = BlockPos.ZERO;
 			species = null;
 			delay = 400;
+			preparedAt = 0;
 		}
 
-		private Attempt(ItemStack rod, BlockPos pos, ResourceLocation species, long delay) {
+		private Attempt(ItemStack rod, BlockPos pos, ResourceLocation species, long delay, long preparedAt) {
 			status = Status.READY;
 			message = "";
 			identity = rod;
@@ -187,6 +189,7 @@ public final class RiverFishingCatches {
 			this.pos = pos.immutable();
 			this.species = species;
 			this.delay = delay;
+			this.preparedAt = preparedAt;
 		}
 
 		public Status status() { return status; }
@@ -208,7 +211,7 @@ public final class RiverFishingCatches {
 		}
 
 		public int strike(ServerLevel level, FakePlayerEntity fake, ItemStack rod) {
-			if (struck || finished) return -1;
+			if (struck || finished || level.getGameTime() - preparedAt < delay) return -1;
 			FishProfile profile = eligible(level, fake, rod);
 			if (profile == null) { finished = true; return -1; }
 			baitBeforeStrike = rod.copy();
@@ -236,7 +239,7 @@ public final class RiverFishingCatches {
 				WearData.add(sharpest, wearPoints(RiverFishingConfig.hookWearRate(), random));
 				RigData.save(rig, contents);
 			}
-			if (RiverFishingConfig.consumeBait()) RigData.consumeBait(rig, id -> profile.baitScores.getOrDefault(id, 0.0));
+			if (RiverFishingConfig.consumeBait()) RigData.consumeBait(rig, profile::baitScore);
 			WearData.add(line, wearPoints(RiverFishingConfig.lineWearRate(), random));
 			RodData.set(rod, ComponentSlot.LINE, line);
 			RodData.set(rod, ComponentSlot.RIG, rig);
