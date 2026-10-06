@@ -21,6 +21,7 @@ loom {
         accessWidenerPath.set(project(":common").file("src/main/resources/${mod_id}.accesswidener"))
     }
     mixin {
+        useLegacyMixinAp = true
         defaultRefmapName.set("${mod_id}.refmap.json")
     }
     runs {
