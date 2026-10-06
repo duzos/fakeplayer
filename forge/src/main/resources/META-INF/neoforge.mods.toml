@@ -43,3 +43,10 @@ type = "optional"
 versionRange = "[0,)"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "riverfishing"
+type = "optional"
+versionRange = "[0,)"
+ordering = "NONE"
+side = "BOTH"

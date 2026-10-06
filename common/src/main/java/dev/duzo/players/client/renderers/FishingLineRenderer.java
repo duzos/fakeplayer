@@ -37,7 +37,7 @@ public final class FishingLineRenderer {
 	public static void render(PoseStack pose) {
 		Minecraft mc = Minecraft.getInstance();
 		ClientLevel level = mc.level;
-		if (level == null) return;
+		if (level == null) { FishingRodTip.endFrame(); return; }
 
 		float partial = mc.getTimer().getGameTimeDeltaPartialTick(true);
 		Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
@@ -51,7 +51,8 @@ public final class FishingLineRenderer {
 
 			Entity owner = level.getEntity(hook.ownerId());
 			if (owner instanceof LivingEntity living) {
-				Vec3 hand = handPos(living, partial).subtract(cam);
+				Vec3 tip = FishingRodTip.position(living, hook.rod());
+				Vec3 hand = (tip != null ? tip : handPos(living, partial)).subtract(cam);
 				drawLine(pose, buffers.getBuffer(RenderType.lines()), hand, bobber,
 						look.lineColor() < 0 ? LINE_COLOR : look.lineColor());
 			}
@@ -71,6 +72,7 @@ public final class FishingLineRenderer {
 		}
 
 		buffers.endBatch();
+		FishingRodTip.endFrame();
 	}
 
 	private static Vec3 bobberPos(FakeFishingHook hook, float partial) {

@@ -1,6 +1,7 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakeFishingHook;
+import dev.duzo.players.compat.RiverFishingBridge;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.LavaProofItemEntity;
@@ -53,6 +54,18 @@ public class FishermanJobExecutor implements JobExecutor {
 	private long waitUntil = 0L;
 	private long biteUntil = 0L;
 	private FakeFishingHook activeHook;
+	private RiverFishingBridge river;
+	private CompoundTag riverSaved = new CompoundTag();
+	private boolean riverCast;
+	private ItemStack selectedRiverRod;
+	private long riverRetryAt;
+	private BlockPos riverHookPos;
+	private long riverCleanupAt;
+
+	private RiverFishingBridge river() {
+		if (river == null) { river = new RiverFishingBridge(); river.load(riverSaved); }
+		return river;
+	}
 
 	@Override public void tick(ServerLevel level, FakePlayerEntity entity) {
 		AIState s = entity.getAIState();
@@ -62,6 +75,27 @@ public class FishermanJobExecutor implements JobExecutor {
 
 		JobHelpers.vacuum(level, entity, VACUUM_RADIUS); // catch flying back from the bobber lands here
 		ensureRod(entity); // a fisherman always holds his rod
+		ItemStack selected = entity.getMainHandItem();
+		if (riverCast && selected.isEmpty() && deposit != null) {
+			clearHook(); caught = 0;
+			entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
+			phase = Phase.TO_DEPOSIT;
+		}
+		if (!riverCast && activeHook != null && RiverFishingBridge.isRod(selected)) {
+			clearHook(); phase = Phase.CAST;
+		}
+		if (river == null && !riverSaved.isEmpty() && RiverFishingBridge.present()) river();
+		if (river != null && !RiverFishingBridge.isRod(selected) && level.getGameTime() >= riverCleanupAt) {
+			river.stop(entity);
+			riverCleanupAt = level.getGameTime() + 20;
+		}
+		if (selectedRiverRod != null && selectedRiverRod != selected) {
+			if (river != null) river.stop(entity);
+			selectedRiverRod = null;
+			if (riverCast) { clearHook(); phase = Phase.CAST; }
+		}
+		if (riverCast && !river.matches(selected)) { clearHook(); phase = Phase.CAST; }
+		if (riverCast && tickRiver(level, entity, deposit)) return;
 		if (activeHook != null && activeHook.isAlive()) faceHook(entity); // always face the bobber while it's out
 
 		if (phase != Phase.DUMP) JobHelpers.closeContainer(level, entity);
@@ -90,7 +124,12 @@ public class FishermanJobExecutor implements JobExecutor {
 					}
 					return;
 				}
-				Tackle tackle = Services.TACKLE.read(held);
+				boolean useRiver = RiverFishingBridge.isRod(held);
+				if (useRiver) {
+					selectedRiverRod = held;
+					if (level.getGameTime() < riverRetryAt || !river().prepare(entity, held)) return;
+				}
+				Tackle tackle = useRiver ? Tackle.PLAIN : Services.TACKLE.read(held);
 				BlockPos water = findCastTarget(level, spot, entity, tackle);
 				if (water == null) return; // no fishable fluid near the waypoint: idle
 				double surfaceY = water.getY() + 0.9;
@@ -98,6 +137,7 @@ public class FishermanJobExecutor implements JobExecutor {
 				entity.getLookControl().setLookAt(target.x, target.y, target.z);
 				entity.swing(InteractionHand.MAIN_HAND);
 				castHook(level, entity, target, surfaceY, level.getFluidState(water).is(FluidTags.LAVA), held);
+				if (useRiver) { riverCast = true; river().flight(held); }
 				int lure = enchant(entity, Enchantments.LURE) + tackle.lureBonus();
 				waitUntil = level.getGameTime() + Math.max(20, BASE_WAIT_TICKS - lure * 20 * 5L);
 				phase = Phase.WAIT;
@@ -174,6 +214,58 @@ public class FishermanJobExecutor implements JobExecutor {
 				phase = Phase.TO_SPOT;
 			}
 		}
+	}
+
+	/** River owns its catch policy; none of the vanilla loot, bait or damage path runs here. */
+	private boolean tickRiver(ServerLevel level, FakePlayerEntity entity, BlockPos deposit) {
+		if (phase != Phase.WAIT && phase != Phase.BITE && phase != Phase.REEL) return false;
+		if (activeHook == null || !activeHook.isAlive()) { clearHook(); phase = Phase.CAST; return true; }
+		BlockPos current = activeHook.blockPosition();
+		if (riverHookPos != null && (riverHookPos.getX() != current.getX()
+				|| riverHookPos.getZ() != current.getZ() || Math.abs(riverHookPos.getY() - current.getY()) > 1)) {
+			clearHook(); phase = Phase.CAST; return true;
+		}
+		faceHook(entity);
+		ItemStack held = entity.getMainHandItem();
+		long now = level.getGameTime();
+		if (phase == Phase.WAIT) {
+			if (!activeHook.isBobbing()) {
+				if (now >= waitUntil) { clearHook(); phase = Phase.CAST; }
+				return true;
+			}
+			if (!river.started()) {
+				// Touching water changes the hook's state before its horizontal motion has settled.
+				// Starting then treats its remaining glide (or surface bob) as a moved fishing spot.
+				if (activeHook.getDeltaMovement().horizontalDistanceSqr() > 0.00001) return true;
+				riverHookPos = level.getFluidState(current).is(FluidTags.WATER) ? current : current.below();
+				long wait = river.settle(level, entity, held, riverHookPos);
+				if (wait < 0) { clearHook(); riverRetryAt = now + 400; phase = Phase.CAST; return true; }
+				waitUntil = now + Math.min(wait, Long.MAX_VALUE - now);
+			}
+			activeHook.keepAlive();
+			if (now >= waitUntil) {
+				int fight = river.strike(level, entity, held);
+				if (fight < 0) { clearHook(); riverRetryAt = now + 400; phase = Phase.CAST; return true; }
+				activeHook.setBiting(true);
+				biteUntil = now + fight;
+				phase = Phase.BITE;
+			}
+		} else if (phase == Phase.BITE) {
+			activeHook.keepAlive();
+			if (now >= biteUntil) phase = Phase.REEL;
+		} else {
+			entity.swing(InteractionHand.MAIN_HAND);
+			List<ItemStack> drops = river.finish(level, entity, held);
+			for (ItemStack drop : drops) flingCatch(level, entity, activeHook.position(), drop);
+			if (!drops.isEmpty()) caught++;
+			clearHook();
+			if ((caught >= DEPOSIT_EVERY || held.isEmpty()) && deposit != null) {
+				caught = 0;
+				entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
+				phase = Phase.TO_DEPOSIT;
+			} else phase = Phase.CAST;
+		}
+		return true;
 	}
 
 	private void castHook(ServerLevel level, FakePlayerEntity entity, Vec3 target, double surfaceY, boolean lava, ItemStack rod) {
@@ -303,6 +395,9 @@ public class FishermanJobExecutor implements JobExecutor {
 
 	private void clearHook() {
 		if (activeHook != null) { activeHook.discard(); activeHook = null; }
+		riverCast = false;
+		riverHookPos = null;
+		if (river != null) river.cancel();
 	}
 
 	private void faceHook(FakePlayerEntity e) {
@@ -424,6 +519,8 @@ public class FishermanJobExecutor implements JobExecutor {
 
 	private void dumpFish(FakePlayerEntity e, Container dst) {
 		SimpleContainer inv = e.getInventory();
+		int[] reserve = river != null && RiverFishingBridge.isRod(e.getMainHandItem())
+				? river.reservedSlots(e, e.getMainHandItem()) : new int[inv.getContainerSize()];
 		// Now that any rod counts, refusing to deposit all of them would hoard every spare forever. Keep one
 		// only if neither hand already holds one, and deposit the rest.
 		boolean keepRod = !FishingRods.isFishingRod(e.getMainHandItem()) && !FishingRods.isFishingRod(e.getOffhandItem());
@@ -431,8 +528,11 @@ public class FishermanJobExecutor implements JobExecutor {
 			ItemStack stack = inv.getItem(i);
 			if (stack.isEmpty()) continue;
 			if (FishingRods.isFishingRod(stack) && keepRod) { keepRod = false; continue; }
-			ItemStack rem = HopperBlockEntity.addItem(null, dst, stack, null);
-			inv.setItem(i, rem.isEmpty() ? ItemStack.EMPTY : rem);
+			int keep = Math.min(stack.getCount(), Math.max(0, i < reserve.length ? reserve[i] : 0));
+			ItemStack offer = stack.copyWithCount(stack.getCount() - keep);
+			if (offer.isEmpty()) continue;
+			ItemStack rem = HopperBlockEntity.addItem(null, dst, offer, null);
+			inv.setItem(i, stack.copyWithCount(keep + rem.getCount()));
 		}
 		dst.setChanged();
 	}
@@ -452,7 +552,12 @@ public class FishermanJobExecutor implements JobExecutor {
 		}
 	}
 
-	@Override public void onPause(FakePlayerEntity e) { e.getNavigation().stop(); clearHook(); if (e.level() instanceof ServerLevel sl) JobHelpers.closeContainer(sl, e); }
+	@Override public void onPause(FakePlayerEntity e) {
+		e.getNavigation().stop(); clearHook();
+		if (river == null && !riverSaved.isEmpty() && RiverFishingBridge.present()) river();
+		if (river != null) river.stop(e);
+		if (e.level() instanceof ServerLevel sl) JobHelpers.closeContainer(sl, e);
+	}
 	@Override public void onResume(FakePlayerEntity e) {
 		// (re)start: re-check the waypoint and walk to it instead of resuming mid-cast at the old spot
 		clearHook();
@@ -460,10 +565,13 @@ public class FishermanJobExecutor implements JobExecutor {
 		e.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 	}
 	@Override public CompoundTag serialize() {
-		CompoundTag t = new CompoundTag(); t.putString("Phase", phase.name()); t.putInt("Caught", caught); t.putLong("WaitUntil", waitUntil); return t;
+		CompoundTag t = new CompoundTag(); t.putString("Phase", phase.name()); t.putInt("Caught", caught); t.putLong("WaitUntil", waitUntil);
+		t.put("RiverAssembly", river != null ? river.save() : riverSaved.copy());
+		return t;
 	}
 	@Override public void deserialize(CompoundTag t) {
 		if (t == null || t.isEmpty()) return;
+		riverSaved = t.getCompound("RiverAssembly").copy();
 		String name = t.getString("Phase");
 		if (!name.isEmpty()) { try { phase = Phase.valueOf(name); } catch (IllegalArgumentException ignored) {} }
 		if (phase == Phase.WAIT || phase == Phase.BITE || phase == Phase.REEL) phase = Phase.CAST; // re-cast cleanly; stale hook self-discards

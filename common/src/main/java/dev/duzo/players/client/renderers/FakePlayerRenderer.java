@@ -40,19 +40,24 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 		this.getModel().rightArmPose = armPose(entity, HumanoidArm.RIGHT);
 		this.getModel().leftArmPose = armPose(entity, HumanoidArm.LEFT);
 
+		Runnable endTipCapture = FishingRodTip.begin(entity, matrices, pPartialTicks);
 		matrices.pushPose();
-		if (entity.isBaby()) {
-			matrices.scale(0.5f, 0.5f, 0.5f);
-		} else {
-			matrices.scale(0.9375F, 0.9375F, 0.9375F);
-		}
+		try {
+			if (entity.isBaby()) {
+				matrices.scale(0.5f, 0.5f, 0.5f);
+			} else {
+				matrices.scale(0.9375F, 0.9375F, 0.9375F);
+			}
 
-		if (entity.isSitting()) {
-			matrices.translate(0, -0.5f, 0);
-		}
+			if (entity.isSitting()) {
+				matrices.translate(0, -0.5f, 0);
+			}
 
-		super.render(entity, pEntityYaw, pPartialTicks, matrices, pBuffer, pPackedLight);
-		matrices.popPose();
+			super.render(entity, pEntityYaw, pPartialTicks, matrices, pBuffer, pPackedLight);
+		} finally {
+			matrices.popPose();
+			endTipCapture.run();
+		}
 	}
 
 

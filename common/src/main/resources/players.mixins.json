@@ -7,7 +7,8 @@
     "mixins": [
     ],
     "client": [
-        "ItemPropertiesAccessor"
+        "ItemPropertiesAccessor",
+        "RiverFishingRodTipMixin"
     ],
     "server": [
     ],
@@ -15,4 +16,3 @@
         "defaultRequire": 1
     }
 }
-

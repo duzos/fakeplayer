@@ -27,6 +27,7 @@ public final class FishingRods {
 
 	public static boolean isFishingRod(ItemStack stack) {
 		if (stack.isEmpty()) return false;
+		if (dev.duzo.players.compat.RiverFishingBridge.isRod(stack)) return true;
 		if (stack.getItem() instanceof FishingRodItem) return true;
 		for (TagKey<Item> tag : ROD_TAGS) if (stack.is(tag)) return true;
 		return false;

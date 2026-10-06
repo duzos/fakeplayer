@@ -7,6 +7,11 @@ plugins {
 subprojects {
 	repositories {
 		maven {
+			url = 'https://api.modrinth.com/maven'
+			content { includeGroup 'maven.modrinth' }
+		}
+		maven { url = 'https://maven.architectury.dev/' }
+		maven {
 			url = "https://jm.gserv.me/repository/maven-public/"
 		}
 	}

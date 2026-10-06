@@ -82,8 +82,7 @@ Worth knowing:
 ### Fishing with modded rods
 
 A Fisherman accepts rods using the vanilla rod class or common fishing tags. It catches items from
-vanilla fishing loot, including fish added there by mods. Treasure still needs open water. Mods with
-their own catch or tackle systems need a separate integration.
+vanilla fishing loot, including fish added there by mods. Treasure still needs open water.
 
 **Aquaculture**, on Forge and NeoForge, goes further. A Fisherman reads the tackle fitted to the rod
 at a Tackle Box and fishes to it:
@@ -98,13 +97,22 @@ The redstone hook's longer bite window makes no difference, because a fake never
 systems belonging to other fishing mods need their own integration. Mods in the style of Fishing Real, which swap a catch for a live
 entity when a real player reels in, hand a Fisherman the item instead, on every loader.
 
+**River Fishing 1.0.0**, on Minecraft 1.21.1 Fabric and NeoForge, supports ordinary shore fishing.
+Give the fisherman a rod blank and compatible parts. It assembles the rod and requests missing parts
+from your Quartermaster, keeping a small bait reserve when depositing catches. Existing fitted parts
+are kept. Its catches use River Fishing's habitat, tackle, species and bite timing, with a simplified
+fight that can fail and consumes bait and wears tackle. It earns no player XP or journal progress.
+The fishing line follows the rendered rod tip, including its arm pose and seated position.
+
+Fly, winter, boat and trolling rods, claimed ponds and stocked water are not supported. Catches have
+River Fishing's basic fish data, but not its full catch-card, breeding or contract provenance.
+
 ### Optional fishing mods
 
 Aquaculture is supported on Minecraft 1.21.1 NeoForge. Its lava fishing addon is supported too. Both are optional.
 Aquaculture is not available on Fabric.
 
-River Fishing assembly and catches are being tested in a separate 1.21.1 prototype.
-They are not included in this branch yet.
+River Fishing is optional on both loaders. See the assembly and fishing limits above.
 
 Tide's own catch system and modded storage support are still planned.
 

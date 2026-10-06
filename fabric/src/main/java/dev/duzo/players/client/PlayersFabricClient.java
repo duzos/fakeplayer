@@ -4,6 +4,7 @@ import dev.duzo.players.client.render.SessionItemMarkerRenderer;
 import dev.duzo.players.client.renderers.FakeFishingHookRenderer;
 import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
 import dev.duzo.players.client.renderers.FishingLineRenderer;
+import dev.duzo.players.client.renderers.FishingRodTip;
 import dev.duzo.players.client.renderers.LegacyRodCast;
 import dev.duzo.players.client.screen.FakeCrafterScreen;
 import dev.duzo.players.client.screen.FakePlayerInventoryScreen;
@@ -32,6 +33,7 @@ public class PlayersFabricClient implements ClientModInitializer {
 		MenuScreens.register(FPMenus.CRAFTER_LEARN.get(), FakeCrafterScreen::new);
 		ClientTickEvents.END_CLIENT_TICK.register(PlayersCommonClient::tick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> PlayersCommonClient.onClientStopping());
+		WorldRenderEvents.START.register(ctx -> FishingRodTip.beginFrame());
 		WorldRenderEvents.LAST.register(ctx -> {
 			SessionItemMarkerRenderer.render(ctx.matrixStack(),
 					Minecraft.getInstance().renderBuffers().bufferSource(),

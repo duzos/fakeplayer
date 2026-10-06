@@ -3,6 +3,7 @@ package dev.duzo.players.client;
 import dev.duzo.players.Constants;
 import dev.duzo.players.client.render.SessionItemMarkerRenderer;
 import dev.duzo.players.client.renderers.FishingLineRenderer;
+import dev.duzo.players.client.renderers.FishingRodTip;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
 import net.neoforged.api.distmarker.Dist;
@@ -26,6 +27,7 @@ public class ClientBusEvents {
 
 	@SubscribeEvent
 	public static void onRenderLevel(RenderLevelStageEvent e) {
+		if (e.getStage() == RenderLevelStageEvent.Stage.AFTER_SKY) FishingRodTip.beginFrame();
 		if (e.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
 		Minecraft mc = Minecraft.getInstance();
 		SessionItemMarkerRenderer.render(e.getPoseStack(),
