@@ -76,6 +76,11 @@ public class FishermanJobExecutor implements JobExecutor {
 		JobHelpers.vacuum(level, entity, VACUUM_RADIUS); // catch flying back from the bobber lands here
 		ensureRod(entity); // a fisherman always holds his rod
 		ItemStack selected = entity.getMainHandItem();
+		if (riverCast && selected.isEmpty() && deposit != null) {
+			clearHook(); caught = 0;
+			entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
+			phase = Phase.TO_DEPOSIT;
+		}
 		if (!riverCast && activeHook != null && RiverFishingBridge.isRod(selected)) {
 			clearHook(); phase = Phase.CAST;
 		}
