@@ -38,7 +38,7 @@ Shift + right-click a fake (or press your **Open Fake Player Menu** key, see bel
 | **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. Filter grammar and the on/off toggle are covered below. |
 | **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
 | **Courier** | source + deposit | Hauls matching items from one chest to another. Shares the Miner's filter. |
-| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. Rods from other mods work, and so do the fish they add. |
+| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. Accepts compatible modded rods and fish added to fishing loot. |
 | **Farmer** | region + deposit | Tills a plot, waters it, plants any seed (modded too), bonemeals, then harvests and replants on a loop. |
 | **Crafter** | table + source + deposit | Walks to a crafting table and lays out a recipe you teach it by hand; chain it onto another job's chest for a pipeline. |
 | **Quartermaster** | storage pool | Owns a pool of marked containers, answers requests from your other fakes and from you, and sends Runners. Never leaves the storeroom. |
@@ -105,6 +105,16 @@ fight that can fail and consumes bait and wears tackle. It earns no player XP or
 
 Fly, winter, boat and trolling rods, claimed ponds and stocked water are not supported. Catches have
 River Fishing's basic fish data, but not its full catch-card, breeding or contract provenance.
+
+### Optional fishing mods
+
+Aquaculture is supported on Minecraft 1.21.1 NeoForge. Its lava fishing addon is supported too. Both are optional.
+Aquaculture is not available on Fabric.
+
+River Fishing is optional on both loaders. This branch contains the 1.21.1 prototype;
+its in-game visual test is still pending. See the assembly and fishing limits above.
+
+Tide's own catch system and modded storage support are still planned.
 
 ### Miner / Courier filter
 
