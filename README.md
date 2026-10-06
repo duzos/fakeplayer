@@ -44,7 +44,7 @@ Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI han
 | **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. |
 | **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
 | **Courier** | source + deposit | Hauls matching items from one chest to another. |
-| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. Rods from other mods work, and so do the fish they add. |
+| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. Accepts compatible modded rods and fish added to fishing loot. |
 | **Farmer** | region + deposit | Tills a plot, waters it, plants any seed (modded too), bonemeals, then harvests and replants on a loop. |
 | **Crafter** | table + source + deposit | Walks to a crafting table and lays out a recipe you teach it by hand; chain it onto another job's chest for a pipeline. |
 
@@ -93,6 +93,27 @@ Craft a `Robot Shell` and a `Robot AI` and combine them in a crafting table (or 
 &nbsp;&nbsp;
 <img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/recipe-spawn-egg.png" height="120" alt="Player Spawn Egg recipe">
 </div>
+
+## In development: 3.0.0
+
+These changes are being prepared on the version branches and are not published yet.
+
+- Quartermasters manage marked storage pools; Runners collect and deliver requests from fakes or players.
+- The job registry lets addons register jobs and use the request API.
+- Fishermen accept compatible modded rods and catch fish added to vanilla fishing loot. Custom catch
+  systems need their own integration. Fishing Real catches stay as items.
+- Aquaculture tackle, bait, hook textures and dyed lines work on supported Forge/NeoForge versions.
+  Its lava fishing addon is supported on 1.21.1, 1.21.11 and 26.1. These mods are optional.
+- The Fabric fishing rod launch fix is implemented for 1.21.4, 1.21.5, 1.21.8 and 1.21.11.
+
+The **River Fishing** prototype is on Minecraft 1.21.1, for Fabric and NeoForge. Fishermen assemble
+rods from supplied parts, request missing parts and catch fish using River Fishing's habitat and
+bite timing. It supports ordinary shore fishing, with a simplified fight and no player XP or journal
+progress. Fly, winter, boat and trolling rods, claimed ponds and stocked water are not supported.
+Both loaders passed automated checks; the in-game visual test is pending.
+
+Tide's own catch system, modded storage and the 26.3 port are still to do. Each version branch's
+README describes its own support; accepting a rod does not mean every feature of its mod is supported.
 
 ## Links
 
