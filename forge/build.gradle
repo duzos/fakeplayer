@@ -52,7 +52,6 @@ sourceSets.main.resources.srcDir 'src/generated/resources'
 
 dependencies {
     compileOnly project(":common")
-    annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
     jarJar(implementation("mysticdrew:common-networking-neoforge:${project.common_network_version}")) {
         transitive = false
     }
