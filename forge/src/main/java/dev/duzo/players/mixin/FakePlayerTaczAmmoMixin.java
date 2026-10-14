@@ -11,6 +11,7 @@ import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.wrapper.CombinedInvWrapper;
+import net.minecraftforge.items.wrapper.EntityArmorInvWrapper;
 import net.minecraftforge.items.wrapper.EntityHandsInvWrapper;
 import net.minecraftforge.items.wrapper.InvWrapper;
 import org.spongepowered.asm.mixin.Mixin;
@@ -40,10 +41,16 @@ public abstract class FakePlayerTaczAmmoMixin extends PathfinderMob {
 			if (this.players$ammoHandler == null || !this.players$ammoHandler.isPresent()) {
 				FakePlayerEntity fake = (FakePlayerEntity) (Object) this;
 				this.players$ammoHandler = LazyOptional.of(() -> new CombinedInvWrapper(
-						new InvWrapper(fake.getInventory()), new EntityHandsInvWrapper(fake)));
+						new InvWrapper(fake.getInventory()), new EntityHandsInvWrapper(fake), new EntityArmorInvWrapper(fake)));
 			}
 			return this.players$ammoHandler.cast();
 		}
 		return super.getCapability(cap, side);
+	}
+
+	@Override
+	public void invalidateCaps() {
+		super.invalidateCaps();
+		if (this.players$ammoHandler != null) this.players$ammoHandler.invalidate();
 	}
 }
