@@ -4,6 +4,8 @@ import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
 import dev.duzo.players.platform.Services;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -121,7 +123,7 @@ public class InteractionRegistry {
 
 			Component customName = stack.get(DataComponents.CUSTOM_NAME);
 			String text = customName != null ? customName.getString() : "Hello World!";
-			entity.sendChat(text);
+			FakeSpeech.say(entity, Verbosity.ALWAYS, "paper", text);
 			playSound(entity, SoundEvents.BOOK_PAGE_TURN);
 			return InteractionResult.SUCCESS;
 		}));
