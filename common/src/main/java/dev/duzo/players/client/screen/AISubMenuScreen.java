@@ -9,6 +9,7 @@ import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.GuardJobExecutor;
 import dev.duzo.players.entities.ai.JobRow;
 import dev.duzo.players.entities.ai.JobType;
+import dev.duzo.players.entities.ai.builder.BuilderParams;
 import dev.duzo.players.network.c2s.BondPacketC2S;
 import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
@@ -17,6 +18,7 @@ import dev.duzo.players.entities.ai.requests.StockList;
 import dev.duzo.players.entities.ai.requests.StoragePool;
 import dev.duzo.players.network.c2s.RequestStockPacketC2S;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
+import dev.duzo.players.network.c2s.SetBuildPacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
 import dev.duzo.players.network.c2s.SetStockListPacketC2S;
 import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
@@ -34,6 +36,8 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -51,6 +55,7 @@ public class AISubMenuScreen extends Screen {
 	private static final int FILTER_EDIT_W = 58;
 	private static final int FILTER_TOGGLE_W = 30;
 	private static final int FILTER_TOGGLE_GAP = 4;
+	private static final int ROT_BTN_W = 48;
 
 	private static final int COL_PANEL = 0xEE0E1216;
 	private static final int COL_PANEL_TOP = 0xFF1F262E;
@@ -93,6 +98,10 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton filterButton;
 	private FlatButton filterToggle;
 	private FlatButton startStopButton;
+	private EditBox schematicEdit;
+	private FlatButton anchorButton;
+	private FlatButton rotateButton;
+	private FlatButton mirrorButton;
 
 	/**
 	 * Hover text, drawn by hand rather than by {@link AbstractWidget#setTooltip}. A widget tooltip
@@ -222,6 +231,26 @@ public class AISubMenuScreen extends Screen {
 		stockButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyStock);
 		this.addRenderableWidget(stockButton);
 
+		schematicEdit = new EditBox(this.font, innerLeft + 52, markerSectionY, FILTER_EDIT_W + FILTER_TOGGLE_W + FILTER_TOGGLE_GAP,
+				BTN_H, Component.literal("schematic"));
+		schematicEdit.setMaxLength(BuilderParams.MAX_NAME);
+		schematicEdit.setValue(BuilderParams.read(entity.getAIState()).schematic());
+		this.addRenderableWidget(schematicEdit);
+		hints.add(new Hint(schematicEdit, Component.literal(
+				"Schematic file name without .nbt. Found in schematics/, schematics/uploaded/<you>/ or config/players/schematics/. "
+						+ "Enter saves it.")));
+		anchorButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Anchor"), this::giveAnchor);
+		this.addRenderableWidget(anchorButton);
+		hints.add(new Hint(anchorButton, Component.literal(
+				"Get an anchor marker. Right-click a block: the build's corner goes against that face, turned to face the way you look.")));
+		rotateButton = new FlatButton(rightBtnX - ROT_BTN_W - FILTER_TOGGLE_GAP, markerSectionY, ROT_BTN_W, BTN_H,
+				Component.literal("Rot 0"), this::cycleRotation);
+		this.addRenderableWidget(rotateButton);
+		hints.add(new Hint(rotateButton, Component.literal("Turn the build a quarter turn clockwise.")));
+		mirrorButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Mirror"), this::toggleMirror);
+		this.addRenderableWidget(mirrorButton);
+		hints.add(new Hint(mirrorButton, Component.literal("Flip the build left to right.")));
+
 		int startStopY = markerSectionY + 18 + 5 * ROW_H + 30;
 		startStopButton = new FlatButton(innerLeft, startStopY, innerWidth, 22, startStopLabel(), this::toggleRun).bold();
 		this.addRenderableWidget(startStopButton);
@@ -240,6 +269,10 @@ public class AISubMenuScreen extends Screen {
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
 		relayout(s);
 		// the server normalizes the list, so a dropped typo is shown back rather than left in the box
+		if (schematicEdit != null && !schematicEdit.isFocused()) {
+			String stored = BuilderParams.read(s).schematic();
+			if (!stored.equals(schematicEdit.getValue())) schematicEdit.setValue(stored);
+		}
 		if (stockEdit != null && !stockEdit.isFocused()) {
 			String stored = StockList.text(s);
 			if (!stored.equals(stockEdit.getValue())) stockEdit.setValue(stored);
@@ -278,10 +311,16 @@ public class AISubMenuScreen extends Screen {
 		requestButton.visible = false;
 		stockButton.visible = false;
 		stockEdit.visible = false;
+		schematicEdit.visible = false;
+		anchorButton.visible = false;
+		rotateButton.visible = false;
+		mirrorButton.visible = false;
 		List<JobRow> rows = rowsFor(s.job());
-		for (int i = 0; i < rows.size(); i++) {
-			int btnY = markerSectionY + 18 + i * ROW_H - 4;
-			switch (rows.get(i)) {
+		int slot = 0;
+		for (JobRow row : rows) {
+			int btnY = markerSectionY + 18 + slot * ROW_H - 4;
+			slot += rowSlots(row);
+			switch (row) {
 				case WAYPOINT -> place(waypointButton, btnY);
 				case REGION -> place(regionButton, btnY);
 				case DEPOSIT -> place(depositButton, btnY);
@@ -295,6 +334,19 @@ public class AISubMenuScreen extends Screen {
 					stockEdit.setX(innerLeft + 52);
 					stockEdit.setY(btnY);
 					stockEdit.visible = true;
+				}
+				case SCHEMATIC -> {
+					BuilderParams p = BuilderParams.read(s);
+					place(anchorButton, btnY);
+					schematicEdit.setX(innerLeft + 52);
+					schematicEdit.setY(btnY);
+					schematicEdit.visible = true;
+					rotateButton.setX(rightBtnX - ROT_BTN_W - FILTER_TOGGLE_GAP);
+					rotateButton.setY(btnY + ROW_H);
+					rotateButton.visible = true;
+					rotateButton.setMessage(Component.literal("Rot " + p.rotation().ordinal() * 90));
+					place(mirrorButton, btnY + ROW_H);
+					mirrorButton.setMessage(toggleLabel(p.mirror() == Mirror.NONE ? "Mirror off" : "Mirror on", p.mirror() != Mirror.NONE));
 				}
 				case FILTER -> {
 					boolean disabled = filterDisabled(s);
@@ -310,6 +362,10 @@ public class AISubMenuScreen extends Screen {
 				}
 			}
 		}
+	}
+
+	private static int rowSlots(JobRow row) {
+		return row == JobRow.SCHEMATIC ? 2 : 1;
 	}
 
 	private void place(FlatButton b, int y) {
@@ -366,9 +422,11 @@ public class AISubMenuScreen extends Screen {
 
 		List<JobRow> rows = rowsFor(s.job());
 		if (!rows.isEmpty()) drawSectionHeader(ctx, x, markerSectionY, "MARKERS");
-		for (int i = 0; i < rows.size(); i++) {
-			int rowY = markerSectionY + 18 + i * ROW_H;
-			switch (rows.get(i)) {
+		int slot = 0;
+		for (JobRow row : rows) {
+			int rowY = markerSectionY + 18 + slot * ROW_H;
+			slot += rowSlots(row);
+			switch (row) {
 				case WAYPOINT -> drawWaypointRow(ctx, x, rowY, s);
 				case REGION -> drawRegionRow(ctx, x, rowY, s);
 				case DEPOSIT -> drawMarkerRow(ctx, x, rowY, "Deposit", s.depositChest());
@@ -394,6 +452,15 @@ public class AISubMenuScreen extends Screen {
 							learned ? COL_BODY : COL_MUTED);
 				}
 				case FILTER -> drawChip(ctx, x + PADDING, rowY, COL_AQUA, "Filter", COL_BODY);
+				case SCHEMATIC -> {
+					BuilderParams p = BuilderParams.read(s);
+					boolean named = !p.schematic().isBlank();
+					drawChip(ctx, x + PADDING, rowY, named ? COL_GREEN : COL_MUTED, "Plan", named ? COL_BODY : COL_MUTED);
+					BlockPos at = p.anchor();
+					String text = at == null ? "No anchor" : "At " + at.getX() + "," + at.getY() + "," + at.getZ();
+					if (this.font.width(text) > 84) text = "Anchor set";
+					drawChip(ctx, x + PADDING, rowY + ROW_H, at == null ? COL_MUTED : COL_GREEN, text, at == null ? COL_MUTED : COL_BODY);
+				}
 				case PATROL -> drawPatrolRow(ctx, x, rowY, s);
 			}
 		}
@@ -543,7 +610,29 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	@Override
+	public void removed() {
+		super.removed();
+		if (schematicEdit != null && entity != null && FPJobs.is(entity.getAIState().jobId(), FPJobs.BUILDER)) {
+			BuilderParams p = BuilderParams.read(entity.getAIState());
+			if (!schematicEdit.getValue().trim().equals(p.schematic())) sendBuild(p.rotation().ordinal(), p.mirror().ordinal());
+		}
+	}
+
+	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		if (this.schematicEdit != null && this.schematicEdit.isFocused()) {
+			if (keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_NUMPADENTER) {
+				BuilderParams p = BuilderParams.read(entity.getAIState());
+				sendBuild(p.rotation().ordinal(), p.mirror().ordinal());
+				this.schematicEdit.setFocused(false);
+				return true;
+			}
+			if (keyCode == InputConstants.KEY_ESCAPE || keyCode == InputConstants.KEY_TAB) {
+				return super.keyPressed(keyCode, scanCode, modifiers);
+			}
+			this.schematicEdit.keyPressed(keyCode, scanCode, modifiers);
+			return true;
+		}
 		if (this.filterEdit != null && this.filterEdit.isFocused()) {
 			if (keyCode == InputConstants.KEY_ESCAPE || keyCode == InputConstants.KEY_TAB) {
 				return super.keyPressed(keyCode, scanCode, modifiers);
@@ -556,6 +645,10 @@ public class AISubMenuScreen extends Screen {
 
 	@Override
 	public boolean charTyped(char codePoint, int modifiers) {
+		if (this.schematicEdit != null && this.schematicEdit.isFocused()) {
+			this.schematicEdit.charTyped(codePoint, modifiers);
+			return true;
+		}
 		if (this.filterEdit != null && this.filterEdit.isFocused()) {
 			this.filterEdit.charTyped(codePoint, modifiers);
 			return true;
@@ -660,6 +753,27 @@ public class AISubMenuScreen extends Screen {
 	private String filterText(AIState state) {
 		String tag = effectiveFilterTag(state);
 		return tag.equals("*") ? "" : tag;
+	}
+
+	private void sendBuild(int rotation, int mirror) {
+		BuilderParams p = BuilderParams.read(entity.getAIState());
+		Network.getNetworkHandler().sendToServer(new SetBuildPacketC2S(entity.getId(), schematicEdit.getValue().trim(), rotation, mirror, p.clear()));
+	}
+
+	private void cycleRotation() {
+		BuilderParams p = BuilderParams.read(entity.getAIState());
+		sendBuild((p.rotation().ordinal() + 1) % Rotation.values().length, p.mirror().ordinal());
+	}
+
+	private void toggleMirror() {
+		BuilderParams p = BuilderParams.read(entity.getAIState());
+		sendBuild(p.rotation().ordinal(), p.mirror() == Mirror.NONE ? Mirror.LEFT_RIGHT.ordinal() : Mirror.NONE.ordinal());
+	}
+
+	private void giveAnchor() {
+		BuilderParams p = BuilderParams.read(entity.getAIState());
+		sendBuild(p.rotation().ordinal(), p.mirror().ordinal());
+		giveMarker(AIMarkerItem.PURPOSE_ANCHOR);
 	}
 
 	private void toggleRun() {
