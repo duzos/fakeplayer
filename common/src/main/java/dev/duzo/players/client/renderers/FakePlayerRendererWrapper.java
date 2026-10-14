@@ -60,7 +60,9 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
 			fake.slim = entity.isSlim();
-			SpeechBubbles.extract(entity, fake, state.distanceToCameraSq, entity.isCustomNameVisible(), partialTick);
+			// vanilla extraction has set nameTag by now using every name tag rule except the custom-name-visible
+			// one, which the fake adds below, so a non-null tag is exactly "a name tag could be drawn here"
+			SpeechBubbles.extract(entity, fake, state.nameTag != null, entity.isCustomNameVisible(), state.distanceToCameraSq, partialTick);
 			state.skin = new PlayerSkin(fake.skinTexture, null, null, null,
 				fake.slim ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE, false);
 		}
