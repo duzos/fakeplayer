@@ -1,5 +1,6 @@
 package dev.duzo.players.entities.ai;
 
+import dev.duzo.players.Constants;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.api.requests.ItemRequest;
 import dev.duzo.players.api.requests.RequestKey;
@@ -349,6 +350,8 @@ public class QuartermasterJobExecutor implements JobExecutor {
 			RequestRouting.AssignmentFault fault =
 					RequestRouting.assignmentFault(level, entity.getUUID(), request, now);
 			if (fault == null) continue;
+			Constants.traceEvent("quartermaster {} audit fault {} on {} assigned at {} now {}",
+					entity.getName().getString(), fault, request.key().item(), request.assignedAt(), now);
 			RequestStage from = request.stage();
 			request.assignTo(null, now);
 			request.setStage(RequestStage.PENDING);
