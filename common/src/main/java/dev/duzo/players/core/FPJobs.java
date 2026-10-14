@@ -39,7 +39,7 @@ public class FPJobs {
 	// it is not the legacy ordinal order and must never be treated as it: LegacyJobIds owns that.
 	private static final List<ResourceLocation> ORDER = new ArrayList<>();
 
-	public static final Supplier<JobType> NONE = register("none", b -> b.displayName("None"));
+	public static final Supplier<JobType> NONE = register("none", b -> b.displayName("None").notSelectable());
 	public static final Supplier<JobType> IDLE = register("idle", b -> b
 			.displayName("Idle")
 			.rows(JobRow.WAYPOINT)
