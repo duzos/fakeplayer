@@ -52,8 +52,8 @@ public class FakeFishingHookRenderer extends EntityRenderer<FakeFishingHook, Fak
 	}
 
 	@Override
-	public boolean shouldRender(FakeFishingHook hook, Frustum frustum, double x, double y, double z) {
-		return hook.getOwner() != null || super.shouldRender(hook, frustum, x, y, z);
+	public boolean shouldRender(FakeFishingHook hook, Frustum frustum, double x, double y, double z, float partialTicks) {
+		return hook.getOwner() != null || super.shouldRender(hook, frustum, x, y, z, partialTicks);
 	}
 
 	@Override

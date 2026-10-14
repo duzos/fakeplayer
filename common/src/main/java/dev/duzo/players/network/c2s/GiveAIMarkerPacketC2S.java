@@ -10,6 +10,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.item.ItemStack;
 
 public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) implements CustomPacketPayload {
@@ -37,7 +38,7 @@ public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) implements Cus
 		// server didn't have). Falling back to vanilla Inventory#add until the placement is
 		// reliable across loaders.
 		if (!sender.getInventory().add(stack)) {
-			sender.drop(stack, false);
+			sender.drop(stack, false, Prediction.SERVER_ONLY);
 		}
 	}
 

@@ -132,7 +132,7 @@ public final class AquacultureCompat {
 		ItemContainerContents contents = rod.get(type);
 		if (contents == null) return;
 
-		List<ItemStack> slots = new ArrayList<>(contents.allItemsCopyStream().map(ItemStack::copy).toList());
+		List<ItemStack> slots = new ArrayList<>(contents.itemCopies().map(ItemStack::copy).toList());
 		if (slots.size() <= BAIT_SLOT) return;
 		ItemStack bait = slots.get(BAIT_SLOT);
 		if (bait.isEmpty()) return;
@@ -199,7 +199,7 @@ public final class AquacultureCompat {
 		DataComponentType<ItemContainerContents> type = rodInventoryType();
 		if (type == null) return List.of();
 		ItemContainerContents contents = rod.get(type);
-		return contents == null ? List.of() : contents.allItemsCopyStream().toList();
+		return contents == null ? List.of() : contents.itemCopies().toList();
 	}
 
 	@SuppressWarnings("unchecked")
