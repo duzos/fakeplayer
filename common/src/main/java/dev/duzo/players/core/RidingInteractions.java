@@ -158,6 +158,6 @@ public final class RidingInteractions {
 	}
 
 	private static void tell(Player player, String message, ChatFormatting color) {
-		player.displayClientMessage(Component.literal(message).withStyle(color), true);
+		if (player instanceof net.minecraft.server.level.ServerPlayer sp) sp.sendSystemMessage(Component.literal(message).withStyle(color), true);
 	}
 }
