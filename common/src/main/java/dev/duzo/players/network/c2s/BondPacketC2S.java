@@ -5,6 +5,8 @@ import commonnetwork.networking.data.Side;
 import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.builder.BuilderParams;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,13 +30,25 @@ public record BondPacketC2S(int id, boolean bond) {
 			// a bonded fake has to be unbonded by its owner first
 			if (owner != null && !owner.equals(sender.getUUID())) return;
 			entity.mutateAIState(s -> s.setOwnerUUID(sender.getUUID()));
+			setUploader(entity, sender.getName().getString());
 			return;
 		}
 		if (owner == null || (!owner.equals(sender.getUUID()) && !AIMarkerItem.isOp(sender))) return;
 		// needs the owner still on the fake, to find its requests
 		dev.duzo.players.entities.ai.BuilderJobExecutor.cancelOutstanding(entity);
 		entity.mutateAIState(s -> s.setOwnerUUID(null));
+		setUploader(entity, "");
 		dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(entity.getUUID());
+	}
+
+	/** Only touches the stored uploader, so a rebond does not restart the build. */
+	private static void setUploader(FakePlayerEntity entity, String name) {
+		if (BuilderParams.read(entity.getAIState()).schematic().isBlank()) return;
+		entity.mutateAIState(s -> {
+			CompoundTag t = s.jobParams().copy();
+			t.putString("Uploader", name);
+			s.setJobParams(t);
+		});
 	}
 
 	public void encode(FriendlyByteBuf buf) {
