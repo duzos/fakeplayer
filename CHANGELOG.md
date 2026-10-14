@@ -9,6 +9,7 @@
 - addons can register jobs and manage item requests through the API.
 - added a Stock box to worker AI menus. set items and amounts, and workers request refills while they work.
 - Crafters can fill requests using materials from storage, including recipes with several steps. this needs a free, bonded Crafter with a marked table.
+- added the Possession Link. link it to your fake, use it in the air to see and act through the fake, and sneak to return.
 
 ## CHANGED
 
