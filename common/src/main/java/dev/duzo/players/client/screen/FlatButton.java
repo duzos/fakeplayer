@@ -4,11 +4,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class FlatButton extends AbstractButton {
 	public interface PressHandler {
 		void onPress();
+	}
+
+	/** For the few buttons whose action depends on shift being held at click time. */
+	public interface ShiftPressHandler {
+		void onPress(boolean shift);
 	}
 
 	public static final int DEFAULT_BG = 0xFF1A2330;
@@ -19,6 +25,7 @@ public class FlatButton extends AbstractButton {
 	public static final int DEFAULT_TEXT_HOVER = 0xFFFFFFFF;
 
 	private final PressHandler handler;
+	private final ShiftPressHandler shiftHandler;
 	private int bgColor = DEFAULT_BG;
 	private int hoverBgColor = DEFAULT_BG_HOVER;
 	private int borderColor = DEFAULT_BORDER;
@@ -32,6 +39,13 @@ public class FlatButton extends AbstractButton {
 	public FlatButton(int x, int y, int w, int h, Component msg, PressHandler handler) {
 		super(x, y, w, h, msg);
 		this.handler = handler;
+		this.shiftHandler = null;
+	}
+
+	public FlatButton(int x, int y, int w, int h, Component msg, ShiftPressHandler handler) {
+		super(x, y, w, h, msg);
+		this.handler = null;
+		this.shiftHandler = handler;
 	}
 
 	public FlatButton withBg(int bg, int hoverBg) {
@@ -78,7 +92,8 @@ public class FlatButton extends AbstractButton {
 
 	@Override
 	public void onPress() {
-		handler.onPress();
+		if (shiftHandler != null) shiftHandler.onPress(Screen.hasShiftDown());
+		else handler.onPress();
 	}
 
 	@Override
