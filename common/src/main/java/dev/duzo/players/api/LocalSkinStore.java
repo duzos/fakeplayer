@@ -35,6 +35,10 @@ public final class LocalSkinStore {
 		return URL_PREFIX + key;
 	}
 
+	public static String hashBytes(byte[] data) {
+		return SkinHash.ofBytes(data);
+	}
+
 	public boolean has(String key) {
 		return Files.isRegularFile(pathFor(key));
 	}
