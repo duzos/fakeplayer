@@ -162,7 +162,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	public void setBedClaim(BlockPos pos) {
 		this.bedClaim = pos.immutable();
-		this.bedClaimDim = this.level().dimension().identifier().toString();
+		this.bedClaimDim = this.level().dimension().location().toString();
 	}
 
 	/** True once, if the last bed sleep ended because the fake took damage. Reading it clears it. */
@@ -173,10 +173,11 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	}
 
 	@Override
-	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+	public boolean hurt(DamageSource source, float amount) {
+		if (this.level().isClientSide()) return super.hurt(source, amount);
 		boolean asleep = this.isBedSleeping();
 		if (asleep) this.wokenByDamage = true;
-		boolean hurt = super.hurtServer(level, source, amount);
+		boolean hurt = super.hurt(source, amount);
 		if (asleep && !hurt) this.wokenByDamage = false;
 		return hurt;
 	}
