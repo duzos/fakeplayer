@@ -28,6 +28,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.OutgoingChatMessage;
 import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -662,6 +663,13 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		if (this.level().isClientSide) return;
 
 		this.getServer().getPlayerList().broadcastChatMessage(PlayerChatMessage.system(message), this.createCommandSourceStack(), ChatType.bind(ChatType.CHAT, this));
+	}
+
+	/** Same {@code <name> message} line as {@link #sendChat}, but only {@code to} sees it. */
+	public void sendChatTo(ServerPlayer to, String message) {
+		if (this.level().isClientSide()) return;
+
+		to.sendChatMessage(OutgoingChatMessage.create(PlayerChatMessage.system(message)), false, ChatType.bind(ChatType.CHAT, this));
 	}
 
 
