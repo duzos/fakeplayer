@@ -282,6 +282,10 @@ public class AIMarkerItem extends Item {
 				bumpExpiry(stack, level.getGameTime());
 			}
 			case PURPOSE_ANCHOR -> {
+				if (!player.getUUID().equals(entity.getAIState().ownerUUID())) {
+					player.displayClientMessage(Component.literal("Only this fake's owner can set its anchor.").withStyle(ChatFormatting.RED), true);
+					return InteractionResult.FAIL;
+				}
 				if (!FPJobs.is(entity.getAIState().jobId(), FPJobs.BUILDER)) {
 					player.sendOverlayMessage(Component.literal("That fake is not a Builder.").withStyle(ChatFormatting.RED));
 					return InteractionResult.FAIL;

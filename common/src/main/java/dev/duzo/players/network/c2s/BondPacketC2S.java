@@ -10,6 +10,8 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.UUID;
+
 public record BondPacketC2S(int id, boolean bond) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("ai_bond");
 	public static final CustomPacketPayload.Type<BondPacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
@@ -24,8 +26,16 @@ public record BondPacketC2S(int id, boolean bond) implements CustomPacketPayload
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
 		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
-		entity.mutateAIState(s -> s.setOwnerUUID(ctx.message().bond() ? sender.getUUID() : null));
-		if (!ctx.message().bond()) dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(entity.getUUID());
+		UUID owner = entity.getAIState().ownerUUID();
+		if (ctx.message().bond()) {
+			// a bonded fake has to be unbonded by its owner first
+			if (owner != null && !owner.equals(sender.getUUID())) return;
+			entity.mutateAIState(s -> s.setOwnerUUID(sender.getUUID()));
+			return;
+		}
+		if (owner == null || !owner.equals(sender.getUUID())) return;
+		entity.mutateAIState(s -> s.setOwnerUUID(null));
+		dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(entity.getUUID());
 	}
 
 	@Override
