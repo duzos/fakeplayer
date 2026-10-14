@@ -16,6 +16,10 @@ import net.neoforged.neoforge.event.TickEvent;
 public class ClientBusEvents {
 	@SubscribeEvent
 	public static void onClientTick(TickEvent.ClientTickEvent e) {
+		if (e.phase == TickEvent.Phase.START) {
+			PlayersCommonClient.tickStart(Minecraft.getInstance());
+			return;
+		}
 		PlayersCommonClient.tick(Minecraft.getInstance());
 	}
 
