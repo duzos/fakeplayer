@@ -5,6 +5,7 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.core.SessionItemSweeper;
+import dev.duzo.players.entities.ai.FriendlyFire;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.neoforged.bus.api.EventPriority;
@@ -12,6 +13,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -33,6 +35,11 @@ public class ForgeModEvents {
 	@SubscribeEvent(priority = EventPriority.HIGHEST)
 	public static void onPlayerDeath(LivingDeathEvent e) {
 		if (e.getEntity() instanceof ServerPlayer p) AIMarkerItem.clearAllFor(p);
+	}
+
+	@SubscribeEvent
+	public static void onIncomingDamage(LivingIncomingDamageEvent e) {
+		if (FriendlyFire.shouldBlock(e.getSource(), e.getEntity())) e.setCanceled(true);
 	}
 
 	@SubscribeEvent
