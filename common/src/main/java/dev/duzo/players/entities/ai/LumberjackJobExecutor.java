@@ -642,7 +642,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		entity.setItemSlot(EquipmentSlot.MAINHAND, axe);
 		if (!back.isEmpty()) {
 			ItemStack leftover = entity.getInventory().addItem(back);
-			if (!leftover.isEmpty()) entity.spawnAtLocation((ServerLevel) entity.level(), leftover);
+			if (!leftover.isEmpty()) entity.spawnAtLocation(leftover);
 		}
 	}
 

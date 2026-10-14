@@ -1054,7 +1054,7 @@ public class MinerJobExecutor implements JobExecutor {
 		entity.setItemSlot(EquipmentSlot.MAINHAND, pick);
 		if (!back.isEmpty()) {
 			ItemStack leftover = entity.getInventory().addItem(back);
-			if (!leftover.isEmpty()) entity.spawnAtLocation((ServerLevel) entity.level(), leftover);
+			if (!leftover.isEmpty()) entity.spawnAtLocation(leftover);
 		}
 	}
 
