@@ -11,7 +11,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetCameraPacket;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -23,7 +23,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -170,7 +170,7 @@ public final class PossessionManager {
 	private static void start(MinecraftServer server, ServerPlayer player, ItemStack link, FakePlayerEntity fake) {
 		GameType mode = player.gameMode.getGameModeForPlayer();
 		if (fake.isPassenger()) fake.stopRiding();
-		PossessionReturn ret = new PossessionReturn(player.level().dimension().identifier().toString(),
+		PossessionReturn ret = new PossessionReturn(player.level().dimension().location().toString(),
 				player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot(), mode.getId(), fake.getUUID());
 		PossessionLinkItem.writeReturn(link, ret);
 		player.closeContainer();
@@ -242,7 +242,7 @@ public final class PossessionManager {
 		int max = config.possessionMaxDistance;
 		if (max > 0) {
 			PossessionReturn ret = s.returnPoint;
-			boolean sameDimension = fake.level().dimension().identifier().toString().equals(ret.dimension());
+			boolean sameDimension = fake.level().dimension().location().toString().equals(ret.dimension());
 			if (!sameDimension || fake.position().distanceToSqr(ret.x(), ret.y(), ret.z()) > (double) max * max) return Reason.TOO_FAR;
 		}
 		return null;
@@ -431,7 +431,7 @@ public final class PossessionManager {
 
 	@Nullable
 	private static ServerLevel levelOf(MinecraftServer server, String dimension) {
-		Identifier id = Identifier.tryParse(dimension);
+		ResourceLocation id = ResourceLocation.tryParse(dimension);
 		return id == null ? null : server.getLevel(ResourceKey.create(Registries.DIMENSION, id));
 	}
 

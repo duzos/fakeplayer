@@ -93,14 +93,13 @@ public final class PossessionClient {
 		drain(options.keyInventory);
 		drain(options.keyDrop);
 		drain(options.keySwapOffhand);
-		drain(options.keySpectatorHotbar);
 		drain(options.keySpectatorOutlines);
 		options.keySpectatorOutlines.setDown(false);
 		int[] hotbar = new int[options.keyHotbarSlots.length];
 		for (int i = 0; i < hotbar.length; i++) hotbar[i] = drain(options.keyHotbarSlots[i]);
 
-		boolean toggleAttack = options.toggleAttack().get();
-		boolean toggleUse = options.toggleUse().get();
+		boolean toggleAttack = false; // 1.21.8 has no attack toggle option
+		boolean toggleUse = false; // 1.21.8 has no use toggle option
 		// a toggle key is latched here and the vanilla key released, so it cannot stay on for vanilla to act on
 		if (toggleAttack) {
 			if ((attackClicks & 1) == 1) attackLatched = !attackLatched;

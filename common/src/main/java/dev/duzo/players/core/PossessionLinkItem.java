@@ -18,7 +18,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.UUID;
 import java.util.function.Consumer;

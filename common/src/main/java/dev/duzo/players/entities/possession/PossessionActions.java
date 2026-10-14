@@ -28,7 +28,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * What a possessor's clicks do to the world, performed by the fake from its own eyes. Every number a client sends is
@@ -99,7 +99,7 @@ final class PossessionActions {
 			reject(player, "bad attack target " + targetId);
 			return;
 		}
-		if (target instanceof Player && !level.isPvpAllowed()) {
+		if (target instanceof Player && !level.getServer().isPvpAllowed()) {
 			reject(player, "pvp is off");
 			return;
 		}

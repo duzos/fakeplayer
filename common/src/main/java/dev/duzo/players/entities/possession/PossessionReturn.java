@@ -2,7 +2,7 @@ package dev.duzo.players.entities.possession;
 
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.UUID;
 
