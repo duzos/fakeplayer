@@ -2,6 +2,7 @@ package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakeFishingHook;
 import dev.duzo.players.compat.RiverFishingBridge;
+import dev.duzo.players.compat.TideFishingBridge;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.requests.StockReserve;
@@ -433,7 +434,13 @@ public class FishermanJobExecutor implements JobExecutor {
 			if (modded != null) key = modded;
 		}
 
-		OpenWaterProbe probe = new OpenWaterProbe(level, inLava || isOpenWater(level, bobber));
+		boolean openWater = inLava || isOpenWater(level, bobber);
+		if (!inLava && TideFishingBridge.isRod(rod(e))) {
+			List<ItemStack> tide = TideFishingBridge.roll(level, rod(e), bobber, origin, openWater, luck);
+			if (tide != null) return tide;
+		}
+
+		OpenWaterProbe probe = new OpenWaterProbe(level, openWater);
 		probe.setPos(origin.x, origin.y, origin.z);
 
 		LootTable table = level.getServer().reloadableRegistries().getLootTable(key);
