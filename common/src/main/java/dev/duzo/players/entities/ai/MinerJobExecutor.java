@@ -395,9 +395,10 @@ public class MinerJobExecutor implements JobExecutor {
 		}
 		if (level.getGameTime() < throttleUntilTick) return;
 		if (capCursor >= area()) {
+			// finish only once the line is settled, so a rate-limited completion is retried next tick
+			if (!FakeSpeech.settle(entity, Verbosity.NORMAL, "complete", "miner: quarry complete")) return;
 			phase = Phase.DONE;
 			entity.mutateAIState(s -> s.setRunning(false));
-			FakeSpeech.say(entity, Verbosity.NORMAL, "complete", "miner: quarry complete");
 			return;
 		}
 		BlockPos target = posForIndex(capCursor, topY + 1);
@@ -1063,11 +1064,11 @@ public class MinerJobExecutor implements JobExecutor {
 	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
 		entity.getNavigation().stop();
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
-		if (!waiting || waitMessage == null || !waitMessage.equals(message)) {
-			FakeSpeech.say(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry");
-		}
+		boolean fresh = !waiting || waitMessage == null || !waitMessage.equals(message);
+		boolean told = !fresh || FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry");
 		waiting = true;
-		waitMessage = message;
+		// left unset when the line was rate limited, so the next wait announces it again
+		if (told) waitMessage = message;
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
 	}
 

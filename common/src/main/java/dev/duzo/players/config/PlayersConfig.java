@@ -63,9 +63,12 @@ public class PlayersConfig {
 	 * "chatty" (plus progress chatter). Each kind of line is spoken at most once per 30 seconds per fake, and a
 	 * fake never speaks more than once per 2 seconds. */
 	public String speechVerbosity = "quiet";
-	/** True shows a fake's public lines as a speech bubble above its head and keeps them out of chat. False sends
-	 * them to chat as a vanilla {@code <name> message} line, as older versions did. Alerts to one owner stay in chat. */
+	/** True draws a fake's public lines as a speech bubble above its head. Every line also goes to chat as the fake's
+	 * own {@code <name> message} line unless {@link #speechBubblesReplaceChat} is set. Alerts to one owner stay in chat. */
 	public boolean speechBubbles = true;
+	/** True keeps bubble-eligible lines out of chat while speechBubbles is on. Lines a player asked for (the chat
+	 * command, a named paper) always reach chat. Has no effect while speechBubbles is off. */
+	public boolean speechBubblesReplaceChat = false;
 	/** Client side: how far away, in blocks, a speech bubble is still drawn. */
 	public double bubbleRange = 24.0;
 	/** Client side: most fakes that show a bubble at once; the nearest win. */
