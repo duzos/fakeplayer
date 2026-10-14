@@ -15,8 +15,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /** Breaks one block at a time with Miner's progress and swing timing, and puts the drops in the fake's inventory. */
-final class BlockBreaker {
-	enum Result {
+public final class BlockBreaker {
+	public enum Result {
 		/** Still digging. */
 		PROGRESS,
 		BROKEN,
@@ -31,7 +31,7 @@ final class BlockBreaker {
 	private int stage = -1;
 
 	/** One tick of work on `pos`. Moving to a different block restarts the progress. */
-	Result tick(ServerLevel level, FakePlayerEntity entity, BlockPos pos) {
+	public Result tick(ServerLevel level, FakePlayerEntity entity, BlockPos pos) {
 		if (target != null && !target.equals(pos)) reset(level, entity);
 		BlockState state = level.getBlockState(pos);
 		if (state.isAir() || state.getDestroySpeed(level, pos) < 0.0F) {
@@ -53,7 +53,7 @@ final class BlockBreaker {
 	}
 
 	/** Drops any half-dug crack overlay and forgets the target. */
-	void reset(ServerLevel level, FakePlayerEntity entity) {
+	public void reset(ServerLevel level, FakePlayerEntity entity) {
 		if (target != null && stage >= 0) level.destroyBlockProgress(entity.getId(), target, -1);
 		target = null;
 		progress = 0.0F;

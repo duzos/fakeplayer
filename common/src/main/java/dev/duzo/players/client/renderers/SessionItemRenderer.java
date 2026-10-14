@@ -59,6 +59,9 @@ public final class SessionItemRenderer {
 			case AIMarkerItem.PURPOSE_REGION -> renderRegion(pose, lines, cam, stack, bound, crosshair);
 			case AIMarkerItem.PURPOSE_WAYPOINT -> renderWaypoint(pose, lines, cam, bound, crosshair);
 			case AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.PURPOSE_POOL -> renderChestPicker(pose, lines, cam, level, bound, crosshair);
+			case AIMarkerItem.PURPOSE_ANCHOR -> {
+				if (crosshair != null) drawBlock(pose, lines, cam, crosshair, COLOR_LIVE);
+			}
 			default -> {}
 		}
 
