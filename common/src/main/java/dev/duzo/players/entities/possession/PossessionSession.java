@@ -30,6 +30,8 @@ final class PossessionSession {
 	long lastAttackTick = Long.MIN_VALUE / 2;
 	long lastUseTick = Long.MIN_VALUE / 2;
 	boolean fullNotified;
+	long actionTick = Long.MIN_VALUE / 2;
+	int actionCount;
 
 	PossessionSession(MinecraftServer server, UUID player, FakePlayerEntity fake, PossessionReturn returnPoint, GameType returnMode) {
 		this.server = server;
