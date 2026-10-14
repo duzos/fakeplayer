@@ -11,6 +11,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.vehicle.boat.Boat;
+import net.minecraft.world.entity.vehicle.boat.Raft;
+import net.minecraft.world.entity.vehicle.minecart.Minecart;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -35,7 +41,8 @@ public final class RidingInteractions {
 	public static InteractionResult useEntity(Player player, Level level, InteractionHand hand, Entity target) {
 		FakePlayerEntity fake = boundFake(player, level, hand);
 		if (fake == null) return InteractionResult.PASS;
-		if (target instanceof Player || target instanceof LivingEntity) return InteractionResult.PASS;
+		if (!isSeatable(target)) return InteractionResult.PASS;
+		if (fake.getVehicle() == target) return InteractionResult.SUCCESS;
 		if (!allowed(player, fake)) return InteractionResult.FAIL;
 		if (isContraption(target)) {
 			tell(player, "Use the marker on the seat block instead.", ChatFormatting.RED);
@@ -44,10 +51,6 @@ public final class RidingInteractions {
 		if (fake.distanceToSqr(target) > SEAT_RANGE_SQ) {
 			tell(player, "That is too far from the fake.", ChatFormatting.RED);
 			return InteractionResult.FAIL;
-		}
-		if (fake.getVehicle() == target) {
-			tell(player, "Already seated there.", ChatFormatting.YELLOW);
-			return InteractionResult.SUCCESS;
 		}
 		prepare(fake);
 		if (!fake.startRiding(target)) {
@@ -61,27 +64,62 @@ public final class RidingInteractions {
 		return InteractionResult.SUCCESS;
 	}
 
-	/** Marker used on a Create seat block: the fake is dropped onto it and Create's own landing seats it. */
+	/** Marker used on a Create seat block: the fake is seated on a fresh create:seat entity. */
 	public static InteractionResult useBlock(Player player, Level level, InteractionHand hand, BlockHitResult hit) {
 		BlockPos pos = hit.getBlockPos();
 		if (!isSeatBlock(level.getBlockState(pos))) return InteractionResult.PASS;
 		FakePlayerEntity fake = boundFake(player, level, hand);
 		if (fake == null) return InteractionResult.PASS;
 		if (!allowed(player, fake)) return InteractionResult.FAIL;
-		if (fake.distanceToSqr(Vec3.atCenterOf(pos)) > SEAT_RANGE_SQ) {
-			tell(player, "That is too far from the fake.", ChatFormatting.RED);
+		if (!(level instanceof ServerLevel server)) return InteractionResult.PASS;
+		if (player.distanceToSqr(Vec3.atCenterOf(pos)) > SEAT_RANGE_SQ || !level.isLoaded(pos)) {
+			tell(player, "That seat is too far away.", ChatFormatting.RED);
+			return InteractionResult.FAIL;
+		}
+		EntityType<?> seatType = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("create", "seat")).orElse(null);
+		if (seatType == null) {
+			tell(player, "Create's seat entity is not available.", ChatFormatting.RED);
+			return InteractionResult.FAIL;
+		}
+		var seats = level.getEntitiesOfClass(Entity.class, new AABB(pos), e -> e.getType() == seatType);
+		if (seats.stream().anyMatch(e -> e == fake.getVehicle())) return InteractionResult.SUCCESS;
+		if (seats.stream().anyMatch(Entity::isVehicle)) {
+			tell(player, "That seat is taken.", ChatFormatting.RED);
 			return InteractionResult.FAIL;
 		}
 		prepare(fake);
 		if (fake.isRiding()) fake.stopRiding();
 		fake.getNavigation().stop();
 		fake.setDeltaMovement(Vec3.ZERO);
-		// a little above the seat, so it lands on it the way a falling mob does
-		fake.teleportTo(pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D);
+		// the way Create's SeatBlock.sitDown does it: a fresh seat entity at the block, then ride it
+		Entity seat = seatType.create(server, EntitySpawnReason.COMMAND);
+		if (seat == null) {
+			tell(player, "Create's seat entity is not available.", ChatFormatting.RED);
+			return InteractionResult.FAIL;
+		}
+		seat.setPos(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
+		server.addFreshEntity(seat);
+		if (!fake.startRiding(seat, true, true)) {
+			seat.discard();
+			tell(player, "The fake cannot sit there.", ChatFormatting.RED);
+			return InteractionResult.FAIL;
+		}
 		fake.setOrderedSeat(true);
 		Constants.traceEvent("seat ordered {} onto seat block {}", fake.getUUID(), pos);
 		tell(player, "Seated.", ChatFormatting.GREEN);
 		return InteractionResult.SUCCESS;
+	}
+
+	/** Plain boats and minecarts, and any non-living seat entity (create:seat and other mods' seats). */
+	private static boolean isSeatable(Entity target) {
+		if (target instanceof Player || target instanceof LivingEntity) return false;
+		if (target instanceof Boat || target instanceof Raft || target.getClass() == Minecart.class) return true;
+		return BuiltInRegistries.ENTITY_TYPE.getKey(target.getType()).getPath().contains("seat");
+	}
+
+	public static boolean mayCommand(Player player, FakePlayerEntity fake) {
+		UUID owner = fake.getAIState().ownerUUID();
+		return owner == null || owner.equals(player.getUUID()) || AIMarkerItem.isOp(player);
 	}
 
 	/** Create's seats are blocks named {@code create:<colour>_seat}; matched by id so there is no compile dependency. */
@@ -104,8 +142,7 @@ public final class RidingInteractions {
 	}
 
 	private static boolean allowed(Player player, FakePlayerEntity fake) {
-		UUID owner = fake.getAIState().ownerUUID();
-		if (owner == null || owner.equals(player.getUUID()) || AIMarkerItem.isOp(player)) return true;
+		if (mayCommand(player, fake)) return true;
 		tell(player, "You do not own this fake.", ChatFormatting.RED);
 		return false;
 	}
