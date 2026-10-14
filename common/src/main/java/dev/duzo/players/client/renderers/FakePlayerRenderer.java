@@ -81,6 +81,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 		}
 
 		super.render(state, matrices, buffer, packedLight);
+		if (state instanceof FakePlayerRenderState fake) SpeechBubbles.render(this, fake, matrices, buffer, packedLight);
 		matrices.popPose();
 	}
 
@@ -98,6 +99,11 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 			return;
 		}
 		super.renderNameTag(state, name, stack, buffer, packedLight);
+	}
+
+	/** Draws one line with vanilla's name tag call, which only the renderer itself can reach. */
+	void drawTag(PlayerRenderState state, Component text, PoseStack stack, MultiBufferSource buffer, int packedLight) {
+		super.renderNameTag(state, text, stack, buffer, packedLight);
 	}
 
 	// LivingEntityRenderer's equivalent arm-pose logic lives on HumanoidMobRenderer for a Mob, which a fake
