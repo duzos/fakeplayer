@@ -11,6 +11,7 @@
 - added a Stock box to worker AI menus. set items and amounts, and workers request refills while they work.
 - Crafters can fill requests using materials from storage, including recipes with several steps. this needs a free, bonded Crafter with a marked table.
 - fakes now ride boats, minecarts, Create seats and trains and other mods' seats. seat one with its AI marker, and use stairs on it to get off. a fake at a train's conductor seat runs the train from a schedule.
+- added the Possession Link. link it to your fake, use it in the air to see and act through the fake, and sneak to return.
 
 ## CHANGED
 
