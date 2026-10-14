@@ -1,5 +1,6 @@
 package dev.duzo.players.platform;
 
+import dev.duzo.players.Constants;
 import dev.duzo.players.entities.ai.storage.ExternalStorage;
 import dev.duzo.players.platform.services.IStorageProvider;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
@@ -29,6 +30,8 @@ public class FabricStorageProvider implements IStorageProvider {
 		for (Direction side : SIDES) {
 			Storage<ItemVariant> storage = ItemStorage.SIDED.find(level, pos, side);
 			if (storage != null && (storage.supportsInsertion() || storage.supportsExtraction())) {
+				Constants.trace("storage/" + pos, "fabric storage at {} side {} = {} slotted={}", pos, side,
+						storage.getClass().getName(), storage instanceof SlottedStorage<ItemVariant>);
 				return new FabricStorage(storage);
 			}
 		}
@@ -121,6 +124,8 @@ public class FabricStorageProvider implements IStorageProvider {
 						: storage.extract(resource, capped, tx);
 				if (!simulate) tx.commit();
 			}
+			Constants.traceEvent("fabric extract slot {} {} x{} view={} sim={} -> {}",
+					slot, resource.getItem(), capped, view.getClass().getName(), simulate, extracted);
 			if (!simulate && !(storage instanceof SlottedStorage<ItemVariant>)) views = null;
 			return extracted <= 0 ? ItemStack.EMPTY : resource.toStack(clamp(extracted));
 		}

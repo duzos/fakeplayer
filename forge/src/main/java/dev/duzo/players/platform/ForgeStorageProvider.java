@@ -1,5 +1,6 @@
 package dev.duzo.players.platform;
 
+import dev.duzo.players.Constants;
 import dev.duzo.players.entities.ai.storage.ExternalStorage;
 import dev.duzo.players.platform.services.IStorageProvider;
 import net.minecraft.core.BlockPos;
@@ -25,7 +26,11 @@ public class ForgeStorageProvider implements IStorageProvider {
 		if (be == null) return null;
 		for (Direction side : SIDES) {
 			IItemHandler handler = be.getCapability(ForgeCapabilities.ITEM_HANDLER, side).resolve().orElse(null);
-			if (handler != null && handler.getSlots() > 0) return new HandlerStorage(handler);
+			if (handler != null && handler.getSlots() > 0) {
+				Constants.trace("storage/" + pos, "forge storage at {} side {} = {} size={}", pos, side,
+						handler.getClass().getName(), handler.getSlots());
+				return new HandlerStorage(handler);
+			}
 		}
 		return null;
 	}
@@ -72,7 +77,10 @@ public class ForgeStorageProvider implements IStorageProvider {
 			if (amount <= 0) return ItemStack.EMPTY;
 			ItemStack inSlot = handler.getStackInSlot(slot);
 			if (inSlot.isEmpty()) return ItemStack.EMPTY;
-			return handler.extractItem(slot, Math.min(amount, inSlot.getMaxStackSize()), simulate);
+			ItemStack out = handler.extractItem(slot, Math.min(amount, inSlot.getMaxStackSize()), simulate);
+			Constants.traceEvent("forge extract slot {} {} x{} sim={} -> {}",
+					slot, inSlot.getItem(), amount, simulate, out.getCount());
+			return out;
 		}
 	}
 }
