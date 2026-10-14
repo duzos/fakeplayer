@@ -3,6 +3,7 @@ package dev.duzo.players.network.c2s;
 import commonnetwork.networking.data.PacketContext;
 import commonnetwork.networking.data.Side;
 import dev.duzo.players.PlayersCommon;
+import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -33,7 +34,7 @@ public record BondPacketC2S(int id, boolean bond) implements CustomPacketPayload
 			entity.mutateAIState(s -> s.setOwnerUUID(sender.getUUID()));
 			return;
 		}
-		if (owner == null || !owner.equals(sender.getUUID())) return;
+		if (owner == null || (!owner.equals(sender.getUUID()) && !AIMarkerItem.isOp(sender))) return;
 		// needs the owner still on the fake, to find its requests
 		dev.duzo.players.entities.ai.BuilderJobExecutor.cancelOutstanding(entity);
 		entity.mutateAIState(s -> s.setOwnerUUID(null));
