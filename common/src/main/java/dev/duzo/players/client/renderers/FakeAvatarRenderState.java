@@ -14,4 +14,6 @@ public class FakeAvatarRenderState extends AvatarRenderState {
 	public List<Component> bubbleRows = List.of();
 	public Vec3 bubbleAnchor;
 	public int bubbleBase;
+	public Component statusMark;
+	public int markBase;
 }
