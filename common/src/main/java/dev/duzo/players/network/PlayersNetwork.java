@@ -16,6 +16,7 @@ import dev.duzo.players.network.c2s.CancelRequestPacketC2S;
 import dev.duzo.players.network.c2s.RequestStockPacketC2S;
 import dev.duzo.players.network.s2c.StockListPacketS2C;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
+import dev.duzo.players.network.c2s.SetBuildPacketC2S;
 import dev.duzo.players.network.c2s.SetStockListPacketC2S;
 import dev.duzo.players.network.c2s.SetFakePlayerNamePacketC2S;
 import dev.duzo.players.network.c2s.SetJobPacketC2S;
@@ -51,6 +52,7 @@ public class PlayersNetwork {
 		Network.registerPacket(OpenCrafterLearnPacketC2S.LOCATION, OpenCrafterLearnPacketC2S.class, OpenCrafterLearnPacketC2S::encode, OpenCrafterLearnPacketC2S::decode, OpenCrafterLearnPacketC2S::handle);
 		Network.registerPacket(LearnRecipePacketC2S.LOCATION, LearnRecipePacketC2S.class, LearnRecipePacketC2S::encode, LearnRecipePacketC2S::decode, LearnRecipePacketC2S::handle);
 		Network.registerPacket(OpenFakeMenuPacketC2S.LOCATION, OpenFakeMenuPacketC2S.class, OpenFakeMenuPacketC2S::encode, OpenFakeMenuPacketC2S::decode, OpenFakeMenuPacketC2S::handle);
+		Network.registerPacket(SetBuildPacketC2S.LOCATION, SetBuildPacketC2S.class, SetBuildPacketC2S::encode, SetBuildPacketC2S::decode, SetBuildPacketC2S::handle);
 		Network.registerPacket(CustomBindStatePacketC2S.LOCATION, CustomBindStatePacketC2S.class, CustomBindStatePacketC2S::encode, CustomBindStatePacketC2S::decode, CustomBindStatePacketC2S::handle);
 	}
 }
