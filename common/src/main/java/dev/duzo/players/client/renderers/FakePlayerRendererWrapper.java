@@ -59,6 +59,7 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
 			fake.slim = entity.isSlim();
+			SpeechBubbles.extract(entity, fake, state.distanceToCameraSq, entity.isCustomNameVisible(), partialTick);
 		}
 		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING) {
 			state.pose = Pose.SLEEPING;

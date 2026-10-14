@@ -64,6 +64,11 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 		}
 	}
 
+	/** Draws one line with vanilla's name tag call, which only the renderer itself can reach. */
+	void drawTag(PlayerRenderState state, Component text, PoseStack stack, MultiBufferSource buffer, int packedLight) {
+		super.renderNameTag(state, text, stack, buffer, packedLight);
+	}
+
 	// AvatarRenderer's equivalent is private and takes an Avatar, which a fake is not, so it is mirrored here.
 	static HumanoidModel.ArmPose armPose(FakePlayerEntity entity, HumanoidArm arm) {
 		ItemStack main = entity.getItemInHand(InteractionHand.MAIN_HAND);
@@ -118,6 +123,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 		}
 
 		super.render(state, matrices, buffer, packedLight);
+		if (state instanceof FakePlayerRenderState fake) SpeechBubbles.render(this, fake, matrices, buffer, packedLight);
 		matrices.popPose();
 	}
 
