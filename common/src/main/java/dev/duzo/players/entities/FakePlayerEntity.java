@@ -18,6 +18,7 @@ import dev.duzo.players.entities.ai.requests.SenderAlerts;
 import dev.duzo.players.entities.speech.FakeSpeech;
 import dev.duzo.players.entities.speech.Verbosity;
 import dev.duzo.players.entities.ai.requests.StockKeeper;
+import net.minecraft.core.registries.BuiltInRegistries;
 import dev.duzo.players.entities.ai.RangedWeapon;
 import dev.duzo.players.entities.goal.FakeMeleeAttackGoal;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
@@ -157,7 +158,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	private boolean orderedSeat;
 	private int accidentalSeatTicks;
 	private int unseatedTicks;
-	private long leftVehicleTick = Long.MIN_VALUE;
+	private boolean carriedOffByCreate;
 
 	/** Seated in a boat, minecart, seat or anything else that carries passengers. */
 	public boolean isRiding() {
@@ -170,14 +171,17 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	public void setOrderedSeat(boolean ordered) {
 		this.orderedSeat = ordered;
+		this.unseatedTicks = 0;
 	}
 
 	private void tickRiding() {
+		carriedOffByCreate = false;
 		if (!this.isPassenger()) {
 			accidentalSeatTicks = 0;
 			// a seat that re-seats its riders (assembling a train) leaves a gap, so the order is only forgotten after a while
 			if (orderedSeat && ++unseatedTicks > UNSEATED_GRACE) {
 				orderedSeat = false;
+				unseatedTicks = 0;
 				Constants.traceEvent("seat order lapsed {}", this.getUUID());
 			}
 			return;
@@ -198,15 +202,16 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	@Override
 	public void removeVehicle() {
 		Entity vehicle = this.getVehicle();
-		if (vehicle != null && (this.getRemovalReason() == RemovalReason.DISCARDED || vehicle.getRemovalReason() == RemovalReason.DISCARDED)) {
-			this.leftVehicleTick = this.level().getGameTime();
+		if (vehicle != null && (this.getRemovalReason() == RemovalReason.DISCARDED || vehicle.getRemovalReason() == RemovalReason.DISCARDED)
+				&& "create".equals(BuiltInRegistries.ENTITY_TYPE.getKey(vehicle.getType()).getNamespace())) {
+			this.carriedOffByCreate = true;
 		}
 		super.removeVehicle();
 	}
 
 	// setRemoved lets go of the vehicle before onRemoval runs, so "was riding" has to be remembered from removeVehicle
 	private boolean discardedAsPassenger(RemovalReason reason) {
-		return reason == RemovalReason.DISCARDED && this.level().getGameTime() - this.leftVehicleTick <= 1L;
+		return reason == RemovalReason.DISCARDED && this.carriedOffByCreate;
 	}
 
 	// ---- bed ----
