@@ -16,6 +16,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.AbstractChestBlock;
 import net.minecraft.world.level.block.BarrelBlock;
 import net.minecraft.world.level.block.Block;
@@ -187,7 +188,7 @@ public final class JobHelpers {
 		RETRY_AFTER.put(e.getUUID(), now + FAIL_COOLDOWN_TICKS);
 	}
 
-	public static Container containerAt(ServerLevel level, BlockPos pos) {
+	public static Container containerAt(Level level, BlockPos pos) {
 		return pos == null ? null : HopperBlockEntity.getContainerAt(level, pos);
 	}
 

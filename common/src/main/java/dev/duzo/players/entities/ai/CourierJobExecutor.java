@@ -37,7 +37,7 @@ public class CourierJobExecutor implements JobExecutor {
 		switch (phase) {
 			case TO_SOURCE -> walkTo(entity, source, Phase.PULL);
 			case PULL -> {
-				Container src = HopperBlockEntity.getContainerAt(level, source);
+				Container src = JobHelpers.containerAt(level, source);
 				if (src == null) {
 					JobHelpers.closeContainer(level, entity);
 					phase = Phase.TO_DEPOSIT;
@@ -60,7 +60,7 @@ public class CourierJobExecutor implements JobExecutor {
 			}
 			case TO_DEPOSIT -> walkTo(entity, deposit, Phase.DUMP);
 			case DUMP -> {
-				Container dst = HopperBlockEntity.getContainerAt(level, deposit);
+				Container dst = JobHelpers.containerAt(level, deposit);
 				if (dst == null) {
 					JobHelpers.closeContainer(level, entity);
 					phase = Phase.TO_SOURCE;
@@ -88,7 +88,7 @@ public class CourierJobExecutor implements JobExecutor {
 	}
 
 	private void tickWaitingAtDeposit(ServerLevel level, FakePlayerEntity entity, BlockPos deposit) {
-		Container dst = HopperBlockEntity.getContainerAt(level, deposit);
+		Container dst = JobHelpers.containerAt(level, deposit);
 		if (dst != null && entity.blockPosition().distSqr(deposit) <= ARRIVAL_DIST_SQR && JobHelpers.pollContainer(level, entity, deposit)) {
 			int moved = dumpAll(entity.getInventory(), dst, TRANSFER_PER_TICK, StockReserve.of(entity));
 			if (moved > 0) { // owner made room - resume the normal drain

@@ -279,7 +279,7 @@ public class FarmerJobExecutor implements JobExecutor {
 			return;
 		}
 		if (moveToChest(level, entity)) return;
-		if (HopperBlockEntity.getContainerAt(level, chest) == null) {
+		if (JobHelpers.containerAt(level, chest) == null) {
 			waitForBlocker(level, entity, "farmer: deposit container gone");
 			return;
 		}
@@ -419,7 +419,7 @@ public class FarmerJobExecutor implements JobExecutor {
 	private boolean serviceAtChest(ServerLevel level, FakePlayerEntity entity) {
 		BlockPos chest = entity.getAIState().depositChest();
 		if (chest == null) { JobHelpers.closeContainer(level, entity); return true; }
-		Container c = HopperBlockEntity.getContainerAt(level, chest);
+		Container c = JobHelpers.containerAt(level, chest);
 		if (c == null) { JobHelpers.closeContainer(level, entity); return true; }
 		if (!JobHelpers.pollContainer(level, entity, chest)) return false; // open + pause ~1s before servicing
 		dumpInto(c, entity);
