@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.gui.screens.MenuScreens;
 
 public class PlayersFabricClient implements ClientModInitializer {
@@ -31,6 +32,7 @@ public class PlayersFabricClient implements ClientModInitializer {
 		ClientTickEvents.START_CLIENT_TICK.register(PlayersCommonClient::tickStart);
 		ClientTickEvents.END_CLIENT_TICK.register(PlayersCommonClient::tick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> PlayersCommonClient.onClientStopping());
+		HudRenderCallback.EVENT.register(PossessionHud::render);
 		WorldRenderEvents.LAST.register(ctx -> {
 			SessionItemMarkerRenderer.render(ctx.matrixStack(),
 					Minecraft.getInstance().renderBuffers().bufferSource(),
