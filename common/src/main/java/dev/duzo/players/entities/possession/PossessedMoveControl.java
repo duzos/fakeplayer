@@ -30,7 +30,7 @@ public class PossessedMoveControl extends MoveControl {
 			return;
 		}
 		// whatever a goal asked for before the possession started must not resume when it ends
-		this.setWait();
+		this.operation = MoveControl.Operation.WAIT;
 		fake.setSpeed((float) fake.getAttributeValue(Attributes.MOVEMENT_SPEED));
 		fake.setZza(forward);
 		fake.setXxa(strafe);

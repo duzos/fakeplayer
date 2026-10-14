@@ -5,7 +5,7 @@ import dev.duzo.players.entities.ai.builder.BlockBreaker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.GameType;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.UUID;
 

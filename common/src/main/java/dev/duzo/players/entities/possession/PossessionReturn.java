@@ -2,7 +2,7 @@ package dev.duzo.players.entities.possession;
 
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.UUID;
 
@@ -24,10 +24,10 @@ public record PossessionReturn(String dimension, double x, double y, double z, f
 	@Nullable
 	public static PossessionReturn fromTag(@Nullable CompoundTag tag) {
 		if (tag == null || !tag.contains("Dim")) return null;
-		int[] fake = tag.getIntArray("Fake").filter(arr -> arr.length == 4).orElse(null);
-		if (fake == null) return null;
-		return new PossessionReturn(tag.getStringOr("Dim", ""), tag.getDoubleOr("X", 0.0), tag.getDoubleOr("Y", 0.0),
-				tag.getDoubleOr("Z", 0.0), tag.getFloatOr("YRot", 0.0F), tag.getFloatOr("XRot", 0.0F),
-				tag.getIntOr("Mode", 0), UUIDUtil.uuidFromIntArray(fake));
+		int[] fake = tag.getIntArray("Fake");
+		if (fake.length != 4) return null;
+		return new PossessionReturn(tag.getString("Dim"), tag.getDouble("X"), tag.getDouble("Y"),
+				tag.getDouble("Z"), tag.getFloat("YRot"), tag.getFloat("XRot"),
+				tag.getInt("Mode"), UUIDUtil.uuidFromIntArray(fake));
 	}
 }

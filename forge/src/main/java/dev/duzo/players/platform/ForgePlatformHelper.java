@@ -2,7 +2,7 @@ package dev.duzo.players.platform;
 
 import dev.duzo.players.platform.services.IPlatformHelper;
 import dev.duzo.players.platform.services.UseCheck;
-import net.minecraft.util.TriState;
+import net.neoforged.bus.api.Event;
 import dev.duzo.players.entities.possession.PossessionGuard;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
@@ -54,7 +54,7 @@ public class ForgePlatformHelper implements IPlatformHelper {
             return true;
         });
         if (event.isCanceled()) return event.getCancellationResult().consumesAction() ? UseCheck.HANDLED : UseCheck.DENY;
-        return new UseCheck(UseCheck.Verdict.PROCEED, event.getUseBlock() != TriState.FALSE, event.getUseItem() != TriState.FALSE);
+        return new UseCheck(UseCheck.Verdict.PROCEED, event.getUseBlock() != Event.Result.DENY, event.getUseItem() != Event.Result.DENY);
     }
 
     @Override
