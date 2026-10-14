@@ -33,7 +33,6 @@ import dev.duzo.players.menu.FakePlayerMenu;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
 import dev.duzo.players.platform.Services;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
@@ -557,7 +556,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		nbt.put("AIState", this.entityData.get(AI_STATE));
 		if (chunkAnchored) nbt.putBoolean("ChunkAnchor", true);
 		if (bedClaim != null) {
-			nbt.put("BedClaim", NbtUtils.writeBlockPos(bedClaim));
+			nbt.store("BedClaim", BlockPos.CODEC, bedClaim);
 			nbt.putString("BedClaimDim", bedClaimDim);
 		}
 		if (!forcedChunks.isEmpty()) {
@@ -637,7 +636,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		// so it never self-heals; re-apply the guarantee every load instead.
 		for (EquipmentSlot slot : EquipmentSlot.values()) this.setGuaranteedDrop(slot);
 
-		this.bedClaim = NbtUtils.readBlockPos(nbt, "BedClaim").orElse(null);
+		this.bedClaim = nbt.read("BedClaim", BlockPos.CODEC).orElse(null);
 		this.bedClaimDim = nbt.getStringOr("BedClaimDim", "");
 		// a claim copied across by a dimension change names a bed in the other dimension; the original releases it
 		if (this.bedClaim != null && !this.bedClaimDim.equals(this.level().dimension().location().toString())) {
