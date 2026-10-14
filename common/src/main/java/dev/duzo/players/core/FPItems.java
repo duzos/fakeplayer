@@ -11,6 +11,7 @@ public class FPItems {
 	public static final Supplier<Item> PLAYER_SHELL = register("player_shell", () -> new Item(new Item.Properties()));
 	public static final Supplier<Item> PLAYER_EGG = register("player_egg", () -> new PlayerEggItem(new Item.Properties()));
 	public static final Supplier<Item> AI_MARKER = register("ai_marker", () -> new AIMarkerItem(new Item.Properties()));
+	public static final Supplier<Item> CHUNK_ANCHOR = register("chunk_anchor", () -> new ChunkAnchorItem(new Item.Properties().stacksTo(1).fireResistant()));
 
 	public static Supplier<Item> register(String name, Supplier<Item> item) {
 		return Services.COMMON_REGISTRY.registerItem(Constants.MOD_ID, name, item);
@@ -20,5 +21,6 @@ public class FPItems {
 		Services.COMMON_REGISTRY.addToGroup(PLAYER_AI, "ingredients");
 		Services.COMMON_REGISTRY.addToGroup(PLAYER_SHELL, "ingredients");
 		Services.COMMON_REGISTRY.addToGroup(PLAYER_EGG, "spawn_eggs");
+		Services.COMMON_REGISTRY.addToGroup(CHUNK_ANCHOR, "ingredients");
 	}
 }
