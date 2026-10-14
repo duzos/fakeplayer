@@ -7,6 +7,8 @@ import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.CustomBindStatePacketC2S;
 import dev.duzo.players.network.c2s.CyclePosePacketC2S;
 import dev.duzo.players.network.c2s.OpenFakeMenuPacketC2S;
+import dev.duzo.players.network.c2s.PossessActionC2S;
+import dev.duzo.players.network.c2s.PossessInputC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
 import dev.duzo.players.network.c2s.LearnRecipePacketC2S;
 import dev.duzo.players.network.c2s.OpenCrafterLearnPacketC2S;
@@ -54,5 +56,7 @@ public class PlayersNetwork {
 		Network.registerPacket(OpenFakeMenuPacketC2S.LOCATION, OpenFakeMenuPacketC2S.class, OpenFakeMenuPacketC2S::encode, OpenFakeMenuPacketC2S::decode, OpenFakeMenuPacketC2S::handle);
 		Network.registerPacket(SetBuildPacketC2S.LOCATION, SetBuildPacketC2S.class, SetBuildPacketC2S::encode, SetBuildPacketC2S::decode, SetBuildPacketC2S::handle);
 		Network.registerPacket(CustomBindStatePacketC2S.LOCATION, CustomBindStatePacketC2S.class, CustomBindStatePacketC2S::encode, CustomBindStatePacketC2S::decode, CustomBindStatePacketC2S::handle);
+		Network.registerPacket(PossessInputC2S.LOCATION, PossessInputC2S.class, PossessInputC2S::encode, PossessInputC2S::decode, PossessInputC2S::handle);
+		Network.registerPacket(PossessActionC2S.LOCATION, PossessActionC2S.class, PossessActionC2S::encode, PossessActionC2S::decode, PossessActionC2S::handle);
 	}
 }
