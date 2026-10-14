@@ -91,6 +91,7 @@ Install it on the server and on every client that joins.
 - Storage Drawers, Sophisticated Storage and other modded storage
 - Fishing rods from other mods, and Aquaculture tackle on Forge
 - Tide rods, with Tide's own fish and loot
+- TACZ guns, fired and reloaded from the fake's own inventory
 
 ## Get one
 
