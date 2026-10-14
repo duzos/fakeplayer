@@ -19,6 +19,7 @@ import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
@@ -113,7 +114,7 @@ final class PossessionActions {
 			return;
 		}
 		s.lastAttackTick = now;
-		fake.swing(InteractionHand.MAIN_HAND);
+		fake.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
 		boolean hit = fake.doHurtTarget(level, target);
 		Constants.traceEvent("possession attack {} target={} hit={}", fake.getUUID(), target.getUUID(), hit);
 	}
@@ -241,7 +242,7 @@ final class PossessionActions {
 			return;
 		}
 		if (result.consumesAction()) {
-			fake.swing(InteractionHand.MAIN_HAND);
+			fake.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
 			// the context has no player, so the item skipped its own wear. a door or lever toggle wears nothing
 			ItemStack worn = fake.getMainHandItem();
 			if (usedItem && worn.isDamageableItem()) worn.hurtAndBreak(1, fake, EquipmentSlot.MAINHAND);

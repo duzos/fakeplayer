@@ -84,7 +84,7 @@ public final class PossessionClient {
 		if (fake.getId() != fakeId) begin(player, fake);
 
 		Options options = client.options;
-		boolean canAct = client.screen == null && client.getOverlay() == null && client.mouseHandler.isMouseGrabbed();
+		boolean canAct = client.gui.screen() == null && client.gui.overlay() == null && client.mouseHandler.isMouseGrabbed();
 
 		// everything vanilla would do with these as a spectator is wrong for a possessor, so no click survives this tick
 		int attackClicks = drain(options.keyAttack);
@@ -164,7 +164,7 @@ public final class PossessionClient {
 		if (fakeId != -1) client.options.keySpectatorOutlines.setDown(false);
 		if (!attackWasDown && !useWasDown) return;
 		// a screen opened during the tick already released every key, and restoring one now would stick it
-		if (client.screen == null) {
+		if (client.gui.screen() == null) {
 			if (attackWasDown) client.options.keyAttack.setDown(true);
 			if (useWasDown) client.options.keyUse.setDown(true);
 		}
