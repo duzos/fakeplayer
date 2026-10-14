@@ -3,7 +3,7 @@ package dev.duzo.players.client;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -15,7 +15,7 @@ public final class PossessionHud {
 
 	private PossessionHud() {}
 
-	public static void render(GuiGraphics graphics, DeltaTracker tracker) {
+	public static void render(GuiGraphicsExtractor graphics, DeltaTracker tracker) {
 		Minecraft client = Minecraft.getInstance();
 		FakePlayerEntity fake = PossessionClient.possessed(client);
 		if (fake == null || client.options.hideGui) return;
@@ -31,6 +31,6 @@ public final class PossessionHud {
 				: fake.getMainHandItem().getHoverName();
 		Component status = Component.translatable("hud.players.possession.status", fake.getDisplayName(),
 				Mth.ceil(fake.getHealth()), Mth.ceil(fake.getMaxHealth()), held);
-		graphics.drawCenteredString(client.font, status, graphics.guiWidth() / 2, graphics.guiHeight() - 40, 0xFFFFFFFF);
+		graphics.centeredText(client.font, status, graphics.guiWidth() / 2, graphics.guiHeight() - 40, 0xFFFFFFFF);
 	}
 }

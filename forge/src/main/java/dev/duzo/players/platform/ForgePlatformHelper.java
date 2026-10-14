@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLEnvironment;
 
@@ -41,7 +42,7 @@ public class ForgePlatformHelper implements IPlatformHelper {
     @Override
     public boolean canBreak(ServerLevel level, ServerPlayer player, BlockPos pos) {
         if (!level.mayInteract(player, pos)) return false;
-        return !NeoForge.EVENT_BUS.post(new BlockEvent.BreakEvent(level, pos, level.getBlockState(pos), player)).isCanceled();
+        return !NeoForge.EVENT_BUS.post(new BreakBlockEvent(level, pos, level.getBlockState(pos), player)).isCanceled();
     }
 
     @Override
