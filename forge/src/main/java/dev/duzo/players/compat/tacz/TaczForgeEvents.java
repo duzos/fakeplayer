@@ -2,14 +2,14 @@ package dev.duzo.players.compat.tacz;
 
 import com.tacz.guns.api.event.common.EntityHurtByGunEvent;
 import dev.duzo.players.compat.TaczGunBridge;
-import net.neoforged.neoforge.common.NeoForge;
+import net.minecraftforge.common.MinecraftForge;
 
-/** Holds the one TACZ event type NeoForge needs. Only load it behind TaczGunBridge.present(). */
+/** Holds the one TACZ event type Forge needs. Only load it behind TaczGunBridge.present(). */
 public final class TaczForgeEvents {
 	private TaczForgeEvents() {}
 
 	public static void register() {
-		NeoForge.EVENT_BUS.addListener(TaczForgeEvents::onHurtByGun);
+		MinecraftForge.EVENT_BUS.addListener(TaczForgeEvents::onHurtByGun);
 	}
 
 	private static void onHurtByGun(EntityHurtByGunEvent.Pre event) {

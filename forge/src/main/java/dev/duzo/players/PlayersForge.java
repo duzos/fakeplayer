@@ -16,7 +16,7 @@ public class PlayersForge {
 
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         ForgeCommonRegistry.init(bus);
-        TaczForgeCompat.init(bus);
+        TaczForgeCompat.init();
 
         // check if this is for client
         if (FMLLoader.getDist() == Dist.CLIENT) {
