@@ -16,7 +16,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import org.jetbrains.annotations.ApiStatus;
 
 import javax.annotation.Nullable;
@@ -343,14 +342,16 @@ public final class FakePlayerRequests {
 			// and output slots are not storage
 			if (container instanceof net.minecraft.world.WorldlyContainer) continue;
 			for (int slot = 0; slot < container.getContainerSize() && owed > 0; slot++) {
-				ItemStack stack = container.getItem(slot);
-				if (stack.isEmpty()) continue;
-				if (!BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(item)) continue;
-				ItemStack split = stack.split(Math.min(owed, stack.getCount()));
-				owed -= split.getCount();
-				taken.add(split);
-				if (stack.isEmpty()) container.setItem(slot, ItemStack.EMPTY);
-				container.setChanged();
+				// extraction returns at most one normal stack, so a drawer slot is drained in rounds
+				while (owed > 0) {
+					ItemStack stack = container.getItem(slot);
+					if (stack.isEmpty()) break;
+					if (!BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(item)) break;
+					ItemStack split = JobHelpers.extract(container, slot, Math.min(owed, stack.getCount()));
+					if (split.isEmpty()) break;
+					owed -= split.getCount();
+					taken.add(split);
+				}
 			}
 		}
 		if (!taken.isEmpty()) PoolIndex.markDirty(level, quartermaster.getUUID());
@@ -360,8 +361,7 @@ public final class FakePlayerRequests {
 	/**
 	 * Put a stack into a Quartermaster's pool and return how many units landed. This is what a
 	 * {@link Resolver} should call: writing to the containers directly means re-deriving the lookup
-	 * and rediscovering that {@code HopperBlockEntity.addItem} mutates its argument and, on the
-	 * partial-merge branch, returns the same object.
+	 * and rediscovering how modded storage has to be inserted into.
 	 */
 	public static int deposit(ServerLevel level, FakePlayerEntity quartermaster, ItemStack stack) {
 		if (stack.isEmpty()) return 0;
@@ -374,12 +374,11 @@ public final class FakePlayerRequests {
 			// check, so goods would land in a fuel or output slot that no read path ever sees again
 			if (container instanceof net.minecraft.world.WorldlyContainer) continue;
 			int before = stack.getCount();
-			ItemStack leftover = HopperBlockEntity.addItem(null, container, stack.copy(), null);
+			ItemStack leftover = JobHelpers.insert(container, stack);
 			int moved = before - leftover.getCount();
 			if (moved <= 0) continue;
 			placed += moved;
 			stack.shrink(moved);
-			container.setChanged();
 		}
 		if (placed > 0) PoolIndex.markDirty(level, quartermaster.getUUID());
 		return placed;
