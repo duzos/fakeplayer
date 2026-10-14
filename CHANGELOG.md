@@ -11,6 +11,7 @@
 - when the storeroom can't fill a request, a bonded Crafter makes up the difference. the Quartermaster plans the whole recipe chain, counts existing stock, and crafts only the shortfall.
 - if a chain can't be finished you get one message listing everything missing. a crafted request needs a bonded, free Crafter with a table marked.
 - fakes now ride boats, minecarts, Create seats and trains and other mods' seats. seat one with its AI marker, and use stairs on it to get off. a fake at a train's conductor seat runs the train from a schedule.
+- added the Possession Link. link it to your fake, use it in the air to see and act through the fake, and sneak to return.
 
 ## CHANGED
 
