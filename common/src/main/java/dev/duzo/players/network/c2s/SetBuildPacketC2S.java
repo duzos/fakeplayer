@@ -34,7 +34,7 @@ public record SetBuildPacketC2S(int id, String schematic, int rotation, int mirr
 		Mirror[] mirrors = Mirror.values();
 		BuilderParams next = new BuilderParams(ctx.message().schematic().trim(), old.anchor(),
 				rotations[Math.floorMod(ctx.message().rotation(), rotations.length)],
-				mirrors[Math.floorMod(ctx.message().mirror(), mirrors.length)], ctx.message().clear());
+				mirrors[Math.floorMod(ctx.message().mirror(), mirrors.length)], ctx.message().clear(), ctx.sender().getName().getString());
 		if (next.equals(old)) return;
 		next.write(entity);
 	}

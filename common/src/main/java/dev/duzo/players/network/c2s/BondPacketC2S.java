@@ -30,6 +30,8 @@ public record BondPacketC2S(int id, boolean bond) {
 			return;
 		}
 		if (owner == null || !owner.equals(sender.getUUID())) return;
+		// needs the owner still on the fake, to find its requests
+		dev.duzo.players.entities.ai.BuilderJobExecutor.cancelOutstanding(entity);
 		entity.mutateAIState(s -> s.setOwnerUUID(null));
 		dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(entity.getUUID());
 	}
