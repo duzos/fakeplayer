@@ -6,7 +6,7 @@
 - request items from the Quartermaster's Browse menu: click for a stack, sneak-click for one, ctrl-click for all. you can track and cancel orders there too.
 - added modded fishing rod support. thanks to RageQKM for the Aquaculture report and suggestion.
 - fishermen using a Tide rod roll Tide's own fish and loot, including the vanilla rod if you let Tide replace it. bait, the journal and the minigame are not used, and you won't get loot crates, so odds differ from fishing yourself.
-- fakes can use TACZ guns as ranged weapons: they draw, aim, shoot, bolt and reload from their own inventory, and won't hit their owner or the owner's other fakes. thanks to DitzyBunny for the suggestion. works on 1.20.1 and 1.21.1 only. melee, fire modes and attachments aren't supported.
+- fakes can use TACZ guns as ranged weapons: they draw, aim, shoot, bolt and reload from their own inventory, and their shots and explosions won't hurt themselves, their owner, the owner's other fakes or the owner's pets. thanks to DitzyBunny for the suggestion. works on 1.20.1 and 1.21.1 only. melee, fire modes and attachments aren't supported.
 - added Aquaculture tackle, bait, hook textures and dyed lines on Forge/NeoForge. lava fishing also works with its lava fishing addon and a suitable hook.
 - addons can register jobs and manage item requests through the API.
 - added a Stock box to worker AI menus. set items and amounts, and workers request refills while they work.

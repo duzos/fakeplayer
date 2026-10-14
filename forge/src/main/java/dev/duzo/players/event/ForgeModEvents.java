@@ -5,10 +5,12 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.core.SessionItemSweeper;
+import dev.duzo.players.entities.ai.FriendlyFire;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -57,5 +59,10 @@ public class ForgeModEvents {
 			e.setCancellationResult(result);
 			e.setCanceled(true);
 		}
+	}
+
+	@SubscribeEvent(priority = EventPriority.HIGH)
+	public static void onAttack(LivingAttackEvent e) {
+		if (FriendlyFire.shouldBlock(e.getSource(), e.getEntity())) e.setCanceled(true);
 	}
 }

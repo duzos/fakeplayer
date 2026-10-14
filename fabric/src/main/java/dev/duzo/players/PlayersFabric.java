@@ -4,6 +4,7 @@ import dev.duzo.players.compat.TaczFabricCompat;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.core.SessionItemSweeper;
+import dev.duzo.players.entities.ai.FriendlyFire;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -26,6 +27,8 @@ public class PlayersFabric implements ModInitializer {
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> RidingInteractions.useEntity(player, world, hand, entity));
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> RidingInteractions.useBlock(player, world, hand, hit));
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
+                !FriendlyFire.shouldBlock(source, entity));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 AIMarkerItem.clearAllFor(handler.player));
     }
