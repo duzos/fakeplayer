@@ -232,7 +232,7 @@ public class MinerJobExecutor implements JobExecutor {
 			return;
 		}
 		entity.getLookControl().setLookAt(activeTarget.getX() + 0.5, activeTarget.getY() + 0.5, activeTarget.getZ() + 0.5);
-		entity.swing(InteractionHand.MAIN_HAND);
+		entity.swingForAttack(InteractionHand.MAIN_HAND);
 		miningProgress += miningDelta(level, entity, state, activeTarget);
 		updateMiningStage(level, entity, activeTarget);
 		if (miningProgress < 1.0F) return;
@@ -802,7 +802,7 @@ public class MinerJobExecutor implements JobExecutor {
 		Block block = consumeBuildBlock(entity);
 		if (block == null) return false;
 		level.setBlock(pos, block.defaultBlockState(), 3);
-		entity.swing(InteractionHand.MAIN_HAND);
+		entity.swingForAttack(InteractionHand.MAIN_HAND);
 		return true;
 	}
 
@@ -950,7 +950,7 @@ public class MinerJobExecutor implements JobExecutor {
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack stack = inv.getItem(i);
 			if (!isFood(stack)) continue;
-			entity.swing(InteractionHand.MAIN_HAND);
+			entity.swingForAttack(InteractionHand.MAIN_HAND);
 			stack.shrink(1);
 			if (stack.isEmpty()) inv.setItem(i, ItemStack.EMPTY);
 			entity.heal(4.0F);

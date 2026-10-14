@@ -96,7 +96,7 @@ public class FishermanJobExecutor implements JobExecutor {
 				double surfaceY = water.getY() + 0.9;
 				Vec3 target = new Vec3(water.getX() + 0.5, surfaceY, water.getZ() + 0.5);
 				entity.getLookControl().setLookAt(target.x, target.y, target.z);
-				entity.swing(InteractionHand.MAIN_HAND);
+				entity.swing(InteractionHand.MAIN_HAND, entity.getMainHandItem().getInteractAnimation());
 				castHook(level, entity, target, surfaceY, level.getFluidState(water).is(FluidTags.LAVA), held);
 				int lure = enchant(entity, Enchantments.LURE) + tackle.lureBonus();
 				waitUntil = level.getGameTime() + Math.max(20, BASE_WAIT_TICKS - lure * 20 * 5L);
@@ -141,7 +141,7 @@ public class FishermanJobExecutor implements JobExecutor {
 					phase = Phase.CAST;
 					return;
 				}
-				entity.swing(InteractionHand.MAIN_HAND);
+				entity.swing(InteractionHand.MAIN_HAND, entity.getMainHandItem().getInteractAnimation());
 				Tackle reeled = Services.TACKLE.read(rod(entity));
 				Vec3 from = activeHook != null ? activeHook.position() : Vec3.atCenterOf(spot);
 				List<ItemStack> drops = rollCatch(level, entity, spot, reeled);

@@ -320,7 +320,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			return;
 		}
 		if (breakTotalTicks <= 0) breakTotalTicks = totalBreakTicks(level, entity, activeTree);
-		if (breakProgress % SWING_EVERY == 0) entity.swing(InteractionHand.MAIN_HAND);
+		if (breakProgress % SWING_EVERY == 0) entity.swingForAttack(InteractionHand.MAIN_HAND);
 		breakProgress++;
 		updateBreakStages(level, entity);
 		if (breakProgress < breakTotalTicks) return;
@@ -907,7 +907,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 	private void lookAndSwing(FakePlayerEntity entity, BlockPos pos) {
 		Vec3 center = Vec3.atCenterOf(pos);
 		entity.getLookControl().setLookAt(center.x, center.y, center.z);
-		entity.swing(InteractionHand.MAIN_HAND);
+		entity.swingForAttack(InteractionHand.MAIN_HAND);
 	}
 
 	private static class PlantTask {

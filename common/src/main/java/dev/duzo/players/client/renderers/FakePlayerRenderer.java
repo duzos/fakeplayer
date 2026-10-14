@@ -95,7 +95,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 	private static HumanoidModel.ArmPose poseFor(FakePlayerEntity entity, ItemStack stack, InteractionHand hand) {
 		if (stack.isEmpty()) return HumanoidModel.ArmPose.EMPTY;
 
-		if (!entity.swinging && stack.is(Items.CROSSBOW) && CrossbowItem.isCharged(stack)) {
+		if (!entity.isSwinging() && stack.is(Items.CROSSBOW) && CrossbowItem.isCharged(stack)) {
 			return HumanoidModel.ArmPose.CROSSBOW_HOLD;
 		}
 

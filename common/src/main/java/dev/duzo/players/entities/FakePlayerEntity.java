@@ -105,7 +105,6 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	@Override
 	public void tick() {
 		super.tick();
-		this.updateSwingTime();
 		if (this.level() instanceof ServerLevel server) {
 			this.updateFollowOverridePause();
 			this.tickJobExecutor(server);

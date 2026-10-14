@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
@@ -12,7 +13,6 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.BoneMealItem;
-import net.minecraft.world.item.HoeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -215,7 +215,7 @@ public class FarmerJobExecutor implements JobExecutor {
 				ensureHoe(entity);
 				level.setBlockAndUpdate(target, Blocks.FARMLAND.defaultBlockState());
 				ItemStack hoe = entity.getMainHandItem();
-				if (hoe.getItem() instanceof HoeItem && hoe.isDamageableItem())
+				if (hoe.is(ItemTags.HOES) && hoe.isDamageableItem())
 					hoe.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
 			}
 			// the bucket is a tool, not a consumable - it never empties
@@ -348,7 +348,7 @@ public class FarmerJobExecutor implements JobExecutor {
 	// --- inventory / tools ---
 
 	private boolean isUsableHoe(ItemStack stack) {
-		if (stack.isEmpty() || !(stack.getItem() instanceof HoeItem)) return false;
+		if (stack.isEmpty() || !stack.is(ItemTags.HOES)) return false;
 		if (!stack.isDamageableItem()) return true;
 		return stack.getMaxDamage() - stack.getDamageValue() > DURABILITY_RESERVE;
 	}
@@ -593,7 +593,7 @@ public class FarmerJobExecutor implements JobExecutor {
 	private void lookAndSwing(FakePlayerEntity entity, BlockPos pos) {
 		Vec3 center = Vec3.atCenterOf(pos);
 		entity.getLookControl().setLookAt(center.x, center.y, center.z);
-		entity.swing(InteractionHand.MAIN_HAND);
+		entity.swingForAttack(InteractionHand.MAIN_HAND);
 	}
 
 	private void clearTarget() {

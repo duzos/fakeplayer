@@ -14,6 +14,7 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
@@ -104,7 +105,7 @@ public class CrafterJobExecutor implements JobExecutor {
 					// Show the ingredient being placed and swing, one cell every 0.1s. Purely visual -
 					// the real main hand is never touched, so there is nothing here to stash or restore.
 					entity.setDisplayItem(new ItemStack(placeOrder.get(craftIndex)));
-					entity.swing(InteractionHand.MAIN_HAND);
+					entity.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
 					craftIndex++;
 					craftTimer = PLACE_TICKS;
 					return;
