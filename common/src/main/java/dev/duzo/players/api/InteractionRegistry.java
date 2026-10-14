@@ -1,5 +1,6 @@
 package dev.duzo.players.api;
 
+import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
 import dev.duzo.players.platform.Services;
@@ -59,6 +60,26 @@ public class InteractionRegistry {
 	}
 
 	private void defaults() {
+		register(FPItems.CHUNK_ANCHOR.get(), (player, entity) -> {
+			if (!player.getUUID().equals(entity.getAIState().ownerUUID())) {
+				player.sendSystemMessage(Component.literal("Only this fake's owner can install a Chunk Anchor"), true);
+				return InteractionResult.FAIL;
+			}
+			if (!dev.duzo.players.config.PlayersConfig.get().chunkAnchors) {
+				player.sendSystemMessage(Component.literal("Chunk Anchors are disabled on this server"), true);
+				return InteractionResult.FAIL;
+			}
+			if (entity.isChunkAnchored()) {
+				player.sendSystemMessage(Component.literal("Already anchored"), true);
+				return InteractionResult.FAIL;
+			}
+			entity.setChunkAnchored(true);
+			if (!player.getAbilities().instabuild) player.getMainHandItem().shrink(1);
+			player.sendSystemMessage(Component.literal("Chunk Anchor installed: this fake keeps working while you are away"), true);
+			playSound(entity, SoundEvents.RESPAWN_ANCHOR_CHARGE);
+			return InteractionResult.SUCCESS;
+		});
+
 		register(Items.OBSERVER, (player, entity) -> {
 			entity.setNoAi(!entity.isNoAi());
 			player.sendSystemMessage(Component.literal(entity.isNoAi() ? "AI Disabled" : "AI Enabled"), true);

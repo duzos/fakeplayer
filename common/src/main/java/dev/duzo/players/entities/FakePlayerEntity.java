@@ -1,5 +1,6 @@
 package dev.duzo.players.entities;
 
+import com.mojang.serialization.Codec;
 import dev.duzo.players.Constants;
 import dev.duzo.players.api.CustomBindTracker;
 import dev.duzo.players.api.InteractionRegistry;
@@ -69,7 +70,10 @@ import net.minecraft.world.level.Level;
 
 import net.minecraft.sounds.SoundEvents;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.function.Predicate;
 
 public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob {
@@ -110,11 +114,28 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this(FPEntities.FAKE_PLAYER.get(), level);
 	}
 
+	private boolean chunkAnchored;
+	private final LongSet forcedChunks = new LongOpenHashSet();
+
+	public boolean isChunkAnchored() {
+		return chunkAnchored;
+	}
+
+	public void setChunkAnchored(boolean anchored) {
+		this.chunkAnchored = anchored;
+	}
+
+	/** Chunks this fake force-loaded and so is responsible for releasing. Mutated by {@link ChunkAnchors}. */
+	public LongSet forcedChunks() {
+		return forcedChunks;
+	}
+
 	@Override
 	public void tick() {
 		super.tick();
 		this.updateSwingTime();
 		if (this.level() instanceof ServerLevel server) {
+			if (chunkAnchored && this.isAlive()) ChunkAnchors.update(server, this);
 			this.updateFollowOverridePause();
 			this.tickJobExecutor(server);
 		}
@@ -429,6 +450,11 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		output.putBoolean("Slim", this.isSlim());
 		this.flushJobState();
 		output.putString("AIState", this.entityData.get(AI_STATE));
+		if (chunkAnchored) output.putBoolean("ChunkAnchor", true);
+		if (!forcedChunks.isEmpty()) {
+			output.store("ForcedChunks", Codec.LONG.listOf(), new ArrayList<>(forcedChunks));
+			output.putString("ForcedDim", this.level().dimension().identifier().toString());
+		}
 		this.inventory.storeAsItemList(output.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC));
 	}
 
@@ -442,21 +468,31 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		return this.jobExecutor;
 	}
 
+	/**
+	 * Runs from setRemoved, so it covers every removal path including teleportCrossDimension, which
+	 * bypasses remove(). On CHANGED_DIMENSION level() is still the old level, so anything keyed on it
+	 * is released in the right place.
+	 */
 	@Override
-	public void remove(RemovalReason reason) {
-		// also fires on chunk unload and dimension change, which is what keeps the cache bounded;
-		// a rebuilt index costs one rescan. On CHANGED_DIMENSION level() is still the old level,
-		// so the key forgotten is the right one.
-		if (this.level() instanceof ServerLevel level) {
-			dev.duzo.players.entities.ai.requests.PoolIndex.forget(level, this.getUUID());
+	public void onRemoval(RemovalReason reason) {
+		if (this.level() instanceof ServerLevel server) {
+			if (reason == RemovalReason.UNLOADED_TO_CHUNK) {
+				// chunks stay forced so the fake loads again after a restart
+				ChunkAnchors.unloaded(this);
+			} else {
+				ChunkAnchors.release(server, this);
+			}
+			// bounded cache: a rebuilt index costs one rescan, so only drop it when the fake is gone or left the level
+			if (reason.shouldDestroy() || reason == RemovalReason.CHANGED_DIMENSION) {
+				dev.duzo.players.entities.ai.requests.PoolIndex.forget(server, this.getUUID());
+			}
+			// server thread only, and only when the fake is really gone
+			if (reason.shouldDestroy()) {
+				dev.duzo.players.entities.ai.requests.SenderAlerts.forget(this.getUUID());
+				dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(this.getUUID());
+			}
 		}
-		// server side only, and only when the fake is really gone: this map is touched from the
-		// server thread, and remove() also fires on the client and on every chunk unload
-		if (this.level() instanceof ServerLevel && reason.shouldDestroy()) {
-			dev.duzo.players.entities.ai.requests.SenderAlerts.forget(this.getUUID());
-			dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(this.getUUID());
-		}
-		super.remove(reason);
+		super.onRemoval(reason);
 	}
 
 	public void flushJobState() {
@@ -490,6 +526,12 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		// so it never self-heals; re-apply the guarantee every load instead.
 		for (EquipmentSlot slot : EquipmentSlot.values()) this.setGuaranteedDrop(slot);
 
+		this.chunkAnchored = input.getBooleanOr("ChunkAnchor", false);
+		this.forcedChunks.clear();
+		// a list recorded in another dimension (copied across by a dimension change) is not ours to unforce here
+		if (input.getStringOr("ForcedDim", "").equals(this.level().dimension().identifier().toString())) {
+			input.read("ForcedChunks", Codec.LONG.listOf()).ifPresent(this.forcedChunks::addAll);
+		}
 		this.dataCache = null;
 		this.aiCache = null;
 		this.nameCache = null;
@@ -572,6 +614,10 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		super.dropCustomDeathLoot(level, source, dropExperience);
 
 		Containers.dropContents(this.level(), this, this.inventory);
+		if (chunkAnchored) {
+			chunkAnchored = false;
+			this.spawnAtLocation(level, FPItems.CHUNK_ANCHOR.get().getDefaultInstance());
+		}
 
 		ItemStack egg = FPItems.PLAYER_EGG.get().getDefaultInstance();
 		egg.set(DataComponents.CUSTOM_NAME, this.getCustomName());
