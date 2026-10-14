@@ -131,7 +131,6 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 		}
 
 		super.submit(state, matrices, collector, camera);
-		if (state instanceof FakeAvatarRenderState fake) SpeechBubbles.submit(fake, matrices, collector, camera);
 		matrices.popPose();
 	}
 
