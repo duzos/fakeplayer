@@ -3,6 +3,8 @@ package dev.duzo.players.client.renderers;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.gui.Font;
@@ -40,7 +42,7 @@ public final class SpeechBubbles {
 
 	private SpeechBubbles() {}
 
-	/** Draws this fake's bubble above its name tag position. Call with the pose at the entity origin. */
+	/** Draws this fake's bubble and status mark above its name tag position. Call with the pose at the entity origin. */
 	public static void render(FakePlayerEntity entity, PoseStack pose, MultiBufferSource buffers, int light,
 							  EntityRenderDispatcher dispatcher, Font font, boolean nameShown) {
 		// hidden wherever vanilla would hide the name tag (F1, invisible, teams, sneaking, 64 blocks)
@@ -49,7 +51,6 @@ public final class SpeechBubbles {
 		PlayersConfig config = PlayersConfig.get();
 		double distanceSq = dispatcher.distanceToSqr(entity);
 		List<Component> rows = bubbleRows(entity, config, distanceSq);
-		if (rows.isEmpty()) return;
 
 		// the name tag sits at step 0, so with a name actually drawn the bubble starts one row above it
 		int base = nameShown ? 1 : 0;
@@ -58,6 +59,18 @@ public final class SpeechBubbles {
 			// not see-through, unlike a name tag: speech should not read through walls
 			drawLine(entity, rows.get(i), base + (last - i), pose, buffers, light, dispatcher, font, false);
 		}
+
+		// the mark may be seen through walls, so a fake in trouble can be found; above the name and any bubble
+		FakeProblem problem = entity.getProblem();
+		if (problem != FakeProblem.NONE) {
+			drawLine(entity, markFor(problem), base + rows.size(), pose, buffers, light, dispatcher, font, !entity.isDiscrete());
+		}
+	}
+
+	private static Component markFor(FakeProblem problem) {
+		return problem == FakeProblem.STUCK
+			? Component.literal("?").withStyle(ChatFormatting.RED, ChatFormatting.BOLD)
+			: Component.literal("!").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD);
 	}
 
 	/** Vanilla's LivingEntityRenderer.shouldShowName without the custom-name-visible rule, which the fake adds itself. */
