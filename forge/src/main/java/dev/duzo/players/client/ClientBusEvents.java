@@ -16,6 +16,11 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 @EventBusSubscriber(modid = Constants.MOD_ID, value = Dist.CLIENT)
 public class ClientBusEvents {
 	@SubscribeEvent
+	public static void onClientTickStart(ClientTickEvent.Pre e) {
+		PlayersCommonClient.tickStart(Minecraft.getInstance());
+	}
+
+	@SubscribeEvent
 	public static void onClientTick(ClientTickEvent.Post e) {
 		PlayersCommonClient.tick(Minecraft.getInstance());
 	}
