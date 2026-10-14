@@ -6,7 +6,7 @@ import dev.duzo.players.entities.FakeProblem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.world.entity.EntityAttachment;
@@ -95,12 +95,12 @@ public final class SpeechBubbles {
 		int last = state.bubbleRows.size() - 1;
 		for (int i = 0; i <= last; i++) {
 			collector.submitNameTag(pose, state.bubbleAnchor, state.bubbleBase - (last - i) * LINE_HEIGHT,
-				state.bubbleRows.get(i), false, state.lightCoords, state.distanceToCameraSq, camera);
+				state.bubbleRows.get(i), false, state.lightCoords, camera);
 		}
 		// the mark may be seen through walls, so a fake in trouble can be found
 		if (state.statusMark != null) {
 			collector.submitNameTag(pose, state.bubbleAnchor, state.markBase, state.statusMark, true,
-				state.lightCoords, state.distanceToCameraSq, camera);
+				state.lightCoords, camera);
 		}
 	}
 
