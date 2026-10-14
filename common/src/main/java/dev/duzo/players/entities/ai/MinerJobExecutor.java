@@ -244,6 +244,7 @@ public class MinerJobExecutor implements JobExecutor {
 				waitForBlocker(level, entity, "miner: out of build blocks for liquid hazard");
 				return;
 			}
+			entity.markProgress();
 			cursor++;
 			clearActive();
 			return;
@@ -258,7 +259,7 @@ public class MinerJobExecutor implements JobExecutor {
 		boolean broke = breakIntoInventory(level, entity, activeTarget, state, tool);
 		if (broke && isMiningTool(tool)) tool.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
 		if (broke) {
-			entity.clearProblem();
+			entity.markProgress();
 			cursor++;
 		} // else the drops couldn't fit (canHoldKeptDrops) - block still stands, retry this cell
 		clearActive(level, entity);
@@ -424,6 +425,7 @@ public class MinerJobExecutor implements JobExecutor {
 			waitForBlocker(level, entity, "miner: out of build blocks for cap");
 			return;
 		}
+		entity.markProgress();
 		capCursor++;
 		double bps = Math.max(0.5, cfg.minerMaxBlocksPerSecond);
 		throttleUntilTick = level.getGameTime() + Math.max(1L, (long) (20.0 / bps));
