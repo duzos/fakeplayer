@@ -542,15 +542,14 @@ public class CrafterJobExecutor implements JobExecutor {
 		JobHelpers.WalkResult result = JobHelpers.walkTo(entity, target, SPEED);
 		if (result == JobHelpers.WalkResult.ARRIVED) {
 			pathFails = 0;
-			lastBlocker = "";
+			resumed(entity);
 			return true;
 		}
 		if (result == JobHelpers.WalkResult.UNREACHABLE && ++pathFails >= MAX_PATH_FAIL) {
 			pathFails = 0;
 			entity.getNavigation().stop();
 			String message = "crafter: cannot reach " + what;
-			if (!message.equals(lastBlocker)) FakeSpeech.say(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry");
-			lastBlocker = message;
+			if (!message.equals(lastBlocker) && FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry")) lastBlocker = message;
 			waitUntil = level.getGameTime() + RETRY_WAIT_TICKS;
 		}
 		return false;
@@ -687,5 +686,11 @@ public class CrafterJobExecutor implements JobExecutor {
 		if (!name.isEmpty()) {
 			try { phase = Phase.valueOf(name); } catch (IllegalArgumentException ignored) {}
 		}
+	}
+
+	/** Work is moving again: forget the blocker, and its speech latch so a recurrence is announced. */
+	private void resumed(FakePlayerEntity entity) {
+		FakeSpeech.clearBlocked(entity, lastBlocker);
+		lastBlocker = "";
 	}
 }
