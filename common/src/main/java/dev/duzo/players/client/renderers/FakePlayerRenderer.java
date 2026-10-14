@@ -58,7 +58,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 		model.rightArmPose = resolveArmPose(entity, HumanoidArm.RIGHT, mainIsRight && mainHandHasDisplay);
 
 		super.render(entity, pEntityYaw, pPartialTicks, matrices, pBuffer, pPackedLight);
-		SpeechBubbles.render(entity, entity.isCustomNameVisible(), matrices, pBuffer, pPackedLight, this.entityRenderDispatcher, this.getFont());
+		SpeechBubbles.render(entity, this.shouldShowName(entity), entity.isCustomNameVisible(), matrices, pBuffer, pPackedLight, this.entityRenderDispatcher, this.getFont());
 		matrices.popPose();
 	}
 

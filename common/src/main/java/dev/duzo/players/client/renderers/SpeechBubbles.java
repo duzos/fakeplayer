@@ -40,8 +40,11 @@ public final class SpeechBubbles {
 	private SpeechBubbles() {}
 
 	/** Draws the bubble above the fake. Draws nothing when this fake should not show one. */
-	public static void render(FakePlayerEntity entity, boolean customNameVisible, PoseStack pose, MultiBufferSource buffer,
+	public static void render(FakePlayerEntity entity, boolean nameTagAllowed, boolean customNameVisible, PoseStack pose, MultiBufferSource buffer,
 							  int light, EntityRenderDispatcher dispatcher, Font font) {
+		// hidden wherever vanilla would hide the name tag (F1, invisible, teams, sneaking, 64 blocks)
+		if (!nameTagAllowed) return;
+
 		PlayersConfig config = PlayersConfig.get();
 		List<Component> rows = bubbleRows(entity, config, dispatcher.distanceToSqr(entity), dispatcher);
 		if (rows.isEmpty()) return;
@@ -100,13 +103,21 @@ public final class SpeechBubbles {
 
 	private static boolean isAmongNearestSpeakers(FakePlayerEntity entity, double distanceSq, PlayersConfig config, EntityRenderDispatcher dispatcher) {
 		double reach = config.bubbleRange * 2.0;
+		long now = entity.level().getGameTime();
+		long maxAge = (long) (config.bubbleSeconds * 20.0);
 		int closer = 0;
 		for (FakePlayerEntity other : entity.level().getEntitiesOfClass(FakePlayerEntity.class, entity.getBoundingBox().inflate(reach))) {
-			if (other == entity || other.speechLines().isEmpty()) continue;
+			if (other == entity || !hasLiveLine(other, now, maxAge)) continue;
 			double d = dispatcher.distanceToSqr(other);
 			if (d < distanceSq || (d == distanceSq && other.getId() < entity.getId())) closer++;
 		}
 		return closer < config.bubbleMaxSpeakers;
+	}
+
+	/** An expired newest line means nothing is showing, even if prune has not run for that fake yet. */
+	private static boolean hasLiveLine(FakePlayerEntity other, long now, long maxAge) {
+		FakePlayerEntity.SpeechLine newest = other.speechLines().peekLast();
+		return newest != null && now - newest.tick() <= maxAge;
 	}
 
 	private static List<Component> wrap(String text) {
