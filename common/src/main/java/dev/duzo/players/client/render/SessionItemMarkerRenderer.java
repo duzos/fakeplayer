@@ -175,6 +175,12 @@ public final class SessionItemMarkerRenderer {
 					if (crosshair != null) drawBox(pose, lines, stackA, crosshair, cam, REGION_LIVE);
 				}
 			}
+		},
+		ANCHOR {
+			@Override void render(PoseStack pose, VertexConsumer lines, Vec3 cam, Minecraft mc,
+			                     ItemStack stack, FakePlayerEntity fake, @Nullable BlockPos crosshair) {
+				if (crosshair != null) drawOutline(pose, lines, crosshair, cam, WAYPOINT_LIVE);
+			}
 		};
 
 		abstract void render(PoseStack pose, VertexConsumer lines, Vec3 cam, Minecraft mc,
@@ -186,6 +192,7 @@ public final class SessionItemMarkerRenderer {
 				case AIMarkerItem.PURPOSE_WAYPOINT -> WAYPOINT;
 				case AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.PURPOSE_POOL -> CHEST_PICKER;
 				case AIMarkerItem.PURPOSE_REGION -> REGION;
+				case AIMarkerItem.PURPOSE_ANCHOR -> ANCHOR;
 				default -> null;
 			};
 		}
