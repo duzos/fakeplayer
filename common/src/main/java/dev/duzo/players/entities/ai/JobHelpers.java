@@ -1,7 +1,10 @@
 package dev.duzo.players.entities.ai;
 
+import dev.duzo.players.Constants;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.requests.StockReserve;
+import dev.duzo.players.entities.ai.storage.ExternalStorage;
+import dev.duzo.players.platform.Services;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -189,24 +192,107 @@ public final class JobHelpers {
 	}
 
 	public static Container containerAt(Level level, BlockPos pos) {
-		return pos == null ? null : HopperBlockEntity.getContainerAt(level, pos);
+		if (pos == null) return null;
+		Container vanilla = HopperBlockEntity.getContainerAt(level, pos);
+		if (vanilla != null) return vanilla;
+		if (level.getBlockState(pos).is(NOT_STORAGE)) return null;
+		try {
+			return Services.STORAGE.find(level, pos);
+		} catch (RuntimeException e) {
+			// another mod's provider, possibly on a client level it never expected to be asked on
+			if (!warnedProvider) {
+				warnedProvider = true;
+				Constants.LOG.warn("Storage lookup at {} failed; treating it as not a container", pos, e);
+			}
+			return null;
+		}
 	}
 
-	/** Pull/push budget transfer using vanilla hopper logic. Returns count of stacks moved. */
-	public static int transferOne(Container src, Container dst) {
-		for (int i = 0; i < src.getContainerSize(); i++) {
-			ItemStack stack = src.getItem(i);
-			if (stack.isEmpty()) continue;
-			ItemStack remainder = HopperBlockEntity.addItem(src, dst, stack.copy(), null);
-			int moved = stack.getCount() - remainder.getCount();
-			if (moved > 0) {
-				stack.shrink(moved);
-				if (stack.isEmpty()) src.setItem(i, ItemStack.EMPTY);
-				src.setChanged(); dst.setChanged();
-				return 1;
+	/** Blocks a pack wants fakes to leave alone even though they expose an item handler: machines, void bins. */
+	public static final TagKey<Block> NOT_STORAGE = TagKey.create(Registries.BLOCK, new ResourceLocation(Constants.MOD_ID, "not_storage"));
+	private static boolean warnedProvider;
+
+	/** Insert into a container. Returns the part that did not fit; never mutates {@code stack}. */
+	public static ItemStack insert(Container dst, ItemStack stack) {
+		return insert(dst, stack, null);
+	}
+
+	/** As {@link #insert(Container, ItemStack)}, honouring a sided container's slots for {@code side}. */
+	public static ItemStack insert(Container dst, ItemStack stack, Direction side) {
+		if (stack.isEmpty()) return ItemStack.EMPTY;
+		if (dst instanceof ExternalStorage ext) return ext.insert(stack, false);
+		// addItem mutates its argument and can hand the same object back, so give it a copy
+		ItemStack leftover = HopperBlockEntity.addItem(null, dst, stack.copy(), side);
+		if (leftover.getCount() < stack.getCount()) dst.setChanged();
+		return leftover;
+	}
+
+	/** Take up to {@code amount} from one slot. Returns what was actually taken. */
+	public static ItemStack extract(Container src, int slot, int amount) {
+		if (amount <= 0) return ItemStack.EMPTY;
+		if (src instanceof ExternalStorage ext) return ext.extract(slot, amount, false);
+		ItemStack taken = src.removeItem(slot, amount);
+		if (!taken.isEmpty()) src.setChanged();
+		return taken;
+	}
+
+	/** How many of {@code stack} a fake's own inventory could take, so a withdrawal never overshoots. */
+	public static int roomFor(Container inv, ItemStack stack) {
+		int cap = Math.min(stack.getMaxStackSize(), inv.getMaxStackSize());
+		int room = 0;
+		for (int i = 0; i < inv.getContainerSize(); i++) {
+			ItemStack s = inv.getItem(i);
+			if (s.isEmpty()) room += cap;
+			else if (ItemStack.isSameItemSameTags(s, stack)) room += Math.max(0, cap - s.getCount());
+		}
+		return room;
+	}
+
+	/**
+	 * Move up to {@code amount} out of one container slot into a fake's inventory. Only what the
+	 * inventory can hold is extracted, so nothing normally has to go back. Returns the count moved.
+	 */
+	public static int withdrawInto(Container src, int slot, int amount, SimpleContainer inv) {
+		int got = 0;
+		// extraction hands back at most one normal stack, so a drawer slot takes several rounds
+		while (got < amount) {
+			ItemStack peek = src.getItem(slot);
+			if (peek.isEmpty()) break;
+			ItemStack taken = extract(src, slot, Math.min(amount - got, roomFor(inv, peek)));
+			if (taken.isEmpty()) break;
+			int count = taken.getCount();
+			ItemStack leftover = inv.addItem(taken);
+			got += count - leftover.getCount();
+			if (!leftover.isEmpty()) {
+				ItemStack back = insert(src, leftover);
+				// roomFor sized the extraction to fit, so reaching this means the inventory changed mid-call
+				if (!back.isEmpty()) Constants.LOG.error("Lost {} returning it to storage after a withdrawal", back);
+				break;
 			}
 		}
+		return got;
+	}
+
+	/** Pull/push budget transfer. Returns count of stacks moved. */
+	public static int transferOne(SimpleContainer src, Container dst) {
+		for (int i = 0; i < src.getContainerSize(); i++) {
+			if (moveSlot(src, i, dst) > 0) return 1;
+		}
 		return 0;
+	}
+
+	/**
+	 * Push one slot of a fake's own inventory into {@code dst}: insert a copy first, then take from
+	 * the inventory only what landed. Returns the count moved.
+	 */
+	public static int moveSlot(SimpleContainer src, int slot, Container dst) {
+		ItemStack stack = src.getItem(slot);
+		if (stack.isEmpty()) return 0;
+		ItemStack leftover = insert(dst, stack);
+		int moved = stack.getCount() - leftover.getCount();
+		if (moved <= 0) return 0;
+		extract(src, slot, moved);
+		return moved;
 	}
 
 	/** A cell the fake can occupy: no collision and no fluid (so it walks into crops/grass but not water). */
@@ -231,7 +317,8 @@ public final class JobHelpers {
 		for (int i = 0; i < c.getContainerSize(); i++) {
 			ItemStack s = c.getItem(i);
 			if (s.isEmpty()) return false;
-			if (s.getCount() < s.getMaxStackSize() && s.getCount() < c.getMaxStackSize()) return false;
+			int cap = c instanceof ExternalStorage ext ? ext.slotLimit(i, s) : Math.min(s.getMaxStackSize(), c.getMaxStackSize());
+			if (s.getCount() < cap) return false;
 		}
 		return true;
 	}
@@ -239,6 +326,8 @@ public final class JobHelpers {
 	/** Whether at least one unit of `stack` could be added to `c` - an empty slot, or a matching slot with headroom. */
 	public static boolean canAccept(Container c, ItemStack stack) {
 		if (stack.isEmpty()) return true;
+		// a modded storage knows its own filters and per-slot limits, so ask it
+		if (c instanceof ExternalStorage ext) return ext.insert(stack.copyWithCount(1), true).isEmpty();
 		for (int i = 0; i < c.getContainerSize(); i++) {
 			ItemStack s = c.getItem(i);
 			if (s.isEmpty()) return true;
@@ -285,14 +374,11 @@ public final class JobHelpers {
 		if (keep >= stack.getCount()) return true;
 
 		ItemStack surplus = stack.split(stack.getCount() - keep);
-		// addItem mutates what it is given and, on the partial-merge branch, hands the same object
-		// back, so diff against a captured count rather than comparing references
 		int before = surplus.getCount();
-		ItemStack leftover = HopperBlockEntity.addItem(null, chest, surplus.copy(), null);
+		ItemStack leftover = insert(chest, surplus);
 		int moved = before - leftover.getCount();
 		if (moved < before) stack.grow(before - moved);
 		if (stack.isEmpty()) inv.setItem(slot, ItemStack.EMPTY);
-		if (moved > 0) chest.setChanged();
 		return true;
 	}
 
