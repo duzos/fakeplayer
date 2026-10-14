@@ -158,6 +158,13 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	private boolean orderedSeat;
 	private int accidentalSeatTicks;
 	private int unseatedTicks;
+	// only a moving contraption (a train carriage) takes its passengers out of loaded chunks and
+	// discards them; a fake on a plain create:seat that gets discarded is really gone
+	private static boolean isCreateContraption(Entity vehicle) {
+		var id = BuiltInRegistries.ENTITY_TYPE.getKey(vehicle.getType());
+		return "create".equals(id.getNamespace()) && id.getPath().contains("contraption");
+	}
+
 	private boolean carriedOffByCreate;
 
 	/** Seated in a boat, minecart, seat or anything else that carries passengers. */
@@ -203,7 +210,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	public void removeVehicle() {
 		Entity vehicle = this.getVehicle();
 		if (vehicle != null && (this.getRemovalReason() == RemovalReason.DISCARDED || vehicle.getRemovalReason() == RemovalReason.DISCARDED)
-				&& "create".equals(BuiltInRegistries.ENTITY_TYPE.getKey(vehicle.getType()).getNamespace())) {
+				&& isCreateContraption(vehicle)) {
 			this.carriedOffByCreate = true;
 		}
 		super.removeVehicle();
