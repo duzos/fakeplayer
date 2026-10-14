@@ -1,5 +1,6 @@
 package dev.duzo.players.core;
 
+import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.GuardJobExecutor;
 import dev.duzo.players.entities.ai.JobHelpers;
@@ -20,6 +21,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.commands.Commands;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -33,6 +35,7 @@ import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -202,6 +205,13 @@ public class AIMarkerItem extends Item {
 			return InteractionResult.FAIL;
 		}
 
+		UUID boundOwner = entity.getAIState().ownerUUID();
+		if (boundOwner != null && !boundOwner.equals(player.getUUID()) && !isOp(player)) {
+			player.displayClientMessage(Component.literal("You do not own this fake.").withStyle(ChatFormatting.RED), true);
+			silentlyConsume(player, stack);
+			return InteractionResult.FAIL;
+		}
+
 		BlockPos pos = ctx.getClickedPos();
 
 		switch (purpose) {
@@ -295,7 +305,13 @@ public class AIMarkerItem extends Item {
 					player.displayClientMessage(Component.literal("Name a schematic in the AI menu first.").withStyle(ChatFormatting.RED), true);
 					return InteractionResult.FAIL;
 				}
-				BuilderParams next = params.withAnchor(pos.relative(ctx.getClickedFace()).immutable(), rotationFor(player.getDirection()),
+				BlockPos anchorPos = pos.relative(ctx.getClickedFace()).immutable();
+				int maxDist = PlayersConfig.get().builderMaxAnchorDistance;
+				if (maxDist > 0 && entity.distanceToSqr(Vec3.atCenterOf(anchorPos)) > (double) maxDist * maxDist) {
+					player.displayClientMessage(Component.literal("That is more than " + maxDist + " blocks from the Builder.").withStyle(ChatFormatting.RED), true);
+					return InteractionResult.FAIL;
+				}
+				BuilderParams next = params.withAnchor(anchorPos, rotationFor(player.getDirection()),
 						player.getName().getString());
 				next.write(entity);
 				player.displayClientMessage(Component.literal("Anchor set.").withStyle(ChatFormatting.GREEN), true);
@@ -311,6 +327,11 @@ public class AIMarkerItem extends Item {
 		}
 
 		return InteractionResult.CONSUME;
+	}
+
+	/** Permission level 2 or higher: may manage any fake, whoever owns it. */
+	public static boolean isOp(Player player) {
+		return player instanceof ServerPlayer sp && Commands.LEVEL_GAMEMASTERS.check(sp.permissions());
 	}
 
 	private static Rotation rotationFor(Direction facing) {

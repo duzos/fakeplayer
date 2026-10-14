@@ -56,6 +56,8 @@ public class PlayersConfig {
 	public int builderStripeWidth = 4;
 	/** Ticks between two block placements by a Builder, minimum 1. */
 	public int builderPlaceTicks = 4;
+	/** Farthest an anchor may be from its Builder, in blocks; an anchor set farther away is refused. 0 means no limit. */
+	public int builderMaxAnchorDistance = 64;
 	/** Whether an installed Chunk Anchor keeps a fake's chunks loaded. False disables every anchor on the server
 	 * without taking the items away; the recipe itself can be removed with a datapack. A dedicated server still
 	 * pauses when empty (server.properties pause-when-empty-seconds; set it to 0 to keep anchored fakes working
@@ -128,6 +130,7 @@ public class PlayersConfig {
 		if (INSTANCE.builderMaxVolume < 1) INSTANCE.builderMaxVolume = 32768;
 		INSTANCE.builderStripeWidth = Math.max(1, Math.min(16, INSTANCE.builderStripeWidth));
 		if (INSTANCE.builderPlaceTicks < 1) INSTANCE.builderPlaceTicks = 4;
+		if (INSTANCE.builderMaxAnchorDistance < 0) INSTANCE.builderMaxAnchorDistance = 64;
 	}
 
 	private static void save(Gson gson) {
