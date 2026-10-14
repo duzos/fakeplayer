@@ -1,5 +1,6 @@
 package dev.duzo.players;
 
+import dev.duzo.players.compat.TaczForgeCompat;
 import dev.duzo.players.platform.ForgeCommonRegistry;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -13,6 +14,7 @@ public class PlayersForge {
         PlayersCommon.init();
 
         ForgeCommonRegistry.init(modEventBus);
+        TaczForgeCompat.init(modEventBus);
 
         if (FMLLoader.getDist() == Dist.CLIENT) {
             initClient(modEventBus);
