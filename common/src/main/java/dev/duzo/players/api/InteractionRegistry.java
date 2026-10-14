@@ -2,6 +2,7 @@ package dev.duzo.players.api;
 
 import dev.duzo.players.Constants;
 import dev.duzo.players.core.FPItems;
+import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
 import dev.duzo.players.platform.Services;
@@ -74,6 +75,10 @@ public class InteractionRegistry {
 
 		register(ItemTags.STAIRS, ((player, entity) -> {
 			if (entity.isRiding()) {
+				if (!RidingInteractions.mayCommand(player, entity)) {
+					player.sendSystemMessage(Component.literal("You do not own this fake."), true);
+					return InteractionResult.FAIL;
+				}
 				entity.setOrderedSeat(false);
 				entity.stopRiding();
 				Constants.traceEvent("seat dismount {} by stairs", entity.getUUID());
