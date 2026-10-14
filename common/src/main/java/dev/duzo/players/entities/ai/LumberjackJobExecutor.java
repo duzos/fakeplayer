@@ -3,6 +3,8 @@ package dev.duzo.players.entities.ai;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.requests.StockReserve;
 import dev.duzo.players.entities.ai.requests.ToolRequest;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -882,7 +884,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		pathFailCount = 0;
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
 		if (!message.equals(lastBlocker)) { // tell the owner once per distinct problem, not every retry
-			entity.sendChat(message + " - waiting 15s before retry");
+			FakeSpeech.say(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry");
 			lastBlocker = message;
 		}
 		entity.getNavigation().stop();
