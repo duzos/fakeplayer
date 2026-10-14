@@ -3,6 +3,8 @@ package dev.duzo.players.platform;
 import dev.duzo.players.platform.services.IPlatformHelper;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLLoader;
+import dev.duzo.players.platform.services.UseCheck;
+import net.minecraftforge.eventbus.api.Event;
 import dev.duzo.players.entities.possession.PossessionGuard;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
@@ -50,10 +52,16 @@ public class ForgePlatformHelper implements IPlatformHelper {
     }
 
     @Override
-    public boolean canUse(ServerLevel level, ServerPlayer player, BlockHitResult hit) {
-        if (!level.mayInteract(player, hit.getBlockPos())) return false;
-        return PossessionGuard.queryBypassed(() ->
-                !MinecraftForge.EVENT_BUS.post(new FakeLevelRightClick(player, hit, level)));
+    public UseCheck canUse(ServerLevel level, ServerPlayer player, BlockHitResult hit) {
+        if (!level.mayInteract(player, hit.getBlockPos())) return UseCheck.DENY;
+        // listeners see the possessor's hand, not the fake's
+        FakeLevelRightClick event = new FakeLevelRightClick(player, hit, level);
+        PossessionGuard.queryBypassed(() -> {
+            MinecraftForge.EVENT_BUS.post(event);
+            return true;
+        });
+        if (event.isCanceled()) return event.getCancellationResult().consumesAction() ? UseCheck.HANDLED : UseCheck.DENY;
+        return new UseCheck(UseCheck.Verdict.PROCEED, event.getUseBlock() != Event.Result.DENY, event.getUseItem() != Event.Result.DENY);
     }
 
     @Override
@@ -75,6 +83,11 @@ public class ForgePlatformHelper implements IPlatformHelper {
 
         @Override
         public BlockState getPlacedBlock() {
+            return placing;
+        }
+
+        @Override
+        public BlockState getState() {
             return placing;
         }
     }
