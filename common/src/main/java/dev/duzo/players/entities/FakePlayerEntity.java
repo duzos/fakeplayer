@@ -219,9 +219,12 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		super.removeVehicle();
 	}
 
-	// setRemoved lets go of the vehicle before onRemoval runs, so "was riding" has to be remembered from removeVehicle
+	// remove() runs before the vehicle is let go here, so a fake still aboard is checked directly; one already
+	// let go by its vehicle's removal is remembered from removeVehicle
 	private boolean discardedAsPassenger(RemovalReason reason) {
-		return reason == RemovalReason.DISCARDED && this.carriedOffByCreate;
+		if (reason != RemovalReason.DISCARDED) return false;
+		Entity vehicle = this.getVehicle();
+		return this.carriedOffByCreate || (vehicle != null && isCreateContraption(vehicle));
 	}
 
 	// ---- bed ----
