@@ -15,7 +15,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingAttackEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.TickEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -45,7 +45,7 @@ public class ForgeModEvents {
 	}
 
 	@SubscribeEvent
-	public static void onIncomingDamage(LivingIncomingDamageEvent e) {
+	public static void onAttack(LivingAttackEvent e) {
 		if (FriendlyFire.shouldBlock(e.getSource(), e.getEntity())) e.setCanceled(true);
 	}
 
