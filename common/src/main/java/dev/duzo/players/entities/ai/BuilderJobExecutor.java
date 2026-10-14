@@ -1,5 +1,6 @@
 package dev.duzo.players.entities.ai;
 
+import dev.duzo.players.Constants;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.api.requests.RequestKey;
 import dev.duzo.players.api.requests.RequesterKind;
@@ -123,6 +124,8 @@ public class BuilderJobExecutor implements JobExecutor {
 			}
 		}
 
+		Constants.trace(entity.getUUID() + "/builder", "builder {} phase={} stripe={} claim={} blocked={}",
+				entity.getName().getString(), phase, stripeIdx, claim, blocked.keySet());
 		switch (phase) {
 			case INIT -> init(level, entity);
 			case CLAIM -> claim(level, entity);
@@ -741,13 +744,32 @@ public class BuilderJobExecutor implements JobExecutor {
 		if (now < nextCheck) return;
 		nextCheck = now + RECHECK_TICKS;
 		if (!blocked.isEmpty()) {
-			if (!shortfallResolved(level, entity)) {
+			boolean needed = stillNeeded(level);
+			Constants.trace(entity.getUUID() + "/builder/blocked", "builder {} blocked on {} stillNeeded={}",
+					entity.getName().getString(), blocked.keySet(), needed);
+			if (!needed) {
+				// another Builder on the same site placed what this one was waiting for
+				settle(level, entity);
+			} else if (!shortfallResolved(level, entity)) {
 				raiseShortfall(level, entity, blocked);
 				return;
 			}
 		}
 		stuck.clear();
 		phase = Phase.INIT;
+	}
+
+	/** Whether any unfinished cell of the whole build still costs one of the items this fake is blocked on. */
+	private boolean stillNeeded(ServerLevel level) {
+		if (plan == null) return true;
+		for (BuildPlan.Stripe stripe : plan.stripes) {
+			for (BuildPlan.Cell c : stripe.cells()) {
+				if (!level.hasChunkAt(c.pos())) return true;
+				if (isDone(level, c) || PlacePass.matches(c.state(), level.getBlockState(c.pos()))) continue;
+				if (blocked.containsKey(MaterialRules.cost(c.state()).item())) return true;
+			}
+		}
+		return false;
 	}
 
 	/** Whether any of what was missing has turned up, in the inventory from a Runner or in the supply chest. */
