@@ -3,6 +3,7 @@ package dev.duzo.players.client;
 import commonnetwork.api.Network;
 import dev.duzo.players.Constants;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.possession.PossessionGuard;
 import dev.duzo.players.entities.possession.PossessionManager;
 import dev.duzo.players.entities.possession.PossessionView;
 import dev.duzo.players.network.c2s.PossessActionC2S;
@@ -43,6 +44,7 @@ public final class PossessionClient {
 	private PossessionClient() {}
 
 	public static void init() {
+		PossessionGuard.setClientCheck(player -> player == Minecraft.getInstance().player && possessed(Minecraft.getInstance()) != null);
 		FakePlayerEntity.setViewHook(new PossessionView() {
 			@Override
 			public float viewYRot(FakePlayerEntity fake, float partialTick) {
@@ -90,17 +92,20 @@ public final class PossessionClient {
 		drain(options.keyDrop);
 		drain(options.keySwapOffhand);
 		drain(options.keySpectatorHotbar);
+		drain(options.keySpectatorOutlines);
+		options.keySpectatorOutlines.setDown(false);
 		int[] hotbar = new int[options.keyHotbarSlots.length];
 		for (int i = 0; i < hotbar.length; i++) hotbar[i] = drain(options.keyHotbarSlots[i]);
 
 		boolean attackHeld = canAct && options.keyAttack.isDown();
 		boolean useHeld = canAct && options.keyUse.isDown();
 
-		// vanilla keeps attacking and using while a key is held. a toggle key cannot be cleared this way, so toggle mode is left alone
+		// vanilla keeps attacking and using while a key is held, so the held state is hidden from it. a toggle key is cleared
+		// outright and not restored, which only means toggled-on never sticks while possessing
 		attackWasDown = !options.toggleAttack().get() && options.keyAttack.isDown();
 		useWasDown = !options.toggleUse().get() && options.keyUse.isDown();
-		if (attackWasDown) options.keyAttack.setDown(false);
-		if (useWasDown) options.keyUse.setDown(false);
+		options.keyAttack.setDown(false);
+		options.keyUse.setDown(false);
 
 		float yaw = player.getYRot();
 		float pitch = player.getXRot();
