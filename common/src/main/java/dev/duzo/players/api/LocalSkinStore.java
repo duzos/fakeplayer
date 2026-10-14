@@ -8,8 +8,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -38,19 +36,7 @@ public final class LocalSkinStore {
 	}
 
 	public static String hashBytes(byte[] data) {
-		try {
-			MessageDigest md = MessageDigest.getInstance("SHA-256");
-			byte[] hash = md.digest(data);
-			StringBuilder hex = new StringBuilder(hash.length * 2);
-			for (byte b : hash) {
-				String h = Integer.toHexString(0xff & b);
-				if (h.length() == 1) hex.append('0');
-				hex.append(h);
-			}
-			return hex.toString();
-		} catch (NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
+		return SkinHash.ofBytes(data);
 	}
 
 	public boolean has(String key) {
