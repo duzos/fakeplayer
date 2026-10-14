@@ -13,6 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 /** Breaks one block at a time with Miner's progress and swing timing, and puts the drops in the fake's inventory. */
 public final class BlockBreaker {
@@ -32,6 +33,11 @@ public final class BlockBreaker {
 
 	/** One tick of work on `pos`. Moving to a different block restarts the progress. */
 	public Result tick(ServerLevel level, FakePlayerEntity entity, BlockPos pos) {
+		return tick(level, entity, pos, p -> true);
+	}
+
+	/** As above, but {@code allowed} is asked once at the moment the block would actually break, and a no ends the dig as BLOCKED. */
+	public Result tick(ServerLevel level, FakePlayerEntity entity, BlockPos pos, Predicate<BlockPos> allowed) {
 		if (target != null && !target.equals(pos)) reset(level, entity);
 		BlockState state = level.getBlockState(pos);
 		if (state.isAir() || state.getDestroySpeed(level, pos) < 0.0F) {
@@ -45,6 +51,10 @@ public final class BlockBreaker {
 		updateStage(level, entity, pos);
 		if (progress < 1.0F) return Result.PROGRESS;
 
+		if (!allowed.test(pos)) {
+			reset(level, entity);
+			return Result.BLOCKED;
+		}
 		ItemStack tool = entity.getMainHandItem();
 		boolean broke = breakIntoInventory(level, entity, pos, state, tool);
 		if (broke && tool.isDamageableItem()) tool.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
