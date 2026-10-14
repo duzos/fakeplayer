@@ -5,7 +5,7 @@
 - added Quartermaster and Runner jobs. mark storage with the Pool marker, and Runners collect and deliver requested items.
 - request items from the Quartermaster's Browse menu: click for a stack, sneak-click for one, ctrl-click for all. you can track and cancel orders there too.
 - added modded fishing rod support. thanks to RageQKM for the Aquaculture report and suggestion.
-- fishermen using a Tide rod roll Tide's own fish and loot, including the vanilla rod if you let Tide replace it. bait, the journal and the minigame are not used, and you won't get loot crates, so odds differ from fishing yourself.
+- fishermen using a Tide rod roll Tide's own fish and loot, including the vanilla rod if you let Tide replace it. bait, the journal and the minigame are not used, and you won't get loot crates, so odds differ from fishing yourself. thanks to SmollNarwhal for the Tide suggestion.
 - fakes can use TACZ guns as ranged weapons: they draw, aim, shoot, bolt and reload from their own inventory. thanks to DitzyBunny for the suggestion. works on 1.20.1 and 1.21.1 only. melee, fire modes and attachments aren't supported.
 - added Aquaculture tackle, bait, hook textures and dyed lines on Forge/NeoForge. lava fishing also works with its lava fishing addon and a suitable hook.
 - addons can register jobs and manage item requests through the API.
@@ -13,6 +13,11 @@
 - Crafters can fill requests using materials from storage, including recipes with several steps. this needs a free, bonded Crafter with a marked table.
 - fakes now ride boats, minecarts, Create seats and trains and other mods' seats. seat one with its AI marker, and use stairs on it to get off. a fake at a train's conductor seat runs the train from a schedule.
 - added the Possession Link. link it to your fake, use it in the air to see and act through the fake, and sneak to return.
+- added the Builder job. give it a structure file and a chest of blocks and it builds it, asking a Quartermaster for anything missing. several Builders can share one build.
+- added the Chunk Anchor. install it in your fake and the chunks around it stay loaded, so it keeps working while you're away.
+- fakes can use drawers and other modded storage as sources, deposits and pool storage. thanks to SmollNarwhal for the suggestion.
+- idle fakes watch nearby players, wave when their owner comes back and sleep in a free bed at night.
+- what a fake says shows in a speech bubble over its head, and a ! or ? appears when it's blocked or stuck.
 
 ## CHANGED
 
@@ -25,6 +30,8 @@
 - the addon request API now takes namespaced job IDs.
 - tool requests pick the best usable tool in storage, including supported modded tools. worn-out tools are skipped.
 - a fake's arrows, explosions and other damage no longer hurt itself, its owner, the owner's other fakes or the owner's pets, and it won't fight back against them.
+- shift-click the job button to cycle jobs backwards.
+- fake messages now look like normal chat lines from the fake.
 
 ## FIXED
 
