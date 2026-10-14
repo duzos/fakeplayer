@@ -171,6 +171,7 @@ public class FarmerJobExecutor implements JobExecutor {
 			return;
 		}
 		serviceAtChest(level, entity);
+		entity.markIdle(); // nothing to tend until crops grow: waiting is not being stuck
 		waitAtChest(level, entity, IDLE_WAIT_TICKS);
 	}
 
@@ -204,6 +205,7 @@ public class FarmerJobExecutor implements JobExecutor {
 		entity.getNavigation().stop();
 		if (actionCooldown > 0) return;
 		perform(level, entity);
+		entity.markProgress();
 		actionCooldown = ACTION_COOLDOWN_TICKS;
 		clearTarget();
 		phase = Phase.SCANNING;

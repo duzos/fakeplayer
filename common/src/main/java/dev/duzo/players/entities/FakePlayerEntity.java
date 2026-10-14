@@ -13,6 +13,9 @@ import dev.duzo.players.entities.ai.AIState;
 import dev.duzo.players.entities.ai.JobExecutor;
 import dev.duzo.players.entities.ai.JobRow;
 import dev.duzo.players.entities.ai.JobType;
+import dev.duzo.players.entities.ai.requests.SenderAlerts;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import dev.duzo.players.entities.ai.requests.StockKeeper;
 import dev.duzo.players.entities.ai.RangedWeapon;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
@@ -27,6 +30,7 @@ import dev.duzo.players.menu.FakePlayerMenuProvider;
 import dev.duzo.players.platform.Services;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.OutgoingChatMessage;
@@ -155,6 +159,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			jobExecutor = type == null ? null : type.createExecutor();
 			if (jobExecutor != null) jobExecutor.deserialize(state.jobState());
 			jobKeepsStock = type != null && type.rows().contains(JobRow.STOCK);
+			jobGraceTicks = type == null ? 0 : type.progressGraceSeconds() * 20;
 			// staggered by entity, so a base of fakes bound on the same tick does not run every
 			// quartermaster scan on the same tick for ever after
 			stockCountdown = 1 + Math.floorMod(this.getUUID().hashCode(), StockKeeper.checkTicks());
@@ -179,6 +184,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 				StockKeeper.tick(level, this);
 			}
 			jobExecutor.tick(level, this);
+			this.checkStuck(level);
 		}
 	}
 
@@ -617,6 +623,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		FakeProblem old = this.getProblem();
 		if (old == problem) return;
 		this.entityData.set(STATUS, (byte) problem.ordinal());
+		if (problem == FakeProblem.NONE) this.lastProgressTick = this.level().getGameTime();
 		Constants.traceEvent("status {} {} -> {}", this.getUUID(), old, problem);
 	}
 
@@ -626,10 +633,66 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		if (old != FakeProblem.NONE && old != FakeProblem.STUCK) this.reportProblem(FakeProblem.NONE);
 	}
 
-	/** Server side: the job was stopped, paused or replaced, so no problem carries over. */
+	/** Server side: the job was stopped, paused or replaced, so no problem carries over and the stuck timer restarts. */
 	private void resetProblem() {
 		this.reportProblem(FakeProblem.NONE);
+		this.restartProgressTimer();
 	}
+
+	private long lastProgressTick;
+	private Vec3 lastProgressPos = Vec3.ZERO;
+	private int jobGraceTicks;
+
+	private void restartProgressTimer() {
+		this.lastProgressTick = this.level().getGameTime();
+		this.lastProgressPos = this.position();
+	}
+
+	/**
+	 * Server side: the running job just did something real (mined, placed, moved items, crafted, caught, delivered).
+	 * Restarts the stuck timer and clears any problem mark, which that progress proves is over.
+	 */
+	public void markProgress() {
+		if (this.level().isClientSide()) return;
+		this.restartProgressTimer();
+		if (this.getProblem() == FakeProblem.STUCK) {
+			FakeSpeech.clear(this, "stuck");
+			SenderAlerts.clear(this, "stuck");
+		}
+		this.reportProblem(FakeProblem.NONE);
+	}
+
+	/** Server side: the job is legitimately waiting for work (empty source, crops growing), so that is not being stuck. */
+	public void markIdle() {
+		if (this.level().isClientSide()) return;
+		this.restartProgressTimer();
+	}
+
+	/**
+	 * Flags a job that is meant to be working but has not progressed for its grace period. A fake that is
+	 * travelling is not counted as stuck, since a long walk back to a chest is work no job reports as progress.
+	 */
+	private void checkStuck(ServerLevel level) {
+		if (this.jobGraceTicks <= 0 || this.getProblem() != FakeProblem.NONE) return;
+		long now = level.getGameTime();
+		if (this.position().distanceToSqr(this.lastProgressPos) >= TRAVEL_COUNTS_SQ) {
+			this.lastProgressPos = this.position();
+			this.lastProgressTick = now;
+			return;
+		}
+		if (now < this.lastProgressTick) { // a clock that moved backwards must not read as stuck
+			this.lastProgressTick = now;
+			return;
+		}
+		long idle = now - this.lastProgressTick;
+		if (idle <= this.jobGraceTicks) return;
+		Constants.traceEvent("stuck {} job={} noProgressFor={}s", this.getUUID(), this.getAIState().jobId(), idle / 20L);
+		this.reportProblem(FakeProblem.STUCK);
+		FakeSpeech.say(this, Verbosity.NORMAL, "stuck", "I'm stuck");
+		SenderAlerts.alert(level, this, "stuck", "has made no progress for " + (idle / 20L) + " seconds");
+	}
+
+	private static final double TRAVEL_COUNTS_SQ = 4.0D * 4.0D;
 
 	/** Server side: show a line above this fake. Callers go through FakeSpeech, which gates and rate limits. */
 	public void speak(String text) {

@@ -61,6 +61,7 @@ public class RunnerJobExecutor implements JobExecutor {
 		Haul haul = Haul.of(entity.getAIState());
 		Constants.trace(entity.getUUID() + "/runner/haul", "runner {} haul {}", entity.getName().getString(), haul);
 		if (haul == null) {
+			entity.markIdle(); // waiting for a dispatch is not being stuck
 			showCargo(entity, null, 0);
 			returnToBase(level, entity);
 			return;
@@ -179,6 +180,7 @@ public class RunnerJobExecutor implements JobExecutor {
 				index.noteTaken(haul.item(), source, got);
 				want -= got;
 				moved++; // count transfers, not slots visited
+				entity.markProgress();
 			}
 		}
 
@@ -213,6 +215,7 @@ public class RunnerJobExecutor implements JobExecutor {
 				entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
 				// said once, or a runner sitting out a five minute window is indistinguishable from
 				// a broken one. Every other way this leg can fail already reports itself.
+				entity.markIdle(); // already reported to the owner, and bounded by the orphan window
 				SenderAlerts.alert(level, entity, "lostrequester",
 						"is waiting with " + haul.item() + " for whoever asked for it");
 				return;
@@ -239,6 +242,7 @@ public class RunnerJobExecutor implements JobExecutor {
 
 		int delivered = handOff(entity, target, haul, request);
 		if (delivered > 0) {
+			entity.markProgress();
 			handoffWaited = 0;
 			entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
 			RequestStage from = request.stage();
