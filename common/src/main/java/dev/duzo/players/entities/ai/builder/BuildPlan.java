@@ -2,6 +2,7 @@ package dev.duzo.players.entities.ai.builder;
 
 import dev.duzo.players.config.PlayersConfig;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -37,7 +38,8 @@ import java.util.TreeMap;
  * so the site is cleared; entities, jigsaw, structure blocks and block entity data are dropped.
  */
 public final class BuildPlan {
-	public record BuildKey(ResourceKey<Level> dim, String schematic, BlockPos anchor, Rotation rotation, Mirror mirror) {}
+	/** `uploader` is whose upload folder the schematic may come from; empty for none. */
+	public record BuildKey(ResourceKey<Level> dim, String schematic, BlockPos anchor, Rotation rotation, Mirror mirror, String uploader) {}
 
 	/** `partner` is the other half placed in the same action, always after this cell: upper door half, bed head. */
 	public record Cell(BlockPos pos, BlockState state, PlacePass pass, @Nullable BlockPos partnerPos, @Nullable BlockState partnerState) {}
@@ -52,6 +54,9 @@ public final class BuildPlan {
 			return size() > CACHE_MAX;
 		}
 	};
+
+	private static final long MISS_MILLIS = 5000L;
+	private static final Map<BuildKey, Long> MISSES = new HashMap<>();
 
 	public final BuildKey key;
 	public final BoundingBox bounds;
@@ -77,30 +82,39 @@ public final class BuildPlan {
 		return n;
 	}
 
-	/** Cached by key. `owner` only picks where an upload is searched for and is not part of the key. */
-	public static synchronized SchematicStore.Result<BuildPlan> get(ServerLevel level, BuildKey key, @Nullable String owner) {
+	/** Cached by key. A failed load is remembered for a few seconds so a blocked Builder does not hit the disk every recheck. */
+	public static synchronized SchematicStore.Result<BuildPlan> get(ServerLevel level, BuildKey key) {
 		int width = PlayersConfig.get().builderStripeWidth;
 		BuildPlan cached = CACHE.get(key);
 		if (cached != null && cached.stripeWidth == width) return SchematicStore.Result.ok(cached);
-		SchematicStore.Result<StructureTemplate> t = SchematicStore.load(level, key.schematic(), owner);
-		if (!t.ok()) return SchematicStore.Result.fail(t.error());
-		BuildPlan plan = build(t.value(), key, width);
-		CACHE.put(key, plan);
-		return SchematicStore.Result.ok(plan);
+		long now = System.currentTimeMillis();
+		MISSES.values().removeIf(until -> until <= now);
+		if (MISSES.containsKey(key)) return SchematicStore.Result.fail("schematic not found: " + key.schematic());
+		SchematicStore.Result<StructureTemplate> t = SchematicStore.load(level, key.schematic(), key.uploader());
+		if (!t.ok()) {
+			MISSES.put(key, now + MISS_MILLIS);
+			return SchematicStore.Result.fail(t.error());
+		}
+		SchematicStore.Result<BuildPlan> built = build(t.value(), key, width);
+		if (built.ok()) CACHE.put(key, built.value());
+		return built;
 	}
 
 	/** For a schematic edited on disk, whose cached plans are now stale. */
 	static synchronized void clearCache() {
 		CACHE.clear();
+		MISSES.clear();
 	}
 
-	static BuildPlan build(StructureTemplate template, BuildKey key, int stripeWidth) {
+	static SchematicStore.Result<BuildPlan> build(StructureTemplate template, BuildKey key, int stripeWidth) {
 		CompoundTag tag = template.save(new CompoundTag());
 		List<BlockState> palette = readPalette(tag);
 		BoundingBox raw = template.getBoundingBox(BlockPos.ZERO, key.rotation(), BlockPos.ZERO, key.mirror());
 		BlockPos shift = key.anchor().subtract(new BlockPos(raw.minX(), raw.minY(), raw.minZ()));
 		BoundingBox bounds = raw.moved(shift.getX(), shift.getY(), shift.getZ());
 
+		Vec3i size = template.getSize();
+		int max = PlayersConfig.get().builderMaxVolume;
 		Map<BlockPos, BlockState> world = new HashMap<>();
 		ListTag blocks = tag.getList(StructureTemplate.BLOCKS_TAG, Tag.TAG_COMPOUND);
 		for (int i = 0; i < blocks.size(); i++) {
@@ -112,8 +126,14 @@ public final class BuildPlan {
 			ListTag p = b.getList(StructureTemplate.BLOCK_TAG_POS, Tag.TAG_INT);
 			if (p.size() < 3) continue;
 			BlockPos local = new BlockPos(p.getInt(0), p.getInt(1), p.getInt(2));
+			// a hand-edited file can name positions outside its own size, which would escape the claimed bounds
+			if (local.getX() < 0 || local.getY() < 0 || local.getZ() < 0
+					|| local.getX() >= size.getX() || local.getY() >= size.getY() || local.getZ() >= size.getZ()) continue;
 			BlockPos at = StructureTemplate.transform(local, key.mirror(), key.rotation(), BlockPos.ZERO).offset(shift);
 			world.put(at, state.mirror(key.mirror()).rotate(key.rotation()));
+			if (world.size() > max) {
+				return SchematicStore.Result.fail("schematic has too many blocks, limit " + max);
+			}
 		}
 
 		Map<Item, Integer> bom = new LinkedHashMap<>();
@@ -134,13 +154,18 @@ public final class BuildPlan {
 			}
 			BlockPos partnerPos = partnerOf(pos, state);
 			if (isCompanion(state)) {
-				// a second half with no first half in the schematic cannot be placed on its own
+				// a second half is placed with its first, and cannot be placed on its own
 				BlockPos first = firstHalfOf(pos, state);
-				if (!world.containsKey(first)) unsupported.merge(state.getBlock(), 1, Integer::sum);
+				BlockState firstState = world.get(first);
+				if (firstState == null || !pairs(firstState, state)) unsupported.merge(state.getBlock(), 1, Integer::sum);
 				continue;
 			}
 			BlockState partnerState = partnerPos == null ? null : world.get(partnerPos);
-			if (partnerState == null) partnerPos = null;
+			if (partnerPos != null && (partnerState == null || !pairs(state, partnerState))) {
+				// a first half without its matching other half is not a door or bed, so it is left out
+				unsupported.merge(state.getBlock(), 1, Integer::sum);
+				continue;
+			}
 			if (cost.count() > 0) bom.merge(cost.item(), cost.count(), Integer::sum);
 
 			int idx = ((alongX ? pos.getX() : pos.getZ()) - min) / stripeWidth;
@@ -154,7 +179,25 @@ public final class BuildPlan {
 		for (Map.Entry<Integer, List<Cell>> e : byStripe.entrySet()) {
 			stripes.add(new Stripe(e.getKey(), stripeBoxes.get(e.getKey()), order(e.getValue())));
 		}
-		return new BuildPlan(key, bounds, stripeWidth, List.copyOf(stripes), Map.copyOf(bom), Map.copyOf(unsupported));
+		return SchematicStore.Result.ok(new BuildPlan(key, bounds, stripeWidth, List.copyOf(stripes), Map.copyOf(bom), Map.copyOf(unsupported)));
+	}
+
+	/** Whether `second` is the other half of `first`: the same block, the opposite half, facing the same way. */
+	private static boolean pairs(BlockState first, BlockState second) {
+		if (first.getBlock() != second.getBlock()) return false;
+		if (first.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)) {
+			if (first.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) != DoubleBlockHalf.LOWER
+					|| second.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) != DoubleBlockHalf.UPPER) return false;
+		}
+		if (first.hasProperty(BlockStateProperties.BED_PART)) {
+			if (first.getValue(BlockStateProperties.BED_PART) != BedPart.FOOT
+					|| second.getValue(BlockStateProperties.BED_PART) != BedPart.HEAD) return false;
+		}
+		if (first.hasProperty(BlockStateProperties.HORIZONTAL_FACING)
+				&& first.getValue(BlockStateProperties.HORIZONTAL_FACING) != second.getValue(BlockStateProperties.HORIZONTAL_FACING)) {
+			return false;
+		}
+		return true;
 	}
 
 	private static List<BlockState> readPalette(CompoundTag tag) {

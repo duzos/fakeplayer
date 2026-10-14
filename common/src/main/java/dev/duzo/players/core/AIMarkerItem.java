@@ -281,11 +281,12 @@ public class AIMarkerItem extends Item {
 					player.displayClientMessage(Component.literal("Name a schematic in the AI menu first.").withStyle(ChatFormatting.RED), true);
 					return InteractionResult.FAIL;
 				}
-				BuilderParams next = params.withAnchor(pos.relative(ctx.getClickedFace()).immutable(), rotationFor(player.getDirection()));
+				BuilderParams next = params.withAnchor(pos.relative(ctx.getClickedFace()).immutable(), rotationFor(player.getDirection()),
+						player.getName().getString());
 				next.write(entity);
 				player.displayClientMessage(Component.literal("Anchor set.").withStyle(ChatFormatting.GREEN), true);
-				BuildPlan.BuildKey key = new BuildPlan.BuildKey(level.dimension(), next.schematic().trim(), next.anchor(), next.rotation(), next.mirror());
-				SchematicStore.Result<BuildPlan> plan = BuildPlan.get(level, key, player.getName().getString());
+				BuildPlan.BuildKey key = new BuildPlan.BuildKey(level.dimension(), next.schematic().trim(), next.anchor(), next.rotation(), next.mirror(), next.uploader());
+				SchematicStore.Result<BuildPlan> plan = BuildPlan.get(level, key);
 				if (plan.ok()) {
 					for (Component line : BuildReport.lines(plan.value())) player.displayClientMessage(line, false);
 				} else {
