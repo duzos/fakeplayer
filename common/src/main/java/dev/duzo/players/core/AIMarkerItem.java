@@ -2,6 +2,7 @@ package dev.duzo.players.core;
 
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.GuardJobExecutor;
+import dev.duzo.players.entities.ai.JobHelpers;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
 import dev.duzo.players.entities.ai.requests.StoragePool;
 import net.minecraft.ChatFormatting;
@@ -21,7 +22,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -275,7 +275,7 @@ public class AIMarkerItem extends Item {
 	}
 
 	public static boolean isValidContainer(Level level, BlockPos pos) {
-		return HopperBlockEntity.getContainerAt(level, pos) != null;
+		return JobHelpers.containerAt(level, pos) != null;
 	}
 
 	@Override

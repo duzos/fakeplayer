@@ -428,7 +428,7 @@ public class MinerJobExecutor implements JobExecutor {
 			return;
 		}
 		if (moveToChest(level, entity)) return;
-		Container c = HopperBlockEntity.getContainerAt(level, chest);
+		Container c = JobHelpers.containerAt(level, chest);
 		if (c == null) {
 			JobHelpers.closeContainer(level, entity);
 			waitForBlocker(level, entity, "miner: deposit container gone");
