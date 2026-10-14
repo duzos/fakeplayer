@@ -66,7 +66,7 @@ public class PlayersConfig {
 	public boolean chunkAnchors = true;
 	/** How much fakes say: "off" (only lines a player asked for), "quiet" (plus problems they need to act on) or
 	 * "chatty" (plus progress chatter). Each kind of line is spoken at most once per 30 seconds per fake, and a
-	 * fake never speaks more than once per 2 seconds. */
+	 * fake speaks at most once per 2 seconds. Lines a player asked for are exempt from both limits. */
 	public String speechVerbosity = "quiet";
 	/** True draws a fake's public lines as a speech bubble above its head. Every line also goes to chat as the fake's
 	 * own {@code <name> message} line unless {@link #speechBubblesReplaceChat} is set. Alerts to one owner stay in chat. */
