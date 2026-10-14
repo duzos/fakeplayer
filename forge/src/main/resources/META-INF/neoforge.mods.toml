@@ -50,3 +50,10 @@ type = "optional"
 versionRange = "[0,)"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "tide"
+type = "optional"
+versionRange = "[0,)"
+ordering = "NONE"
+side = "BOTH"

@@ -32,6 +32,7 @@
         "java": ">=17"
     },
     "suggests": {
-        "riverfishing": "*"
+        "riverfishing": "*",
+        "tide": "*"
     }
 }
