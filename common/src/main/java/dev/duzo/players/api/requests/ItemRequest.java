@@ -66,13 +66,30 @@ public final class ItemRequest {
 				|| stage == RequestStage.CRAFTING;
 	}
 
-	@ApiStatus.Internal public void setRemaining(int remaining) { this.remaining = Math.max(0, remaining); }
-	@ApiStatus.Internal public void setStage(RequestStage stage) { this.stage = stage; }
+	@ApiStatus.Internal public void setRemaining(int remaining) {
+		trace("remaining " + this.remaining + " -> " + remaining);
+		this.remaining = Math.max(0, remaining);
+	}
+
+	@ApiStatus.Internal public void setStage(RequestStage stage) {
+		trace("stage " + this.stage + " -> " + stage);
+		this.stage = stage;
+	}
+
+	private void trace(String change) {
+		if (!dev.duzo.players.Constants.TRACE) return;
+		String caller = StackWalker.getInstance().walk(frames -> frames.skip(2).findFirst()
+				.map(f -> f.getClassName().substring(f.getClassName().lastIndexOf('.') + 1) + "." + f.getMethodName() + ":" + f.getLineNumber())
+				.orElse("?"));
+		dev.duzo.players.Constants.traceEvent("request {} {} {} (by {})",
+				key().item(), change, "assignee=" + assignee, caller);
+	}
 	@ApiStatus.Internal public void setShortfallReason(@Nullable String reason) { this.shortfallReason = reason; }
 	@ApiStatus.Internal public void setRetryAfter(long tick) { this.retryAfter = tick; }
 
 	@ApiStatus.Internal
 	public void noteFailure() {
+		trace("failure " + this.lifetimeFailures + " -> " + (this.lifetimeFailures + 1));
 		this.failures++;
 		this.lifetimeFailures++;
 	}
@@ -82,6 +99,7 @@ public final class ItemRequest {
 
 	@ApiStatus.Internal
 	public void assignTo(@Nullable UUID runner, long now) {
+		trace("assign " + this.assignee + " -> " + runner);
 		this.assignee = runner;
 		this.assignedAt = runner == null ? 0L : now;
 	}

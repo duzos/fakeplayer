@@ -1,5 +1,6 @@
 package dev.duzo.players.entities.ai;
 
+import dev.duzo.players.Constants;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.api.requests.ItemRequest;
 import dev.duzo.players.api.requests.RequestStage;
@@ -58,6 +59,7 @@ public class RunnerJobExecutor implements JobExecutor {
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
 		Haul haul = Haul.of(entity.getAIState());
+		Constants.trace(entity.getUUID() + "/runner/haul", "runner {} haul {}", entity.getName().getString(), haul);
 		if (haul == null) {
 			showCargo(entity, null, 0);
 			returnToBase(level, entity);
@@ -96,6 +98,8 @@ public class RunnerJobExecutor implements JobExecutor {
 		}
 
 		ItemRequest request = board.assignedTo(entity.getUUID());
+		Constants.trace(entity.getUUID() + "/runner/tick", "runner {} haul={} cargo={} assigned={}", entity.getName().getString(),
+				haul.item(), haul.cargo(entity), request == null ? null : request.stage() + " remaining=" + request.remaining());
 		if (request == null) {
 			// cancelled, requeued, or finished by someone else: put the cargo back and go free.
 			// Unconditional: the window is measured from dispatch, so a legitimately long haul
@@ -113,6 +117,9 @@ public class RunnerJobExecutor implements JobExecutor {
 		// arrives, so the request stays open for the rest and the requester gets what it can have
 		boolean canCollectMore = !JobHelpers.isFull(entity.getInventory())
 				&& nearestSource(qmLevel, entity, qm, haul) != null;
+		Constants.trace(entity.getUUID() + "/runner/decide", "runner {} cargo={} remaining={} canCollectMore={} -> {}",
+				entity.getName().getString(), cargo, request.remaining(), canCollectMore,
+				cargo < request.remaining() && canCollectMore ? "collect" : cargo > 0 ? "deliver" : "fail");
 		if (cargo < request.remaining() && canCollectMore) {
 			collectLeg(level, entity, qm, qmLevel, haul, request);
 		} else if (cargo > 0) {
@@ -127,10 +134,15 @@ public class RunnerJobExecutor implements JobExecutor {
 	private void collectLeg(ServerLevel level, FakePlayerEntity entity, FakePlayerEntity qm,
 	                        ServerLevel qmLevel, Haul haul, ItemRequest request) {
 		if (source == null) source = nearestSource(qmLevel, entity, qm, haul);
+		String tk = entity.getUUID() + "/runner";
+		Constants.trace(tk, "runner {} collect {} want={} cargo={} source={}", entity.getName().getString(),
+				haul.item(), request.remaining(), haul.cargo(entity), source);
 		if (source == null) return; // the tick guard re-decides next tick
 
 		if (!JobHelpers.atTarget(entity, source)) {
 			JobHelpers.WalkResult result = JobHelpers.walkTo(entity, source, SPEED);
+			Constants.trace(tk + "/walk", "runner {} walking to {} from {} result={}", entity.getName().getString(),
+					source, entity.blockPosition(), result);
 			if (result == JobHelpers.WalkResult.UNREACHABLE && ++pathFails >= MAX_PATH_FAILS) {
 				pathFails = 0;
 				fail(level, entity, qm, qmLevel, haul, request, "cannot reach the storage pool");
@@ -138,9 +150,15 @@ public class RunnerJobExecutor implements JobExecutor {
 			return;
 		}
 		pathFails = 0;
-		if (!JobHelpers.pollContainer(level, entity, source)) return;
+		if (!JobHelpers.pollContainer(level, entity, source)) {
+			Constants.trace(tk + "/walk", "runner {} at {} opening", entity.getName().getString(), source);
+			return;
+		}
 
 		Container container = JobHelpers.containerAt(qmLevel, source);
+		Constants.trace(tk + "/walk", "runner {} at {} container={} size={}", entity.getName().getString(), source,
+				container == null ? null : container.getClass().getSimpleName(),
+				container == null ? -1 : container.getContainerSize());
 		if (container == null) {
 			PoolIndex.markDirty(qmLevel, qm.getUUID());
 			source = null;
@@ -155,6 +173,8 @@ public class RunnerJobExecutor implements JobExecutor {
 			if (stack.isEmpty()) continue;
 			if (!BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(haul.item())) continue;
 			int got = JobHelpers.withdrawInto(container, slot, Math.min(want, stack.getCount()), entity.getInventory());
+			Constants.traceEvent("runner {} slot {} has {} asked {} got {}", entity.getName().getString(),
+					slot, stack, Math.min(want, stack.getCount()), got);
 			if (got > 0) {
 				index.noteTaken(haul.item(), source, got);
 				want -= got;
@@ -163,6 +183,7 @@ public class RunnerJobExecutor implements JobExecutor {
 		}
 
 		if (moved == 0) {
+			Constants.traceEvent("runner {} took nothing at {}, rebuilding index", entity.getName().getString(), source);
 			// the index promised an item this container does not have: that is the signal to rebuild
 			PoolIndex.markDirty(qmLevel, qm.getUUID());
 			JobHelpers.closeContainer(level, entity);
@@ -177,6 +198,8 @@ public class RunnerJobExecutor implements JobExecutor {
 		JobHelpers.closeContainer(level, entity);
 		source = null;
 		Entity target = requesterOf(level, request);
+		Constants.trace(entity.getUUID() + "/runner/deliver", "runner {} delivering {} to {}", entity.getName().getString(),
+				haul.cargo(entity), target == null ? null : target.getName().getString());
 		if (target == null) {
 			// a requester in another dimension, or briefly logged out, is unobservable rather than
 			// gone: charging failures here put the request on an endless collect/fail/notify
@@ -277,6 +300,8 @@ public class RunnerJobExecutor implements JobExecutor {
 	/** Give up this leg: return the cargo, free the Runner, and let the board back the request off. */
 	private void fail(ServerLevel level, FakePlayerEntity entity, FakePlayerEntity qm, ServerLevel qmLevel,
 	                  Haul haul, ItemRequest request, String reason) {
+		Constants.traceEvent("runner {} FAIL '{}' item={} cargo={} remaining={} stage={}",
+				entity.getName().getString(), reason, haul.item(), haul.cargo(entity), request.remaining(), request.stage());
 		returnCargo(level, entity, qm, qmLevel, haul);
 		releaseHaul(level, entity);
 		RequestStage from = request.stage();
@@ -298,6 +323,7 @@ public class RunnerJobExecutor implements JobExecutor {
 	private void returnCargo(ServerLevel level, FakePlayerEntity entity, FakePlayerEntity qm,
 	                         ServerLevel qmLevel, Haul haul) {
 		int owed = haul.cargo(entity);
+		Constants.traceEvent("runner {} returning {} {} to the pool", entity.getName().getString(), owed, haul.item());
 		if (owed <= 0) return;
 		SimpleContainer inv = entity.getInventory();
 
