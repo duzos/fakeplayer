@@ -57,7 +57,10 @@ public class PlayersConfig {
 	/** Ticks between two block placements by a Builder, minimum 1. */
 	public int builderPlaceTicks = 4;
 	/** Whether an installed Chunk Anchor keeps a fake's chunks loaded. False disables every anchor on the server
-	 * without taking the items away; the recipe itself can be removed with a datapack. */
+	 * without taking the items away; the recipe itself can be removed with a datapack. A dedicated server still
+	 * pauses when empty (server.properties pause-when-empty-seconds; set it to 0 to keep anchored fakes working
+	 * with nobody online). A /forceload on a chunk an anchored fake already forced is released when the fake
+	 * moves away. */
 	public boolean chunkAnchors = true;
 
 	public static PlayersConfig get() {
