@@ -57,7 +57,7 @@ public class CourierJobExecutor implements JobExecutor {
 				}
 				int moved = pullMatching(src, dest, state.filter(), TRANSFER_PER_TICK);
 				if (moved == 0) phase = Phase.TO_DEPOSIT;
-				else lastBlocker = ""; // making progress again - let the next problem re-announce
+				else resumed(entity); // making progress again - let the next problem re-announce
 			}
 			case TO_DEPOSIT -> walkTo(entity, deposit, Phase.DUMP);
 			case DUMP -> {
@@ -81,7 +81,7 @@ public class CourierJobExecutor implements JobExecutor {
 					if (JobHelpers.isFull(src)) { waitForBlocker(level, entity, "courier: deposit chest full"); return; }
 					phase = Phase.TO_SOURCE;
 				} else {
-					lastBlocker = "";
+					resumed(entity);
 				}
 			}
 			case WAITING_AT_DEPOSIT -> tickWaitingAtDeposit(level, entity, deposit);
@@ -94,7 +94,7 @@ public class CourierJobExecutor implements JobExecutor {
 			int moved = dumpAll(entity.getInventory(), dst, TRANSFER_PER_TICK, StockReserve.of(entity));
 			if (moved > 0) { // owner made room - resume the normal drain
 				entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
-				lastBlocker = "";
+				resumed(entity);
 				phase = Phase.DUMP;
 				return;
 			}
@@ -111,8 +111,7 @@ public class CourierJobExecutor implements JobExecutor {
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
 		phase = Phase.WAITING_AT_DEPOSIT;
 		if (!message.equals(lastBlocker)) { // tell the owner once per distinct problem, not every retry
-			FakeSpeech.say(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry");
-			lastBlocker = message;
+			if (FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry")) lastBlocker = message;
 		}
 	}
 
@@ -196,5 +195,11 @@ public class CourierJobExecutor implements JobExecutor {
 			try { phase = Phase.valueOf(name); } catch (IllegalArgumentException ignored) {}
 		}
 		waitUntilTick = tag.contains("WaitUntil") ? tag.getLong("WaitUntil") : 0L;
+	}
+
+	/** Work is moving again: forget the blocker, and its speech latch so a recurrence is announced. */
+	private void resumed(FakePlayerEntity entity) {
+		FakeSpeech.clearBlocked(entity, lastBlocker);
+		lastBlocker = "";
 	}
 }
