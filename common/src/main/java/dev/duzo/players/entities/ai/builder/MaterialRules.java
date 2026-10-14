@@ -13,8 +13,8 @@ import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.SlabType;
 
 /** What a block state costs to place. Wall variants already map to the standing item through the vanilla block-to-item map. */
-final class MaterialRules {
-	record Cost(Item item, int count, boolean supported) {
+public final class MaterialRules {
+	public record Cost(Item item, int count, boolean supported) {
 		static final Cost NONE = new Cost(Items.AIR, 0, true);
 		static final Cost UNSUPPORTED = new Cost(Items.AIR, 0, false);
 	}
@@ -25,7 +25,7 @@ final class MaterialRules {
 
 	private MaterialRules() {}
 
-	static Cost cost(BlockState state) {
+	public static Cost cost(BlockState state) {
 		if (state.isAir()) return Cost.NONE;
 		if (state.getBlock() instanceof LiquidBlock) return Cost.UNSUPPORTED;
 		// the second half of a door, tall plant or bed comes with the first

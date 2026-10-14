@@ -8,7 +8,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
 
 /** When in a build a cell is worked. Placement order is CLEAR top-down, then SOLID and ATTACH bottom-up. */
-enum PlacePass {
+public enum PlacePass {
 	CLEAR,
 	/** Full collision shape, so it can carry anything attached to it. */
 	SOLID,
@@ -23,7 +23,7 @@ enum PlacePass {
 			BlockStateProperties.BED_PART
 	};
 
-	static PlacePass of(BlockState target) {
+	public static PlacePass of(BlockState target) {
 		if (target.isAir()) return CLEAR;
 		if (target.getBlock() instanceof LiquidBlock) return FLUID;
 		return target.isCollisionShapeFullBlock(EmptyBlockGetter.INSTANCE, BlockPos.ZERO) ? SOLID : ATTACH;
@@ -31,7 +31,7 @@ enum PlacePass {
 
 	/** Whether the world already holds `want`. Only the identity properties are compared: redstone power,
 	 * stair shape and waterlogging follow from the surroundings and would never settle. */
-	static boolean matches(BlockState want, BlockState have) {
+	public static boolean matches(BlockState want, BlockState have) {
 		if (want.isAir()) return have.isAir() || have.getBlock() instanceof LiquidBlock;
 		if (want.getBlock() != have.getBlock()) return false;
 		for (Property<?> p : IDENTITY) {
