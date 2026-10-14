@@ -7,6 +7,7 @@ import dev.duzo.players.core.PossessionLinkItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetCameraPacket;
@@ -15,8 +16,12 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.LevelData;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -39,6 +44,10 @@ public final class PossessionManager {
 	private static final int CAMERA_RESEND_TICKS = 10;
 	/** How long after a hit, dealt or taken, a player counts as still fighting. */
 	private static final int COMBAT_TICKS = 100;
+	/** Clicks a client can land per tick; real play is one or two, so the rest are a modified client flooding the fake. */
+	private static final int MAX_ACTIONS_PER_TICK = 4;
+	/** How far from the saved return point to look for somewhere safe to stand. */
+	private static final int SAFE_RADIUS = 4;
 
 	public static final int FLAG_FORWARD = 1;
 	public static final int FLAG_BACK = 2;
@@ -156,6 +165,7 @@ public final class PossessionManager {
 
 	private static void start(MinecraftServer server, ServerPlayer player, ItemStack link, FakePlayerEntity fake) {
 		GameType mode = player.gameMode.getGameModeForPlayer();
+		if (fake.isPassenger()) fake.stopRiding();
 		PossessionReturn ret = new PossessionReturn(player.level().dimension().identifier().toString(),
 				player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot(), mode.getId(), fake.getUUID());
 		PossessionLinkItem.writeReturn(link, ret);
@@ -180,14 +190,11 @@ public final class PossessionManager {
 	public static void tick(MinecraftServer server) {
 		if (SESSIONS.isEmpty()) return;
 		for (PossessionSession session : new ArrayList<>(SESSIONS.values())) {
-			if (session.server != server) {
-				// left over from a server that has since stopped: nothing in it is ours to touch
-				SESSIONS.remove(session.player);
-				continue;
-			}
-			ServerPlayer player = server.getPlayerList().getPlayer(session.player);
+			ServerPlayer player = session.server == server ? server.getPlayerList().getPlayer(session.player) : null;
 			if (player == null) {
+				// a stale session from a stopped server, or a player who is gone: all that is left to undo is the fake's lock
 				SESSIONS.remove(session.player);
+				if (!session.fake.isRemoved()) session.fake.setPossessor(-1);
 				continue;
 			}
 			tickSession(server, player, session);
@@ -201,6 +208,7 @@ public final class PossessionManager {
 			return;
 		}
 		long now = server.getTickCount();
+		if (s.fake.isPassenger()) s.fake.stopRiding();
 		if (!s.acked) {
 			long age = now - s.startTick;
 			if (age > ACK_TIMEOUT_TICKS) {
@@ -265,6 +273,15 @@ public final class PossessionManager {
 			Constants.traceEvent("possession action rejected {}: no input yet", player.getUUID());
 			return;
 		}
+		long now = s.server.getTickCount();
+		if (s.actionTick != now) {
+			s.actionTick = now;
+			s.actionCount = 0;
+		}
+		if (++s.actionCount > MAX_ACTIONS_PER_TICK) {
+			Constants.traceEvent("possession action dropped {}: more than {} this tick", player.getUUID(), MAX_ACTIONS_PER_TICK);
+			return;
+		}
 		PossessionActions.handle(player, s, action, targetId, pos, face, hx, hy, hz, slot);
 	}
 
@@ -326,17 +343,14 @@ public final class PossessionManager {
 		if (s != null && fake != null && fake.level() instanceof ServerLevel level) s.breaker.reset(level, fake);
 		if (fake != null && !fake.isRemoved() && fake.getPossessor() == player.getId()) fake.setPossessor(-1);
 
-		if (player.isSpectator()) {
-			ServerLevel back = levelOf(server, ret.dimension());
-			if (back != null) {
-				player.teleportTo(back, ret.x(), ret.y(), ret.z(), Set.of(), ret.yRot(), ret.xRot(), true);
-			} else {
-				player.setCamera(player);
-			}
-			player.setGameMode(GameType.byId(ret.gameMode()));
-		} else {
-			player.setCamera(player);
+		player.setCamera(player);
+		ServerLevel back = levelOf(server, ret.dimension());
+		if (back != null) {
+			Spot spot = safeSpot(server, player, back, ret);
+			player.teleportTo(spot.level, spot.x, spot.y, spot.z, Set.of(), ret.yRot(), ret.xRot(), true);
 		}
+		// only a spectator is still in the mode this class put them in; anyone else changed it themselves
+		if (player.isSpectator()) player.setGameMode(GameType.byId(ret.gameMode()));
 
 		ItemStack link = findActiveLink(player);
 		if (link != null) {
@@ -345,6 +359,46 @@ public final class PossessionManager {
 		}
 		Constants.traceEvent("possession end {} fake={} reason={}", player.getUUID(), ret.fake(), reason.label);
 		if (reason != Reason.LOGOUT) tell(player, s == null ? null : s.fakeName, fake, reason);
+	}
+
+	private record Spot(ServerLevel level, double x, double y, double z) {}
+
+	/**
+	 * The return point if it is still fit to stand in, else the nearest spot within {@link #SAFE_RADIUS} that is, else the
+	 * player's own respawn point or the world spawn. The world may have changed a lot since the possession began.
+	 */
+	private static Spot safeSpot(MinecraftServer server, ServerPlayer player, ServerLevel level, PossessionReturn ret) {
+		BlockPos origin = BlockPos.containing(ret.x(), ret.y(), ret.z());
+		if (standable(level, origin, false)) return new Spot(level, ret.x(), ret.y(), ret.z());
+		BlockPos best = null;
+		double bestDist = Double.MAX_VALUE;
+		for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-SAFE_RADIUS, -SAFE_RADIUS, -SAFE_RADIUS), origin.offset(SAFE_RADIUS, SAFE_RADIUS, SAFE_RADIUS))) {
+			double dist = pos.distSqr(origin);
+			if (dist < bestDist && standable(level, pos, true)) {
+				best = pos.immutable();
+				bestDist = dist;
+			}
+		}
+		if (best != null) return new Spot(level, best.getX() + 0.5, best.getY(), best.getZ() + 0.5);
+		ServerPlayer.RespawnConfig respawn = player.getRespawnConfig();
+		LevelData.RespawnData data = respawn != null ? respawn.respawnData() : server.overworld().getRespawnData();
+		ServerLevel spawnLevel = server.getLevel(data.globalPos().dimension());
+		if (spawnLevel == null) spawnLevel = server.overworld();
+		BlockPos spawn = data.globalPos().pos();
+		return new Spot(spawnLevel, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+	}
+
+	/** Feet and head room free of anything solid, fluid or burning, and when asked, something to stand on. */
+	private static boolean standable(ServerLevel level, BlockPos feet, boolean needGround) {
+		if (!level.isInWorldBounds(feet)) return false;
+		for (BlockPos pos : new BlockPos[] {feet, feet.above()}) {
+			BlockState state = level.getBlockState(pos);
+			if (!state.getCollisionShape(level, pos).isEmpty() || state.is(BlockTags.FIRE) || !state.getFluidState().isEmpty()) return false;
+		}
+		if (!needGround) return true;
+		BlockPos below = feet.below();
+		BlockState ground = level.getBlockState(below);
+		return ground.isFaceSturdy(level, below, Direction.UP) && !ground.is(Blocks.MAGMA_BLOCK) && !ground.is(Blocks.CAMPFIRE);
 	}
 
 	@Nullable
