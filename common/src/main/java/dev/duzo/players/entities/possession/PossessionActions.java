@@ -3,6 +3,7 @@ package dev.duzo.players.entities.possession;
 import dev.duzo.players.Constants;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.builder.BlockBreaker;
+import dev.duzo.players.platform.Services;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -11,6 +12,9 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.OwnableEntity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
@@ -22,6 +26,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 
 /**
  * What a possessor's clicks do to the world, performed by the fake from its own eyes. Every number a client sends is
@@ -70,6 +75,17 @@ final class PossessionActions {
 		return level.isInWorldBounds(pos) && level.mayInteract(player, pos);
 	}
 
+	/** Things a possessor must not hit: other people's property, and anything inside ground they may not edit. */
+	@Nullable
+	private static String protectedReason(ServerPlayer player, PossessionSession s, ServerLevel level, Entity target) {
+		if (!level.mayInteract(player, target.blockPosition())) return "protected area";
+		if (target instanceof HangingEntity || target instanceof ArmorStand) return "decoration";
+		if (target instanceof FakePlayerEntity other && !player.getUUID().equals(other.getAIState().ownerUUID())) return "someone else's fake";
+		if (target instanceof OwnableEntity pet && pet.getOwnerReference() != null
+				&& !pet.getOwnerReference().getUUID().equals(player.getUUID())) return "someone else's pet";
+		return null;
+	}
+
 	// ---- attack ----
 
 	private static void attack(ServerPlayer player, PossessionSession s, ServerLevel level, int targetId) {
@@ -89,6 +105,11 @@ final class PossessionActions {
 			reject(player, "target out of reach");
 			return;
 		}
+		String refused = protectedReason(player, s, level, target);
+		if (refused != null) {
+			reject(player, "attack refused, " + refused);
+			return;
+		}
 		s.lastAttackTick = now;
 		fake.swing(InteractionHand.MAIN_HAND);
 		boolean hit = fake.doHurtTarget(level, target);
@@ -103,7 +124,13 @@ final class PossessionActions {
 			stopBreak(s);
 			return;
 		}
-		if (level.getBlockState(pos).isAir()) {
+		BlockState state = level.getBlockState(pos);
+		if (state.isAir()) {
+			stopBreak(s);
+			return;
+		}
+		if (!pos.equals(s.breakPos) && !Services.PLATFORM.canBreak(level, player, pos)) {
+			reject(player, "break vetoed at " + pos.toShortString());
 			stopBreak(s);
 			return;
 		}
@@ -182,7 +209,14 @@ final class PossessionActions {
 			ItemStack held = fake.getMainHandItem();
 			if (!result.consumesAction() && !held.isEmpty()) {
 				if (held.getItem() instanceof BlockItem block) {
-					result = block.place(new FakePlaceContext(level, fake, InteractionHand.MAIN_HAND, held, hitResult));
+					FakePlaceContext context = new FakePlaceContext(level, fake, InteractionHand.MAIN_HAND, held, hitResult);
+					BlockPos placePos = context.getClickedPos();
+					if (!mayEdit(player, s, level, placePos)
+							|| !Services.PLATFORM.canPlace(level, player, placePos, block.getBlock().defaultBlockState())) {
+						reject(player, "place vetoed at " + placePos.toShortString());
+						return;
+					}
+					result = block.place(context);
 				} else {
 					result = held.useOn(new UseOnContext(level, null, InteractionHand.MAIN_HAND, held, hitResult));
 				}
