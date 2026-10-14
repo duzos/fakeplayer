@@ -152,7 +152,7 @@ public final class PossessionManager {
 
 	private static void deny(ServerPlayer player, String message) {
 		Constants.traceEvent("possession denied {}: {}", player.getUUID(), message);
-		player.displayClientMessage(Component.literal(message).withStyle(ChatFormatting.RED), true);
+		player.sendSystemMessage(Component.literal(message).withStyle(ChatFormatting.RED), true);
 	}
 
 	private static boolean mayControl(ServerPlayer player, FakePlayerEntity fake) {
@@ -450,9 +450,9 @@ public final class PossessionManager {
 		if (line != null && present) {
 			fake.sendChatTo(player, line);
 		} else if (reason == Reason.FAKE_GONE) {
-			player.displayClientMessage(Component.literal((name == null ? "The fake" : name) + " is gone, so control ended.").withStyle(ChatFormatting.RED), false);
+			player.sendSystemMessage(Component.literal((name == null ? "The fake" : name) + " is gone, so control ended.").withStyle(ChatFormatting.RED), false);
 		} else if (reason == Reason.REPAIR) {
-			player.displayClientMessage(Component.literal("Your possession ended while you were away.").withStyle(ChatFormatting.YELLOW), true);
+			player.sendSystemMessage(Component.literal("Your possession ended while you were away.").withStyle(ChatFormatting.YELLOW), true);
 		}
 	}
 }

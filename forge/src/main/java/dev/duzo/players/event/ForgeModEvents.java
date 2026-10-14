@@ -78,14 +78,6 @@ public class ForgeModEvents {
 		}
 	}
 
-	@SubscribeEvent(priority = EventPriority.HIGHEST)
-	public static void onEntityInteractSpecific(PlayerInteractEvent.EntityInteractSpecific e) {
-		if (PossessionGuard.blocks(e.getEntity())) {
-			e.setCanceled(true);
-			e.setCancellationResult(InteractionResult.FAIL);
-		}
-	}
-
 	@SubscribeEvent
 	public static void onUseEntity(PlayerInteractEvent.EntityInteract e) {
 		InteractionResult result = RidingInteractions.useEntity(e.getEntity(), e.getLevel(), e.getHand(), e.getTarget());

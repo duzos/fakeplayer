@@ -11,9 +11,10 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * Vanilla lets any spectator teleport to any entity with a packet. A possessing player is a spectator only so the camera
  * can follow the fake, and that teleport would drop the camera and leave them standing at the fake's side.
  */
-@Mixin(ServerGamePacketListenerImpl.class)
+// remap=false: 26.x runs on mojmap names, same as FishingRodCastMixin
+@Mixin(value = ServerGamePacketListenerImpl.class, remap = false)
 public class SpectatorTeleportMixin {
-	@Redirect(method = "handleTeleportToEntityPacket", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;isSpectator()Z"))
+	@Redirect(method = "handleTeleportToEntityPacket", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;isSpectator()Z", remap = false), remap = false)
 	private boolean players$notWhilePossessing(ServerPlayer player) {
 		return !PossessionManager.isPossessing(player) && player.isSpectator();
 	}
