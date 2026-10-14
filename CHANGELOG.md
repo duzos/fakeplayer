@@ -26,6 +26,7 @@
 - fishermen keep their equipped rod, deposit spares and take a replacement from storage when needed. offhand rods work too.
 - the addon request API now takes namespaced job IDs.
 - tool requests pick the best usable tool in storage, including supported modded tools. worn-out tools are skipped.
+- a fake's arrows, explosions and other damage no longer hurt itself, its owner, the owner's other fakes or the owner's pets, and it won't fight back against them.
 
 ## FIXED
 
