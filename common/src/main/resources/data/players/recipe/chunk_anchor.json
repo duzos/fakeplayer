@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ENE",
+    "YAY",
+    "ENE"
+  ],
+  "key": {
+    "E": "minecraft:echo_shard",
+    "N": "minecraft:netherite_ingot",
+    "Y": "minecraft:ender_eye",
+    "A": "players:player_ai"
+  },
+  "result": {
+    "id": "players:chunk_anchor",
+    "count": 1
+  }
+}
