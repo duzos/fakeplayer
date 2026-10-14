@@ -54,7 +54,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 			}
 
 			super.render(entity, pEntityYaw, pPartialTicks, matrices, pBuffer, pPackedLight);
-			SpeechBubbles.render(entity, entity.isCustomNameVisible(), matrices, pBuffer, pPackedLight, this.entityRenderDispatcher, this.getFont(), pPartialTicks);
+			SpeechBubbles.render(entity, this.shouldShowName(entity), entity.isCustomNameVisible(), matrices, pBuffer, pPackedLight, this.entityRenderDispatcher, this.getFont(), pPartialTicks);
 		} finally {
 			matrices.popPose();
 			endTipCapture.run();
