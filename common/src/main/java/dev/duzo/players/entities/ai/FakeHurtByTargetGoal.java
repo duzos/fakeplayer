@@ -19,4 +19,15 @@ public class FakeHurtByTargetGoal extends HurtByTargetGoal {
 	protected double getFollowDistance() {
 		return CHASE_RANGE;
 	}
+
+	// a fake never damages these (see FriendlyFire), so locking on would only burn ammo on a target it cannot hurt
+	@Override
+	public boolean canUse() {
+		return !FriendlyFire.shouldBlock(this.mob, this.mob.getLastHurtByMob()) && super.canUse();
+	}
+
+	@Override
+	public boolean canContinueToUse() {
+		return !FriendlyFire.shouldBlock(this.mob, this.mob.getTarget()) && super.canContinueToUse();
+	}
 }
