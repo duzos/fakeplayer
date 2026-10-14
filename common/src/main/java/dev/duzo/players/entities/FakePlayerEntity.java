@@ -32,6 +32,9 @@ import dev.duzo.players.entities.goal.JobAwareTemptGoal;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
 import dev.duzo.players.entities.inventory.FakePlayerInventory;
+import dev.duzo.players.entities.possession.PossessedLookControl;
+import dev.duzo.players.entities.possession.PossessedMoveControl;
+import dev.duzo.players.entities.possession.PossessionView;
 import dev.duzo.players.menu.FakeCrafterMenu;
 import dev.duzo.players.menu.FakePlayerMenu;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
@@ -99,6 +102,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	private static final EntityDataAccessor<String> SPEECH = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
 	// drives the client-side crossbow charging pose; combat state only, never persisted
 	private static final EntityDataAccessor<Boolean> CHARGING_CROSSBOW = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
+	/** Entity id of the player possessing this fake, or -1. Never persisted: ids do not survive a reload, and a possession cannot either. */
+	private static final EntityDataAccessor<Integer> POSSESSOR = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.INT);
 	private SkinData dataCache;
 	private AIState aiCache;
 	private Component nameCache;
@@ -119,6 +124,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		// vanilla's DropChances.DEFAULT only drops equipment ~8.5% of the time; the fake's gear should
 		// never be destroyed by death or lava just because it wasn't recently hit by a player.
 		for (EquipmentSlot slot : EquipmentSlot.values()) this.setGuaranteedDrop(slot);
+		this.moveControl = new PossessedMoveControl(this);
+		this.lookControl = new PossessedLookControl(this);
 	}
 
 	public FakePlayerEntity(Level level) {
@@ -223,6 +230,89 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	// setRemoved lets go of the vehicle before onRemoval runs, so "was riding" has to be remembered from removeVehicle
 	private boolean discardedAsPassenger(RemovalReason reason) {
 		return reason == RemovalReason.DISCARDED && this.carriedOffByCreate;
+	}
+
+	// ---- possession ----
+
+	/** Hooks the client fills in so a possessed fake looks where its possessor's mouse does; null on a dedicated server. */
+	@Nullable
+	private static PossessionView viewHook;
+
+	public static void setViewHook(@Nullable PossessionView hook) {
+		viewHook = hook;
+	}
+
+	/** Entity id of the possessing player, or -1. Synced, so the possessing client can recognise its own fake. */
+	public int getPossessor() {
+		return this.entityData.get(POSSESSOR);
+	}
+
+	public boolean isPossessed() {
+		return this.entityData.get(POSSESSOR) >= 0;
+	}
+
+	/** Server side. Takes or releases control of this fake; use {@code PossessionManager}, which pairs it with the player. */
+	public void setPossessor(int playerId) {
+		this.entityData.set(POSSESSOR, playerId);
+		this.setJobPaused(this.isPossessed());
+		this.getNavigation().stop();
+		// goals holding MOVE, LOOK or JUMP must stop now, not at the next 5-tick control flag refresh
+		this.updateControlFlags();
+		this.setJumping(false);
+		this.setZza(0.0F);
+		this.setXxa(0.0F);
+		if (playerId >= 0) {
+			this.setTarget(null);
+			this.wakeForPossession();
+		}
+	}
+
+	/** A possessed fake cannot be asleep or lying down, as its player has to be able to walk it. */
+	private void wakeForPossession() {
+		this.wakeFromBed();
+		if (this.getPhysicalState() != PhysicalState.STANDING) this.setPhysicalState(PhysicalState.STANDING);
+	}
+
+	/** Server side. Faces where the possessor looks; the controls only pass this through while possessed. */
+	public void setPossessedLook(float yaw, float pitch) {
+		this.setYRot(yaw);
+		this.setXRot(pitch);
+		this.setYHeadRot(yaw);
+	}
+
+	/** Server side. Held movement of the possessor: forward and strafe in -1..1. */
+	public void setPossessedMove(float forward, float strafe, boolean jump) {
+		if (this.moveControl instanceof PossessedMoveControl control) control.setInput(forward, strafe, jump);
+	}
+
+	@Override
+	protected void updateControlFlags() {
+		super.updateControlFlags();
+		if (this.isPossessed()) {
+			this.goalSelector.setControlFlag(Goal.Flag.MOVE, false);
+			this.goalSelector.setControlFlag(Goal.Flag.JUMP, false);
+			this.goalSelector.setControlFlag(Goal.Flag.LOOK, false);
+		}
+	}
+
+	@Override
+	public float getViewYRot(float partialTick) {
+		PossessionView hook = viewHook;
+		if (hook != null && this.isPossessed()) {
+			float yaw = hook.viewYRot(this, partialTick);
+			if (!Float.isNaN(yaw)) return yaw;
+		}
+		return super.getViewYRot(partialTick);
+	}
+
+	@Override
+	public float getViewXRot(float partialTick) {
+		PossessionView hook = viewHook;
+		if (hook != null && this.isPossessed()) {
+			float pitch = hook.viewXRot(this, partialTick);
+			if (!Float.isNaN(pitch)) return pitch;
+		}
+		return super.getViewXRot(partialTick);
 	}
 
 	// ---- bed ----
@@ -356,14 +446,14 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	 * turned away from what it is doing.
 	 */
 	public boolean isIdleNow() {
-		if (this.jobPaused || this.getProblem() != FakeProblem.NONE || this.getTarget() != null) return false;
+		if (this.isPossessed() || this.jobPaused || this.getProblem() != FakeProblem.NONE || this.getTarget() != null) return false;
 		if (this.getPhysicalState() == PhysicalState.LAYING) return false;
 		AIState state = this.getAIState();
 		return !state.running() || FPJobs.NONE_ID.equals(state.jobId()) || FPJobs.is(state.jobId(), FPJobs.IDLE);
 	}
 
 	public void setJobPaused(boolean paused) {
-		this.jobPaused = paused;
+		this.jobPaused = paused || this.isPossessed();
 	}
 
 	public boolean isJobPaused() {
@@ -911,6 +1001,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		builder.define(SPEECH, "");
 		builder.define(STATUS, (byte) 0);
 		builder.define(CHARGING_CROSSBOW, false);
+		builder.define(POSSESSOR, -1);
 	}
 
 	@Override
@@ -973,6 +1064,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	@Override
 	public boolean isNoAi() {
+		// a possessed fake runs its controls even if its AI was switched off or it was lying down
+		if (this.isPossessed()) return false;
 		return super.isNoAi() || this.getPhysicalState() == PhysicalState.LAYING;
 	}
 
