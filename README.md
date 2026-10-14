@@ -6,7 +6,7 @@
 
 ### Player look-alikes that mine, chop, guard, and haul - for you.
 
-![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1%20%E2%80%93%2026.2-62B47A?style=for-the-badge)
+![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1%20%E2%80%93%2026.3-62B47A?style=for-the-badge)
 
 [<img alt="curseforge" height="52" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/curseforge_vector.svg">](https://www.curseforge.com/minecraft/mc-mods/fake-player)
 [<img alt="modrinth" height="52" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/modrinth_vector.svg">](https://modrinth.com/mod/fake-players)
@@ -100,7 +100,7 @@ entity when a real player reels in, hand a Fisherman the item instead, on every 
 
 ### Optional fishing mods
 
-Aquaculture has no matching release for Minecraft 26.2 in the versions checked.
+Aquaculture has no matching release for Minecraft 26.3 in the versions checked.
 Aquaculture is not available on Fabric.
 
 River Fishing assembly and catches are available on the 1.21.1 branch.
