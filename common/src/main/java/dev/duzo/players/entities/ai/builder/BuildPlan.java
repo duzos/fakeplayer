@@ -20,7 +20,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;

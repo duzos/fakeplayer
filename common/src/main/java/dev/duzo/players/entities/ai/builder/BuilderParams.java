@@ -7,7 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /** What a Builder is told to build, kept in jobParams so it syncs to the menu. Writing it restarts the job. */
 public record BuilderParams(String schematic, @Nullable BlockPos anchor, Rotation rotation, Mirror mirror, boolean clear) {

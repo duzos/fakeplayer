@@ -19,7 +19,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -40,7 +40,7 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -106,7 +106,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	private String alertKey = "";
 	private boolean alertedBlocked;
 	private boolean alertedDone;
-	private final Set<Identifier> requested = new HashSet<>();
+	private final Set<ResourceLocation> requested = new HashSet<>();
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
@@ -183,7 +183,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		tag.putBoolean("AlertedBlocked", alertedBlocked);
 		tag.putBoolean("AlertedDone", alertedDone);
 		ListTag req = new ListTag();
-		for (Identifier id : requested) {
+		for (ResourceLocation id : requested) {
 			CompoundTag c = new CompoundTag();
 			c.putString("Id", id.toString());
 			req.add(c);
@@ -206,7 +206,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		ListTag list = tag.getList("Blocked").orElseGet(ListTag::new);
 		for (int i = 0; i < list.size(); i++) {
 			CompoundTag c = list.getCompoundOrEmpty(i);
-			Identifier id = Identifier.tryParse(c.getStringOr("Id", ""));
+			ResourceLocation id = ResourceLocation.tryParse(c.getStringOr("Id", ""));
 			if (id == null) continue;
 			BuiltInRegistries.ITEM.getOptional(id).ifPresent(item -> blocked.put(item, c.getIntOr("N", 0)));
 		}
@@ -217,7 +217,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		requested.clear();
 		ListTag req = tag.getList("Requested").orElseGet(ListTag::new);
 		for (int i = 0; i < req.size(); i++) {
-			Identifier id = Identifier.tryParse(req.getCompoundOrEmpty(i).getStringOr("Id", ""));
+			ResourceLocation id = ResourceLocation.tryParse(req.getCompoundOrEmpty(i).getStringOr("Id", ""));
 			if (id != null) requested.add(id);
 		}
 	}
@@ -802,7 +802,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		if (requested.isEmpty()) return;
 		UUID owner = entity.getAIState().ownerUUID();
 		if (owner != null) {
-			for (Identifier id : requested) {
+			for (ResourceLocation id : requested) {
 				RequestKey key = new RequestKey(entity.getUUID(), RequesterKind.FAKE, entity.getAIState().jobId(), id);
 				FakePlayerRequests.cancel(level, entity, owner, key);
 			}
