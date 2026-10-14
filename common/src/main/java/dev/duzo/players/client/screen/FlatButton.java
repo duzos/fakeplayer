@@ -12,6 +12,11 @@ public class FlatButton extends AbstractButton {
 		void onPress();
 	}
 
+	/** For the few buttons that read a modifier off the click itself. */
+	public interface ModifiedPressHandler {
+		void onPress(InputWithModifiers input);
+	}
+
 	public static final int DEFAULT_BG = 0xFF1A2330;
 	public static final int DEFAULT_BG_HOVER = 0xFF243042;
 	public static final int DEFAULT_BORDER = 0xFF2A3548;
@@ -20,6 +25,7 @@ public class FlatButton extends AbstractButton {
 	public static final int DEFAULT_TEXT_HOVER = 0xFFFFFFFF;
 
 	private final PressHandler handler;
+	private final ModifiedPressHandler modifiedHandler;
 	private int bgColor = DEFAULT_BG;
 	private int hoverBgColor = DEFAULT_BG_HOVER;
 	private int borderColor = DEFAULT_BORDER;
@@ -33,6 +39,13 @@ public class FlatButton extends AbstractButton {
 	public FlatButton(int x, int y, int w, int h, Component msg, PressHandler handler) {
 		super(x, y, w, h, msg);
 		this.handler = handler;
+		this.modifiedHandler = null;
+	}
+
+	public FlatButton(int x, int y, int w, int h, Component msg, ModifiedPressHandler handler) {
+		super(x, y, w, h, msg);
+		this.handler = null;
+		this.modifiedHandler = handler;
 	}
 
 	public FlatButton withBg(int bg, int hoverBg) {
@@ -79,7 +92,8 @@ public class FlatButton extends AbstractButton {
 
 	@Override
 	public void onPress(InputWithModifiers input) {
-		handler.onPress();
+		if (modifiedHandler != null) modifiedHandler.onPress(input);
+		else handler.onPress();
 	}
 
 	@Override
