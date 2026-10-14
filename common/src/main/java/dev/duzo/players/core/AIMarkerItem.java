@@ -3,10 +3,15 @@ package dev.duzo.players.core;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.GuardJobExecutor;
 import dev.duzo.players.entities.ai.JobHelpers;
+import dev.duzo.players.entities.ai.builder.BuildPlan;
+import dev.duzo.players.entities.ai.builder.BuildReport;
+import dev.duzo.players.entities.ai.builder.BuilderParams;
+import dev.duzo.players.entities.ai.builder.SchematicStore;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
 import dev.duzo.players.entities.ai.requests.StoragePool;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -27,6 +32,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Rotation;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -38,6 +44,7 @@ public class AIMarkerItem extends Item {
 	public static final byte PURPOSE_REGION = 1;
 	public static final byte PURPOSE_CHEST_PICKER = 2;
 	public static final byte PURPOSE_POOL = 3;
+	public static final byte PURPOSE_ANCHOR = 4;
 
 	public static final byte CHEST_SLOT_DEPOSIT = 0;
 	public static final byte CHEST_SLOT_SOURCE = 1;
@@ -136,6 +143,7 @@ public class AIMarkerItem extends Item {
 			case PURPOSE_REGION -> "REGION";
 			case PURPOSE_CHEST_PICKER -> "CHEST_PICKER";
 			case PURPOSE_POOL -> "POOL";
+			case PURPOSE_ANCHOR -> "ANCHOR";
 			default -> "UNKNOWN";
 		};
 	}
@@ -147,6 +155,7 @@ public class AIMarkerItem extends Item {
 			case "REGION" -> PURPOSE_REGION;
 			case "CHEST_PICKER" -> PURPOSE_CHEST_PICKER;
 			case "POOL" -> PURPOSE_POOL;
+			case "ANCHOR" -> PURPOSE_ANCHOR;
 			default -> -1;
 		};
 	}
@@ -157,6 +166,7 @@ public class AIMarkerItem extends Item {
 			case PURPOSE_REGION -> "Region Marker";
 			case PURPOSE_CHEST_PICKER -> chestSlot == CHEST_SLOT_SOURCE ? "Source Marker" : "Deposit Marker";
 			case PURPOSE_POOL -> "Storage Pool Marker";
+			case PURPOSE_ANCHOR -> "Anchor Marker";
 			default -> "AI Marker";
 		};
 	}
@@ -271,9 +281,40 @@ public class AIMarkerItem extends Item {
 				// not consumed, so one marker marks a whole storeroom
 				bumpExpiry(stack, level.getGameTime());
 			}
+			case PURPOSE_ANCHOR -> {
+				if (!FPJobs.is(entity.getAIState().jobId(), FPJobs.BUILDER)) {
+					player.displayClientMessage(Component.literal("That fake is not a Builder.").withStyle(ChatFormatting.RED), true);
+					return InteractionResult.FAIL;
+				}
+				BuilderParams params = BuilderParams.read(entity.getAIState());
+				if (params.schematic().isBlank()) {
+					player.displayClientMessage(Component.literal("Name a schematic in the AI menu first.").withStyle(ChatFormatting.RED), true);
+					return InteractionResult.FAIL;
+				}
+				BuilderParams next = params.withAnchor(pos.relative(ctx.getClickedFace()).immutable(), rotationFor(player.getDirection()));
+				next.write(entity);
+				player.displayClientMessage(Component.literal("Anchor set.").withStyle(ChatFormatting.GREEN), true);
+				BuildPlan.BuildKey key = new BuildPlan.BuildKey(level.dimension(), next.schematic().trim(), next.anchor(), next.rotation(), next.mirror());
+				SchematicStore.Result<BuildPlan> plan = BuildPlan.get(level, key, player.getName().getString());
+				if (plan.ok()) {
+					for (Component line : BuildReport.lines(plan.value())) player.displayClientMessage(line, false);
+				} else {
+					player.displayClientMessage(Component.literal(plan.error()).withStyle(ChatFormatting.RED), false);
+				}
+				silentlyConsume(player, stack);
+			}
 		}
 
 		return InteractionResult.CONSUME;
+	}
+
+	private static Rotation rotationFor(Direction facing) {
+		return switch (facing) {
+			case EAST -> Rotation.CLOCKWISE_90;
+			case SOUTH -> Rotation.CLOCKWISE_180;
+			case WEST -> Rotation.COUNTERCLOCKWISE_90;
+			default -> Rotation.NONE;
+		};
 	}
 
 	@Override
@@ -328,6 +369,7 @@ public class AIMarkerItem extends Item {
 					? "Right-click a container to set source target."
 					: "Right-click a container to set deposit target.";
 			case PURPOSE_POOL -> "Right-click containers to add them to the pool, again to remove.";
+			case PURPOSE_ANCHOR -> "Right-click a block to put the build against it, facing the way you look.";
 			default -> "";
 		};
 		if (!hint.isEmpty()) {
