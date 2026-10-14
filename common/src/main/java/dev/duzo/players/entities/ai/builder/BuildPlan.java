@@ -1,0 +1,225 @@
+package dev.duzo.players.entities.ai.builder;
+
+import dev.duzo.players.config.PlayersConfig;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import org.jspecify.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+/**
+ * An immutable placement of one schematic: world-space cells grouped into stripes, plus the bill of materials.
+ * `anchor` is the minimum corner of the rotated and mirrored bounding box. Air entries are kept as CLEAR cells
+ * so the site is cleared; entities, jigsaw, structure blocks and block entity data are dropped.
+ */
+final class BuildPlan {
+	record BuildKey(ResourceKey<Level> dim, String schematic, BlockPos anchor, Rotation rotation, Mirror mirror) {}
+
+	/** `partner` is the other half placed in the same action, always after this cell: upper door half, bed head. */
+	record Cell(BlockPos pos, BlockState state, PlacePass pass, @Nullable BlockPos partnerPos, @Nullable BlockState partnerState) {}
+
+	/** `cells` is in work order: CLEAR top-down, then SOLID bottom-up, then ATTACH bottom-up. */
+	record Stripe(int index, BoundingBox box, List<Cell> cells) {}
+
+	private static final int CACHE_MAX = 8;
+	private static final Map<BuildKey, BuildPlan> CACHE = new LinkedHashMap<>(16, 0.75F, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<BuildKey, BuildPlan> eldest) {
+			return size() > CACHE_MAX;
+		}
+	};
+
+	final BuildKey key;
+	final BoundingBox bounds;
+	final int stripeWidth;
+	final List<Stripe> stripes;
+	final Map<Item, Integer> bom;
+	/** Blocks the Builder cannot place, by block, with how many the schematic holds. Their cells are not in any stripe. */
+	final Map<Block, Integer> unsupported;
+
+	private BuildPlan(BuildKey key, BoundingBox bounds, int stripeWidth, List<Stripe> stripes,
+					  Map<Item, Integer> bom, Map<Block, Integer> unsupported) {
+		this.key = key;
+		this.bounds = bounds;
+		this.stripeWidth = stripeWidth;
+		this.stripes = stripes;
+		this.bom = bom;
+		this.unsupported = unsupported;
+	}
+
+	int cellCount() {
+		int n = 0;
+		for (Stripe s : stripes) n += s.cells().size();
+		return n;
+	}
+
+	/** Cached by key. `owner` only picks where an upload is searched for and is not part of the key. */
+	static synchronized SchematicStore.Result<BuildPlan> get(ServerLevel level, BuildKey key, @Nullable String owner) {
+		int width = PlayersConfig.get().builderStripeWidth;
+		BuildPlan cached = CACHE.get(key);
+		if (cached != null && cached.stripeWidth == width) return SchematicStore.Result.ok(cached);
+		SchematicStore.Result<StructureTemplate> t = SchematicStore.load(level, key.schematic(), owner);
+		if (!t.ok()) return SchematicStore.Result.fail(t.error());
+		BuildPlan plan = build(t.value(), key, width);
+		CACHE.put(key, plan);
+		return SchematicStore.Result.ok(plan);
+	}
+
+	/** For a schematic edited on disk, whose cached plans are now stale. */
+	static synchronized void clearCache() {
+		CACHE.clear();
+	}
+
+	static BuildPlan build(StructureTemplate template, BuildKey key, int stripeWidth) {
+		CompoundTag tag = template.save(new CompoundTag());
+		List<BlockState> palette = readPalette(tag);
+		BoundingBox raw = template.getBoundingBox(BlockPos.ZERO, key.rotation(), BlockPos.ZERO, key.mirror());
+		BlockPos shift = key.anchor().subtract(new BlockPos(raw.minX(), raw.minY(), raw.minZ()));
+		BoundingBox bounds = raw.moved(shift.getX(), shift.getY(), shift.getZ());
+
+		Map<BlockPos, BlockState> world = new HashMap<>();
+		ListTag blocks = tag.getList(StructureTemplate.BLOCKS_TAG).orElseGet(ListTag::new);
+		for (int i = 0; i < blocks.size(); i++) {
+			CompoundTag b = blocks.getCompoundOrEmpty(i);
+			int id = b.getIntOr(StructureTemplate.BLOCK_TAG_STATE, -1);
+			if (id < 0 || id >= palette.size()) continue;
+			BlockState state = palette.get(id);
+			if (state.is(Blocks.JIGSAW) || state.is(Blocks.STRUCTURE_BLOCK) || state.is(Blocks.STRUCTURE_VOID)) continue;
+			ListTag p = b.getList(StructureTemplate.BLOCK_TAG_POS).orElse(null);
+			if (p == null || p.size() < 3) continue;
+			BlockPos local = new BlockPos(p.getIntOr(0, 0), p.getIntOr(1, 0), p.getIntOr(2, 0));
+			BlockPos at = StructureTemplate.transform(local, key.mirror(), key.rotation(), BlockPos.ZERO).offset(shift);
+			world.put(at, state.mirror(key.mirror()).rotate(key.rotation()));
+		}
+
+		Map<Item, Integer> bom = new LinkedHashMap<>();
+		Map<Block, Integer> unsupported = new LinkedHashMap<>();
+		boolean alongX = bounds.getXSpan() >= bounds.getZSpan();
+		int min = alongX ? bounds.minX() : bounds.minZ();
+		Map<Integer, List<Cell>> byStripe = new TreeMap<>();
+		Map<Integer, BoundingBox> stripeBoxes = new HashMap<>();
+
+		for (Map.Entry<BlockPos, BlockState> e : world.entrySet()) {
+			BlockPos pos = e.getKey();
+			BlockState state = e.getValue();
+			PlacePass pass = PlacePass.of(state);
+			MaterialRules.Cost cost = MaterialRules.cost(state);
+			if (!cost.supported()) {
+				unsupported.merge(state.getBlock(), 1, Integer::sum);
+				continue;
+			}
+			BlockPos partnerPos = partnerOf(pos, state);
+			if (isCompanion(state)) {
+				// a second half with no first half in the schematic cannot be placed on its own
+				BlockPos first = firstHalfOf(pos, state);
+				if (!world.containsKey(first)) unsupported.merge(state.getBlock(), 1, Integer::sum);
+				continue;
+			}
+			BlockState partnerState = partnerPos == null ? null : world.get(partnerPos);
+			if (partnerState == null) partnerPos = null;
+			if (cost.count() > 0) bom.merge(cost.item(), cost.count(), Integer::sum);
+
+			int idx = ((alongX ? pos.getX() : pos.getZ()) - min) / stripeWidth;
+			byStripe.computeIfAbsent(idx, k -> new ArrayList<>()).add(new Cell(pos, state, pass, partnerPos, partnerState));
+			BoundingBox slab = stripeBox(bounds, alongX, min, idx, stripeWidth);
+			if (partnerPos != null) slab = slab.encapsulate(partnerPos);
+			stripeBoxes.merge(idx, slab, BoundingBox::encapsulate);
+		}
+
+		List<Stripe> stripes = new ArrayList<>();
+		for (Map.Entry<Integer, List<Cell>> e : byStripe.entrySet()) {
+			stripes.add(new Stripe(e.getKey(), stripeBoxes.get(e.getKey()), order(e.getValue())));
+		}
+		return new BuildPlan(key, bounds, stripeWidth, List.copyOf(stripes), Map.copyOf(bom), Map.copyOf(unsupported));
+	}
+
+	private static List<BlockState> readPalette(CompoundTag tag) {
+		ListTag list = tag.getList(StructureTemplate.PALETTE_TAG).orElse(null);
+		if (list == null) {
+			ListTag palettes = tag.getList(StructureTemplate.PALETTE_LIST_TAG).orElseGet(ListTag::new);
+			list = palettes.isEmpty() ? new ListTag() : palettes.getList(0).orElseGet(ListTag::new);
+		}
+		List<BlockState> out = new ArrayList<>(list.size());
+		for (int i = 0; i < list.size(); i++) {
+			out.add(NbtUtils.readBlockState(BuiltInRegistries.BLOCK, list.getCompoundOrEmpty(i)));
+		}
+		return out;
+	}
+
+	/** The slab's full extent, clamped to the build, so an empty row of it still counts as claimed ground. */
+	private static BoundingBox stripeBox(BoundingBox b, boolean alongX, int min, int idx, int width) {
+		int lo = min + idx * width;
+		int hi = lo + width - 1;
+		return alongX
+				? new BoundingBox(lo, b.minY(), b.minZ(), Math.min(hi, b.maxX()), b.maxY(), b.maxZ())
+				: new BoundingBox(b.minX(), b.minY(), lo, b.maxX(), b.maxY(), Math.min(hi, b.maxZ()));
+	}
+
+	private static boolean isCompanion(BlockState s) {
+		if (s.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
+				&& s.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER) return true;
+		return s.hasProperty(BlockStateProperties.BED_PART) && s.getValue(BlockStateProperties.BED_PART) == BedPart.HEAD;
+	}
+
+	private static @Nullable BlockPos partnerOf(BlockPos pos, BlockState s) {
+		if (s.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
+				&& s.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.LOWER) return pos.above();
+		if (s.hasProperty(BlockStateProperties.BED_PART) && s.getValue(BlockStateProperties.BED_PART) == BedPart.FOOT
+				&& s.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+			return pos.relative(s.getValue(BlockStateProperties.HORIZONTAL_FACING));
+		}
+		return null;
+	}
+
+	private static BlockPos firstHalfOf(BlockPos pos, BlockState s) {
+		if (s.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)) return pos.below();
+		return pos.relative(s.getValue(BlockStateProperties.HORIZONTAL_FACING).getOpposite());
+	}
+
+	private static List<Cell> order(List<Cell> cells) {
+		Comparator<Cell> flat = Comparator.<Cell>comparingInt(c -> c.pos().getX()).thenComparingInt(c -> c.pos().getZ());
+		List<Cell> clear = new ArrayList<>();
+		List<Cell> solid = new ArrayList<>();
+		List<Cell> attach = new ArrayList<>();
+		for (Cell c : cells) {
+			switch (c.pass()) {
+				case CLEAR -> clear.add(c);
+				case SOLID -> solid.add(c);
+				case ATTACH -> attach.add(c);
+				default -> {}
+			}
+		}
+		Comparator<Cell> up = Comparator.<Cell>comparingInt(c -> c.pos().getY()).thenComparing(flat);
+		clear.sort(Comparator.<Cell>comparingInt(c -> -c.pos().getY()).thenComparing(flat));
+		solid.sort(up);
+		attach.sort(up);
+		List<Cell> out = new ArrayList<>(cells.size());
+		out.addAll(clear);
+		out.addAll(solid);
+		out.addAll(attach);
+		return List.copyOf(out);
+	}
+}
