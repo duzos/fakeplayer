@@ -2,14 +2,13 @@ package dev.duzo.players.compat;
 
 import dev.duzo.players.Constants;
 import dev.duzo.players.compat.tacz.TaczGuns;
-import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.FriendlyFire;
 import dev.duzo.players.platform.Services;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,7 +17,7 @@ public final class TaczGunBridge {
 	private TaczGunBridge() {}
 
 	/** What one attempt to shoot came to, for the goal to react to. */
-	public enum Shot { FIRED, BOLTING, RELOADING, NOT_DRAWN, SPRINTING, WAIT, FAILED }
+	public enum Shot { FIRED, BOLTING, RELOADING, NOT_DRAWN, SPRINTING, WAIT, UNUSABLE, FAILED }
 
 	/** 1.1.8 is the TACZ release the API was checked against; Refabricated carries it as "forge1.1.8". */
 	private static final int[] MIN_VERSION = {1, 1, 8};
@@ -98,17 +97,12 @@ public final class TaczGunBridge {
 		}
 	}
 
-	/** Friendly fire guard for the loaders' hurt-by-gun hook: a fake never hurts its owner or another of the owner's fakes. */
+	/** Friendly fire guard for the loaders' hurt-by-gun hook, the same rule as FriendlyFire applies to any other damage. */
 	public static boolean shouldBlockHit(Entity attacker, Entity victim) {
-		if (!(attacker instanceof FakePlayerEntity fake) || victim == null) return false;
-		UUID owner = fake.getAIState().ownerUUID();
-		if (owner == null) return false;
-		boolean block = victim.getUUID().equals(owner)
-				|| victim instanceof FakePlayerEntity other && owner.equals(other.getAIState().ownerUUID());
-		if (block) Constants.traceEvent("tacz hit on {} blocked, shot by owner's fake", victim.getName().getString());
-		return block;
+		return FriendlyFire.shouldBlock(attacker, victim);
 	}
 
+	// deliberately server-wide: a throw means the TACZ API shape is not what was checked, and that holds for every fake
 	private static void disable(String what, Throwable ex) {
 		disabled = true;
 		Constants.LOG.warn("TACZ {} threw, disabling gun support", what, ex);
