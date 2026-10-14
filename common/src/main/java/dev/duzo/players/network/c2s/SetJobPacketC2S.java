@@ -26,8 +26,9 @@ public record SetJobPacketC2S(int id, ResourceLocation jobId) {
 		// not-selectable marker jobs, whatever it sends
 		JobType job = FPJobs.get(jobId);
 		if (job == null || !job.selectable()) return;
-		// let the old executor's pause path run and get persisted before its state is wiped out
-		// below, otherwise switching jobs mid-craft skips onPause's cleanup entirely.
+		// let the old executor's pause path run and be persisted before its state is replaced below,
+		// otherwise switching jobs mid-craft loses whatever cleanup onPause was responsible for.
+		dev.duzo.players.entities.ai.BuilderJobExecutor.cancelOutstanding(entity);
 		entity.resetJobExecutor();
 		dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(entity.getUUID());
 		entity.mutateAIState(s -> {
