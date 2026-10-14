@@ -1,6 +1,7 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.requests.StockReserve;
 import dev.duzo.players.entities.speech.FakeSpeech;
 import dev.duzo.players.entities.speech.Verbosity;
@@ -106,6 +107,7 @@ public class CourierJobExecutor implements JobExecutor {
 	}
 
 	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
+		entity.reportProblem(FakeProblem.fromBlocker(message));
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
 		entity.getNavigation().stop();
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
@@ -201,5 +203,6 @@ public class CourierJobExecutor implements JobExecutor {
 	private void resumed(FakePlayerEntity entity) {
 		FakeSpeech.clearBlocked(entity, lastBlocker);
 		lastBlocker = "";
+		entity.clearProblem();
 	}
 }
