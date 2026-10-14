@@ -558,6 +558,7 @@ public class FarmerJobExecutor implements JobExecutor {
 		phase = Phase.WAITING_AT_CHEST;
 		waitUntilTick = level.getGameTime() + ticks;
 		entity.getNavigation().stop();
+		resumed(entity);
 	}
 
 	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
