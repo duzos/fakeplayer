@@ -5,6 +5,7 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.core.SessionItemSweeper;
+import dev.duzo.players.entities.possession.PossessionGuard;
 import dev.duzo.players.entities.possession.PossessionManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -52,6 +53,38 @@ public class ForgeModEvents {
 	@SubscribeEvent
 	public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent e) {
 		if (e.getEntity() instanceof ServerPlayer p) PossessionManager.onJoin(p);
+	}
+
+	@SubscribeEvent(priority = EventPriority.HIGHEST)
+	public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock e) {
+		if (PossessionGuard.blocks(e.getEntity())) {
+			e.setCanceled(true);
+			e.setCancellationResult(InteractionResult.FAIL);
+		}
+	}
+
+	@SubscribeEvent(priority = EventPriority.HIGHEST)
+	public static void onRightClickItem(PlayerInteractEvent.RightClickItem e) {
+		if (PossessionGuard.blocks(e.getEntity())) {
+			e.setCanceled(true);
+			e.setCancellationResult(InteractionResult.FAIL);
+		}
+	}
+
+	@SubscribeEvent(priority = EventPriority.HIGHEST)
+	public static void onEntityInteract(PlayerInteractEvent.EntityInteract e) {
+		if (PossessionGuard.blocks(e.getEntity())) {
+			e.setCanceled(true);
+			e.setCancellationResult(InteractionResult.FAIL);
+		}
+	}
+
+	@SubscribeEvent(priority = EventPriority.HIGHEST)
+	public static void onEntityInteractSpecific(PlayerInteractEvent.EntityInteractSpecific e) {
+		if (PossessionGuard.blocks(e.getEntity())) {
+			e.setCanceled(true);
+			e.setCancellationResult(InteractionResult.FAIL);
+		}
 	}
 
 	@SubscribeEvent
