@@ -6,7 +6,7 @@
 
 ### Player look-alikes that mine, chop, guard, and haul - for you.
 
-![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1%20%E2%80%93%2026.2-62B47A?style=for-the-badge)
+![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1%20%E2%80%93%2026.3-62B47A?style=for-the-badge)
 
 [<img alt="curseforge" height="52" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/curseforge_vector.svg">](https://www.curseforge.com/minecraft/mc-mods/fake-player)
 [<img alt="modrinth" height="52" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/modrinth_vector.svg">](https://modrinth.com/mod/fake-players)
@@ -20,35 +20,32 @@
 
 Entities that look **exactly** like real players - auto-grabbed skins, armour, full inventories, the lot. Bond one to yourself, give it a job, and it gets to work.
 
+Install it on the server and on every client that joins.
+
 ## Showcase
 
 <div align="center">
 <a href="https://www.youtube.com/watch?v=ZVp2m_3AAxg"><img src="https://img.youtube.com/vi/ZVp2m_3AAxg/hqdefault.jpg" width="480" alt="Fake Players showcase video"></a>
 </div>
 
-## The Fake Player
+## Looks and acts like a player
 
-- **Looks like a player** - real model with a skin grabbed from any username (or URL / the trending list); slim & classic.
-- **Acts like one** - wanders, sits, sleeps, wears armour, holds items, chats, fights back.
-- **Carries an inventory** - managed through its GUI.
+- Wears any player's skin by name, from a URL, from your own file or off the trending list, slim or classic.
+- Wanders, sits, sleeps, chats, wears armour and carries a full inventory you manage from its menu.
+- Fights back with swords, bows, crossbows and tridents, and never hits you, your other fakes or your pets.
+- When idle it watches you and goes to bed at night. Its chat shows in speech bubbles, and a mark over its head means it's stuck.
 
-## AI Jobs
+<div align="center">
+<img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/skin-example.png" height="280" alt="A skin grabbed from a username and applied to a fake player">
+</div>
 
-Shift + right-click a fake → **AI** → **Bond**, then pick a job. The GUI hands you markers (waypoint, region, chests); right-click to place them - the fake follows you while you do. Each job's menu shows only the markers it needs, and fakes visibly open the chests and barrels they work from.
+## Jobs
 
-| Job | Needs | Does |
-| --- | --- | --- |
-| **Idle** | waypoint (optional) | Walks to its waypoint, else waits. |
-| **Follow** | bond | Sticks within 32 blocks, teleports if it lags behind. |
-| **Guard** | patrol points | Patrols your points and attacks hostiles in range. Hold the Waypoint marker to edit points - right-click adds, sneak + right-click removes. |
-| **Miner** | region + deposit | Strip-mines ore (`c:ores` by default) and banks the haul. |
-| **Lumberjack** | region (+ deposit) | Fells whole trees, replants, bonemeals; auto-collects drops. |
-| **Courier** | source + deposit | Hauls matching items from one chest to another. |
-| **Fisherman** | waypoint + deposit | Sits at the water and casts a real bobber; banks the catch, swaps a fresh rod when one breaks, and uses your rod's enchantments. Accepts compatible modded rods and fish added to fishing loot. |
-| **Farmer** | region + deposit | Tills a plot, waters it, plants any seed (modded too), bonemeals, then harvests and replants on a loop. |
-| **Crafter** | table + source + deposit | Walks to a crafting table and lays out a recipe you teach it by hand; chain it onto another job's chest for a pipeline. |
-
-Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `minerBailY`).
+- Bond a fake, pick a job from its menu and place the markers it hands you. It follows you while you do.
+- **Miner** strip-mines ore (or whatever you filter for), **Lumberjack** fells and replants trees, and **Farmer** plants and harvests any seed.
+- **Fisherman** casts a real bobber with your enchanted rod and swaps in a fresh one when it breaks.
+- **Guard** patrols your waypoints, **Follow** sticks with you and **Idle** waits at its spot.
+- **Courier** hauls between chests, **Crafter** makes a recipe you teach it by hand, and **Builder** puts up Create schematics and other structure files.
 
 <div align="center">
 <table>
@@ -70,51 +67,44 @@ Tuning lives in `players.json` (`guardRadius`, `minerMaxBlocksPerSecond`, `miner
 </table>
 </div>
 
-## Skins
+## Storage and requests
 
-Name a fake after a player and it wears their skin - always matching. Also:
+- A **Quartermaster** runs your storeroom, and **Runners** bring fakes whatever they run out of, like a new pickaxe.
+- Browse the storeroom and order items yourself. A **Crafter** makes anything that's missing.
+- Fill in a fake's Stock box and it keeps those supplies topped up.
 
-- **URL** - `/players url <entity> <url>`
-- **Trending** - browse and apply from the in-game list (shift + right-click).
-- **Slim & classic** both supported.
+## Items and riding
 
-<div align="center">
-<img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/skin-example.png" height="280" alt="A skin grabbed from a username and applied to a fake player">
-</div>
+- **Chunk Anchor** keeps a fake working while you're away.
+- **Possession Link** lets you see through a fake and control it.
+- Fakes ride boats, minecarts and seats, and can drive Create trains.
+
+## Controls and commands
+
+- Shift + right-click a fake for its menu, or bind a key if another mod already uses that click.
+- Right-click it with an item for quick actions: a chest opens its inventory, paper makes it talk, stairs sit it down, a bed lays it down, a slab swaps the slim model, an observer turns its AI off and an eye of ender hides its name.
+- `/players spawn`, `/players url` and `/players chat` spawn a fake, set its skin and make it speak.
+- Addons can add their own jobs through the API.
+
+## Works with
+
+- Create seats and trains
+- Storage Drawers, Sophisticated Storage and other modded storage
+- Fishing rods from other mods, and Aquaculture tackle on Forge/NeoForge
+- River Fishing (1.21.1 only)
+- Tide and TACZ guns (1.20.1 and 1.21.1 only)
 
 ## Get one
 
-Craft a `Robot Shell` and a `Robot AI` and combine them in a crafting table (or use a Player Spawn Egg).
+Craft a `Robot Shell` and a `Robot AI`, then combine them in a crafting table for a `Player Egg`. Place it and the fake is already yours.
 
 <div align="center">
 <img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/recipe-robot-shell.png" height="120" alt="Robot Shell recipe">
 &nbsp;&nbsp;
 <img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/recipe-robot-ai.png" height="120" alt="Robot AI recipe">
 &nbsp;&nbsp;
-<img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/recipe-spawn-egg.png" height="120" alt="Player Spawn Egg recipe">
+<img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/recipe-spawn-egg.png" height="120" alt="Player Egg recipe">
 </div>
-
-## In development: 3.0.0
-
-These changes are being prepared on the version branches and are not published yet.
-
-- Quartermasters manage marked storage pools; Runners collect and deliver requests from fakes or players.
-- The job registry lets addons register jobs and use the request API.
-- Fishermen accept compatible modded rods and catch fish added to vanilla fishing loot. Custom catch
-  systems need their own integration. Fishing Real catches stay as items.
-- Aquaculture tackle, bait, hook textures and dyed lines work on supported Forge/NeoForge versions.
-  Its lava fishing addon is supported on 1.21.1, 1.21.11 and 26.1. These mods are optional.
-- The Fabric fishing rod launch fix is implemented for 1.21.4, 1.21.5, 1.21.8 and 1.21.11.
-
-**River Fishing** support is on Minecraft 1.21.1, for Fabric and NeoForge. Fishermen assemble
-rods from supplied parts, request missing parts and catch fish using River Fishing's habitat and
-bite timing. It supports ordinary shore fishing, with a simplified fight and no player XP or journal
-progress. Fly, winter, boat and trolling rods, claimed ponds and stocked water are not supported.
-Both loaders passed automated checks. The line now follows the rendered rod tip, and the
-1.21.1 integration has been approved in game.
-
-Tide's own catch system, modded storage and the 26.3 port are still to do. Each version branch's
-README describes its own support; accepting a rod does not mean every feature of its mod is supported.
 
 ## Links
 
