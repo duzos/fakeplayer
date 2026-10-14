@@ -57,3 +57,10 @@ type = "optional"
 versionRange = "[2.1.1,)"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "tacz"
+type = "optional"
+versionRange = "[0,)"
+ordering = "NONE"
+side = "BOTH"

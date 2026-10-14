@@ -36,6 +36,7 @@
     },
     "suggests": {
         "riverfishing": "*",
-        "tide": "*"
+        "tide": "*",
+        "tacz": "*"
     }
 }
