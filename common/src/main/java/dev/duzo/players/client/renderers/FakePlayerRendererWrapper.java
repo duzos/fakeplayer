@@ -63,9 +63,10 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 			// one, which the fake adds below, so a non-null tag is exactly "a name tag could be drawn here"
 			SpeechBubbles.extract(entity, fake, state.nameTag != null, entity.isCustomNameVisible(), state.distanceToCameraSq, partialTick);
 		}
-		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING) {
+		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING || entity.isBedSleeping()) {
 			state.pose = Pose.SLEEPING;
-			state.bedOrientation = entity.getDirection();
+			net.minecraft.core.Direction bed = entity.getBedOrientation();
+			state.bedOrientation = bed != null ? bed : entity.getDirection();
 			state.walkAnimationSpeed = 0;
 		}
 		if (!entity.isCustomNameVisible()) {
