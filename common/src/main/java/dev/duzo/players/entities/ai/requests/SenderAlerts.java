@@ -1,11 +1,11 @@
 package dev.duzo.players.entities.ai.requests;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.SpeechLatch;
 import net.minecraft.server.level.ServerLevel;
 import org.jetbrains.annotations.ApiStatus;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -18,13 +18,6 @@ import java.util.UUID;
  */
 @ApiStatus.Internal
 public final class SenderAlerts {
-	/** Long enough that a passing problem says nothing twice, short enough to re-report a real one. */
-	private static final long COOLDOWN = 20L * 30L;
-
-	private record Key(UUID sender, String kind) {}
-
-	private static final Map<Key, Long> SENT = new HashMap<>();
-
 	private SenderAlerts() {}
 
 	/**
@@ -35,23 +28,20 @@ public final class SenderAlerts {
 	 * @return true when the owner was actually told.
 	 */
 	public static boolean alert(ServerLevel level, FakePlayerEntity sender, String kind, String message) {
-		Key key = new Key(sender.getUUID(), kind);
 		long now = level.getGameTime();
-		Long last = SENT.get(key);
-		// a clock that moved backwards (world restored from a backup) must not mute this forever
-		if (last != null && last <= now && now - last < COOLDOWN) return false;
+		if (SpeechLatch.isLatched(sender.getUUID(), kind, now)) return false;
 		if (!RequestRouting.notifyOwner(level, sender, message)) return false;
-		SENT.put(key, now);
+		SpeechLatch.mark(sender.getUUID(), kind, now);
 		return true;
 	}
 
 	/** The condition cleared, so the next occurrence is news again rather than a repeat. */
 	public static void clear(FakePlayerEntity sender, String kind) {
-		SENT.remove(new Key(sender.getUUID(), kind));
+		SpeechLatch.clear(sender.getUUID(), kind);
 	}
 
 	/** Drop everything remembered about a fake that is gone, so the map stays bounded. */
 	public static void forget(UUID sender) {
-		SENT.keySet().removeIf(key -> key.sender().equals(sender));
+		FakeSpeech.forget(sender);
 	}
 }
