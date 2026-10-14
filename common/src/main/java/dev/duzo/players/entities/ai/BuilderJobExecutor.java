@@ -329,6 +329,7 @@ public class BuilderJobExecutor implements JobExecutor {
 			block(level, entity, alertKey.isEmpty() ? "stuck" : alertKey,
 					blockedMsg.isEmpty() ? "builder: nothing more can be placed" : blockedMsg, blocked);
 		} else {
+			entity.markIdle(); // every open stripe is held by another builder: waiting is not being stuck
 			nextCheck = now + CLAIM_RETRY_TICKS;
 		}
 	}
