@@ -14,5 +14,6 @@ public enum JobRow {
 	PATROL,
 	POOL,
 	REQUEST,
-	STOCK
+	STOCK,
+	SCHEMATIC
 }
