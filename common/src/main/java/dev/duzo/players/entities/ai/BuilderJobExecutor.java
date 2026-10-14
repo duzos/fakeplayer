@@ -5,6 +5,7 @@ import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.api.requests.RequestKey;
 import dev.duzo.players.api.requests.RequesterKind;
 import dev.duzo.players.config.PlayersConfig;
+import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.builder.BlockBreaker;
 import dev.duzo.players.entities.ai.builder.BuildPlan;
@@ -22,7 +23,6 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
@@ -67,6 +67,8 @@ public class BuilderJobExecutor implements JobExecutor {
 	private static final int CLAIM_RETRY_TICKS = 40;
 	private static final int MAX_PATH_FAIL = 3;
 	private static final String KIND_BLOCKED = "builder-blocked";
+	// jobState rides in the synced AIState, which is size limited
+	private static final int MAX_PERSISTED = 32;
 
 	private Phase phase = Phase.INIT;
 	private Phase returnPhase = Phase.WORK;
@@ -173,6 +175,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		tag.putBoolean("Finishing", finishing);
 		ListTag list = new ListTag();
 		for (Map.Entry<Item, Integer> e : blocked.entrySet()) {
+			if (list.size() >= MAX_PERSISTED) break;
 			CompoundTag c = new CompoundTag();
 			c.putString("Id", BuiltInRegistries.ITEM.getKey(e.getKey()).toString());
 			c.putInt("N", e.getValue());
@@ -185,6 +188,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		tag.putBoolean("AlertedDone", alertedDone);
 		ListTag req = new ListTag();
 		for (ResourceLocation id : requested) {
+			if (req.size() >= MAX_PERSISTED) break;
 			CompoundTag c = new CompoundTag();
 			c.putString("Id", id.toString());
 			req.add(c);
@@ -230,13 +234,17 @@ public class BuilderJobExecutor implements JobExecutor {
 			return;
 		}
 		clear = p.clear();
-		BuildPlan.BuildKey key = new BuildPlan.BuildKey(level.dimension(), p.schematic().trim(), p.anchor(), p.rotation(), p.mirror());
-		SchematicStore.Result<BuildPlan> r = BuildPlan.get(level, key, ownerName(level, entity));
-		if (!r.ok()) {
-			block(level, entity, "setup", "builder: " + r.error(), Map.of());
-			return;
+		BuildPlan.BuildKey key = new BuildPlan.BuildKey(level.dimension(), p.schematic().trim(), p.anchor(), p.rotation(), p.mirror(), p.uploader());
+		// a blocked Builder rechecks often, so the plan is only fetched again when what it builds has changed
+		if (plan == null || !plan.key.equals(key) || plan.stripeWidth != PlayersConfig.get().builderStripeWidth) {
+			SchematicStore.Result<BuildPlan> r = BuildPlan.get(level, key);
+			if (!r.ok()) {
+				plan = null;
+				block(level, entity, "setup", "builder: " + r.error(), Map.of());
+				return;
+			}
+			plan = r.value();
 		}
-		plan = r.value();
 		if (plan.stripes.isEmpty()) {
 			block(level, entity, "setup", "builder: " + p.schematic() + " has nothing to place", Map.of());
 			return;
@@ -355,7 +363,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		if (!JobHelpers.pollContainer(level, entity, src)) return;
 		for (int slot = 0; slot < container.getContainerSize(); slot++) {
 			ItemStack peek = container.getItem(slot);
-			if (peek.isEmpty()) continue;
+			if (peek.isEmpty() || !peek.getComponentsPatch().isEmpty()) continue;
 			Integer want = shortfall.get(peek.getItem());
 			if (want == null || want <= 0) continue;
 			int moved = JobHelpers.withdrawInto(container, slot, want, inv);
@@ -372,7 +380,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	private Map<Item, Integer> shortfall(ServerLevel level, BuildPlan.Stripe stripe, SimpleContainer inv) {
 		Map<Item, Integer> need = new LinkedHashMap<>();
 		for (BuildPlan.Cell c : stripe.cells()) {
-			if (!level.hasChunkAt(c.pos()) || isDone(level, c)) continue;
+			if (!loaded(level, c) || isDone(level, c)) continue;
 			if (PlacePass.matches(c.state(), level.getBlockState(c.pos()))) continue;
 			MaterialRules.Cost cost = MaterialRules.cost(c.state());
 			if (cost.count() > 0) need.merge(cost.item(), cost.count(), Integer::sum);
@@ -391,7 +399,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		long now = level.getGameTime();
 		while (cursor < cells.size()) {
 			BuildPlan.Cell c = cells.get(cursor);
-			if (!level.hasChunkAt(c.pos()) || (c.partnerPos() != null && !level.hasChunkAt(c.partnerPos()))) {
+			if (!loaded(level, c)) {
 				sawUnloaded = true;
 				cursor++;
 				continue;
@@ -419,6 +427,14 @@ public class BuilderJobExecutor implements JobExecutor {
 
 	private void endOfPass(ServerLevel level, FakePlayerEntity entity) {
 		boolean pending = deferred > 0 || unreachable > 0 || sawUnloaded || obstruction != null || !shortNeed.isEmpty();
+		if (!pending) {
+			// claim() decides by the world, so a stripe is only complete when the world agrees
+			int left = pendingCount(level, plan.stripes.get(stripeIdx));
+			if (left > 0) {
+				deferred = left;
+				pending = true;
+			}
+		}
 		if (!pending) {
 			completeStripe(level, entity);
 			return;
@@ -455,8 +471,9 @@ public class BuilderJobExecutor implements JobExecutor {
 		BlockState partnerHave = partnerPos == null ? null : level.getBlockState(partnerPos);
 		boolean partnerDone = partnerPos == null || matchesCell(c.partnerState(), partnerHave);
 
-		// whatever occupies a target has to go before anything is put there
-		if (!mainDone && !overwritable(have)) return breakIn(level, entity, pos, have);
+		// whatever occupies a target has to go before anything is put there, and a cell meant to be empty
+		// has nothing to place over a replaceable block such as grass, so that is broken too
+		if (!mainDone && (c.state().isAir() || !overwritable(have))) return breakIn(level, entity, pos, have);
 		if (partnerPos != null && !partnerDone && !overwritable(partnerHave)) return breakIn(level, entity, partnerPos, partnerHave);
 
 		BlockPos first = mainDone ? partnerPos : pos;
@@ -503,7 +520,7 @@ public class BuilderJobExecutor implements JobExecutor {
 				deferred++;
 				return Step.SKIP;
 			}
-			if (cost.count() > 0) entity.getInventory().removeItemType(cost.item(), cost.count());
+			if (cost.count() > 0) consume(entity.getInventory(), cost.item(), cost.count());
 		}
 		if (partnerPos != null && !partnerDone) place(level, entity, partnerPos, c.partnerState());
 		nextActionTick = now + Math.max(1, PlayersConfig.get().builderPlaceTicks);
@@ -516,6 +533,9 @@ public class BuilderJobExecutor implements JobExecutor {
 			// dry unless a water source is already there, so no water is conjured
 			state = state.setValue(BlockStateProperties.WATERLOGGED, level.getFluidState(pos).is(Fluids.WATER));
 		}
+		// leaves a Builder puts down must not decay
+		if (state.hasProperty(BlockStateProperties.PERSISTENT)) state = state.setValue(BlockStateProperties.PERSISTENT, true);
+		// claim-protection events are not fired here, as with the other jobs
 		if (!level.setBlock(pos, state, 3)) return false;
 		SoundType sound = state.getSoundType();
 		level.playSound(null, pos, sound.getPlaceSound(), SoundSource.BLOCKS, (sound.getVolume() + 1.0F) / 2.0F, sound.getPitch() * 0.8F);
@@ -532,6 +552,7 @@ public class BuilderJobExecutor implements JobExecutor {
 			return Step.SKIP;
 		}
 		long now = level.getGameTime();
+		// claim-protection events are not fired for this break, as with the other jobs
 		Reach reach = reach(level, entity, pos, null, now);
 		if (reach == Reach.UNREACHABLE) {
 			unreachable++;
@@ -656,7 +677,13 @@ public class BuilderJobExecutor implements JobExecutor {
 		return PlacePass.matches(want, have);
 	}
 
+	/** Whether the chunks of a cell and of its partner are loaded, so reading either does not load one. */
+	private static boolean loaded(ServerLevel level, BuildPlan.Cell c) {
+		return level.hasChunkAt(c.pos()) && (c.partnerPos() == null || level.hasChunkAt(c.partnerPos()));
+	}
+
 	private boolean isDone(ServerLevel level, BuildPlan.Cell c) {
+		if (!loaded(level, c)) return false;
 		if (!matchesCell(c.state(), level.getBlockState(c.pos()))) return false;
 		return c.partnerPos() == null || matchesCell(c.partnerState(), level.getBlockState(c.partnerPos()));
 	}
@@ -664,7 +691,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	private int pendingCount(ServerLevel level, BuildPlan.Stripe stripe) {
 		int n = 0;
 		for (BuildPlan.Cell c : stripe.cells()) {
-			if (!level.hasChunkAt(c.pos()) || (c.partnerPos() != null && !level.hasChunkAt(c.partnerPos())) || !isDone(level, c)) n++;
+			if (!loaded(level, c) || !isDone(level, c)) n++;
 		}
 		return n;
 	}
@@ -765,7 +792,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		if (plan == null) return true;
 		for (BuildPlan.Stripe stripe : plan.stripes) {
 			for (BuildPlan.Cell c : stripe.cells()) {
-				if (!level.hasChunkAt(c.pos())) return true;
+				if (!loaded(level, c)) return true;
 				if (isDone(level, c) || PlacePass.matches(c.state(), level.getBlockState(c.pos()))) continue;
 				if (blocked.containsKey(MaterialRules.cost(c.state()).item())) return true;
 			}
@@ -781,7 +808,7 @@ public class BuilderJobExecutor implements JobExecutor {
 			if (count(entity.getInventory(), item) > 0) return true;
 			if (container == null) continue;
 			for (int slot = 0; slot < container.getContainerSize(); slot++) {
-				if (container.getItem(slot).is(item)) return true;
+				if (plain(container.getItem(slot), item)) return true;
 			}
 		}
 		return false;
@@ -879,19 +906,45 @@ public class BuilderJobExecutor implements JobExecutor {
 		return !finishing && plan != null && plan.bom.containsKey(stack.getItem());
 	}
 
+	/** A stack with no data on it, so it is the plain block: no shulker contents, name or enchantments. */
+	private static boolean plain(ItemStack stack, Item item) {
+		return stack.is(item) && stack.getComponentsPatch().isEmpty();
+	}
+
 	private static int count(SimpleContainer inv, Item item) {
 		int n = 0;
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack s = inv.getItem(i);
-			if (s.is(item)) n += s.getCount();
+			if (plain(s, item)) n += s.getCount();
 		}
 		return n;
 	}
 
-	private static @Nullable String ownerName(ServerLevel level, FakePlayerEntity entity) {
-		UUID id = entity.getAIState().ownerUUID();
-		if (id == null) return null;
-		ServerPlayer p = level.getServer().getPlayerList().getPlayer(id);
-		return p == null ? null : p.getName().getString();
+	private static void consume(SimpleContainer inv, Item item, int amount) {
+		int left = amount;
+		for (int i = 0; i < inv.getContainerSize() && left > 0; i++) {
+			ItemStack s = inv.getItem(i);
+			if (!plain(s, item)) continue;
+			int take = Math.min(left, s.getCount());
+			s.shrink(take);
+			left -= take;
+			if (s.isEmpty()) inv.setItem(i, ItemStack.EMPTY);
+		}
+		inv.setChanged();
+	}
+
+	/** Cancels this fake's open Builder requests, from the persisted list so it works with no live executor. */
+	public static void cancelOutstanding(FakePlayerEntity entity) {
+		if (!(entity.level() instanceof ServerLevel level)) return;
+		AIState state = entity.getAIState();
+		UUID owner = state.ownerUUID();
+		if (owner == null || !FPJobs.is(state.jobId(), FPJobs.BUILDER)) return;
+		entity.flushJobState();
+		ListTag req = entity.getAIState().jobState().getList("Requested").orElseGet(ListTag::new);
+		for (int i = 0; i < req.size(); i++) {
+			Identifier id = Identifier.tryParse(req.getCompoundOrEmpty(i).getStringOr("Id", ""));
+			if (id == null) continue;
+			FakePlayerRequests.cancel(level, entity, owner, new RequestKey(entity.getUUID(), RequesterKind.FAKE, state.jobId(), id));
+		}
 	}
 }
