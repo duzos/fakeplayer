@@ -2,6 +2,7 @@
 
 ## NEW
 
+- added Minecraft 26.3 support.
 - added Quartermaster and Runner jobs. mark storage with the Pool marker, and Runners collect and deliver requested items.
 - request items from the Quartermaster's Browse menu: click for a stack, sneak-click for one, ctrl-click for all. you can track and cancel orders there too.
 - added modded fishing rod support. thanks to RageQKM for the Aquaculture report and suggestion.
@@ -17,6 +18,7 @@
 - fishermen use vanilla fishing loot, including mod additions. custom tackle bonuses currently only work with Aquaculture; Fishing Real catches stay as items.
 - fishermen keep their equipped rod, deposit spares and take a replacement from storage when needed. offhand rods work too.
 - the addon request API now takes namespaced job IDs.
+- on 26.3, farmers use any item in the `#minecraft:hoes` tag. a modded hoe outside that tag won't count.
 
 ## FIXED
 
