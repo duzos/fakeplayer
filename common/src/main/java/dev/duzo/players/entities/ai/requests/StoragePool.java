@@ -1,12 +1,12 @@
 package dev.duzo.players.entities.ai.requests;
 
 import dev.duzo.players.entities.ai.AIState;
+import dev.duzo.players.entities.ai.JobHelpers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.Container;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.ArrayList;
@@ -32,7 +32,7 @@ public final class StoragePool {
 	 * output slot.
 	 */
 	public static boolean isPoolable(Level level, BlockPos pos) {
-		Container container = HopperBlockEntity.getContainerAt(level, pos);
+		Container container = JobHelpers.containerAt(level, pos);
 		return container != null && !(container instanceof WorldlyContainer);
 	}
 
