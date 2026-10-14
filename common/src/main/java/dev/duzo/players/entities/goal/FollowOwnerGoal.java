@@ -27,6 +27,7 @@ public class FollowOwnerGoal extends Goal {
 
 	@Override
 	public boolean canUse() {
+		if (this.entity.isRiding()) return false;
 		Player found = this.entity.getFollowTarget();
 		if (found == null) return false;
 		this.owner = found;
@@ -35,6 +36,7 @@ public class FollowOwnerGoal extends Goal {
 
 	@Override
 	public boolean canContinueToUse() {
+		if (this.entity.isRiding()) return false;
 		Player found = this.entity.getFollowTarget();
 		if (found == null) return false;
 		this.owner = found;

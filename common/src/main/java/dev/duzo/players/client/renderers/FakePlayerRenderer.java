@@ -42,7 +42,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, F
 			matrices.scale(0.9375F, 0.9375F, 0.9375F);
 		}
 
-		if (entity.isSitting()) {
+		if (entity.isSitting() && !entity.isPassenger()) { // riding wins over the sitting offset
 			matrices.translate(0, -0.5f, 0);
 		}
 
