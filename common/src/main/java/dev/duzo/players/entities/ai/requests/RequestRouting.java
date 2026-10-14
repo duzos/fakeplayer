@@ -8,7 +8,6 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.JobExecutor;
 import dev.duzo.players.entities.ai.JobType;
 import dev.duzo.players.entities.ai.QuartermasterJobExecutor;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -251,7 +250,7 @@ public final class RequestRouting {
 		if (owner == null) return false;
 		ServerPlayer player = level.getServer().getPlayerList().getPlayer(owner);
 		if (player == null) return false;
-		player.sendSystemMessage(Component.literal(about.getName().getString() + ": " + message));
+		about.sendChatTo(player, message);
 		return true;
 	}
 }
