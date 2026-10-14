@@ -6,16 +6,16 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.vehicle.boat.Boat;
-import net.minecraft.world.entity.vehicle.boat.Raft;
-import net.minecraft.world.entity.vehicle.minecart.Minecart;
+import net.minecraft.world.entity.vehicle.Boat;
+import net.minecraft.world.entity.vehicle.Raft;
+import net.minecraft.world.entity.vehicle.Minecart;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -77,7 +77,7 @@ public final class RidingInteractions {
 			tell(player, "That seat is too far away.", ChatFormatting.RED);
 			return InteractionResult.FAIL;
 		}
-		EntityType<?> seatType = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("create", "seat")).orElse(null);
+		EntityType<?> seatType = BuiltInRegistries.ENTITY_TYPE.getOptional(ResourceLocation.fromNamespaceAndPath("create", "seat")).orElse(null);
 		if (seatType == null) {
 			tell(player, "Create's seat entity is not available.", ChatFormatting.RED);
 			return InteractionResult.FAIL;
@@ -100,7 +100,7 @@ public final class RidingInteractions {
 		}
 		seat.setPos(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
 		server.addFreshEntity(seat);
-		if (!fake.startRiding(seat, true, true)) {
+		if (!fake.startRiding(seat, true)) {
 			seat.discard();
 			tell(player, "The fake cannot sit there.", ChatFormatting.RED);
 			return InteractionResult.FAIL;
@@ -125,12 +125,12 @@ public final class RidingInteractions {
 
 	/** Create's seats are blocks named {@code create:<colour>_seat}; matched by id so there is no compile dependency. */
 	public static boolean isSeatBlock(BlockState state) {
-		Identifier id = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+		ResourceLocation id = BuiltInRegistries.BLOCK.getKey(state.getBlock());
 		return id.getNamespace().equals("create") && id.getPath().endsWith("seat");
 	}
 
 	private static boolean isContraption(Entity entity) {
-		Identifier id = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+		ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
 		return id.getNamespace().equals("create") && id.getPath().contains("contraption");
 	}
 
