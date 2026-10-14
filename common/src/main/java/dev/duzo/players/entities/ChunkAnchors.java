@@ -84,9 +84,13 @@ public final class ChunkAnchors {
 		});
 	}
 
-	/** The fake unloaded with its chunks still forced; forget only the centre so it re-registers on reload. */
+	/** The fake unloaded with its chunks still forced; forget its centre and holds so it re-registers on reload. */
 	public static void unloaded(FakePlayerEntity fake) {
 		CENTRES.remove(fake.getUUID());
+		HOLDERS.values().removeIf(set -> {
+			set.remove(fake.getUUID());
+			return set.isEmpty();
+		});
 	}
 
 	private static void letGo(ServerLevel level, FakePlayerEntity fake, long chunk) {
