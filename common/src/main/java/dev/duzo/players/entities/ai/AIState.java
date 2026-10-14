@@ -86,9 +86,12 @@ public final class AIState {
 		NbtUtils.readBlockPos(tag, "RegionB").ifPresent(p -> s.regionB = p);
 		NbtUtils.readBlockPos(tag, "DepositChest").ifPresent(p -> s.depositChest = p);
 		NbtUtils.readBlockPos(tag, "SourceChest").ifPresent(p -> s.sourceChest = p);
-		if (tag.contains("Filter")) s.filter = tag.getCompound("Filter");
-		if (tag.contains("JobParams")) s.jobParams = tag.getCompound("JobParams");
-		if (tag.contains("JobState")) s.jobState = tag.getCompound("JobState");
+		// copied, never aliased into the parsed tree. The getter hands back the live child, and two of
+		// these can be the same instance, so writing a Haul into jobParams also wrote it into filter,
+		// and into every other fake whose state shared that instance.
+		if (tag.contains("Filter")) s.filter = tag.getCompound("Filter").copy();
+		if (tag.contains("JobParams")) s.jobParams = tag.getCompound("JobParams").copy();
+		if (tag.contains("JobState")) s.jobState = tag.getCompound("JobState").copy();
 		return s;
 	}
 
