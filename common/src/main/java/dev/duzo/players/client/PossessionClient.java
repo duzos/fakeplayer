@@ -40,6 +40,8 @@ public final class PossessionClient {
 	private static int useDelay;
 	private static boolean attackWasDown;
 	private static boolean useWasDown;
+	private static boolean attackLatched;
+	private static boolean useLatched;
 
 	private PossessionClient() {}
 
@@ -97,15 +99,27 @@ public final class PossessionClient {
 		int[] hotbar = new int[options.keyHotbarSlots.length];
 		for (int i = 0; i < hotbar.length; i++) hotbar[i] = drain(options.keyHotbarSlots[i]);
 
-		boolean attackHeld = canAct && options.keyAttack.isDown();
-		boolean useHeld = canAct && options.keyUse.isDown();
+		boolean toggleAttack = options.toggleAttack().get();
+		boolean toggleUse = options.toggleUse().get();
+		// a toggle key is latched here and the vanilla key released, so it cannot stay on for vanilla to act on
+		if (toggleAttack) {
+			if ((attackClicks & 1) == 1) attackLatched = !attackLatched;
+			releaseToggle(options.keyAttack);
+		} else {
+			attackLatched = false;
+		}
+		if (toggleUse) {
+			if ((useClicks & 1) == 1) useLatched = !useLatched;
+			releaseToggle(options.keyUse);
+		} else {
+			useLatched = false;
+		}
+		boolean attackHeld = canAct && (toggleAttack ? attackLatched : options.keyAttack.isDown());
+		boolean useHeld = canAct && (toggleUse ? useLatched : options.keyUse.isDown());
 
-		// vanilla keeps attacking and using while a key is held, so the held state is hidden from it. in toggle mode setDown(false)
-		// is a no-op, so the toggles are reset outright and never restored: toggled-on cannot stay on while possessing
-		boolean toggled = options.toggleAttack().get() || options.toggleUse().get();
-		if (toggled) KeyMapping.resetToggleKeys();
-		attackWasDown = !options.toggleAttack().get() && options.keyAttack.isDown();
-		useWasDown = !options.toggleUse().get() && options.keyUse.isDown();
+		// vanilla keeps attacking and using while a key is held, so the held state is hidden from it and given back at the end
+		attackWasDown = !toggleAttack && options.keyAttack.isDown();
+		useWasDown = !toggleUse && options.keyUse.isDown();
 		options.keyAttack.setDown(false);
 		options.keyUse.setDown(false);
 
@@ -126,7 +140,7 @@ public final class PossessionClient {
 			sendAction(fake, PossessActionC2S.ATTACK, hit.entity.getEntity().getId(), BlockPos.ZERO, 0, 0, 0, 0, 0);
 		}
 		// a tap shorter than a tick still starts a break, and the next tick's release stops it
-		BlockPos want = (attackHeld || attackClicks > 0) && hit.entity == null && hit.block != null ? hit.block.getBlockPos() : null;
+		BlockPos want = (attackHeld || (!toggleAttack && attackClicks > 0)) && hit.entity == null && hit.block != null ? hit.block.getBlockPos() : null;
 		if (want == null) {
 			stopBreaking(fake);
 		} else if (!want.equals(breaking)) {
@@ -135,7 +149,7 @@ public final class PossessionClient {
 		}
 
 		if (useDelay > 0) useDelay--;
-		if ((useClicks > 0 || (useHeld && useDelay == 0)) && hit.entity == null && hit.block != null) {
+		if (((!toggleUse && useClicks > 0) || (useHeld && useDelay == 0)) && hit.entity == null && hit.block != null) {
 			useDelay = USE_REPEAT_TICKS;
 			BlockPos pos = hit.block.getBlockPos();
 			Vec3 at = hit.block.getLocation();
@@ -158,6 +172,11 @@ public final class PossessionClient {
 		useWasDown = false;
 	}
 
+	/** setDown(false) does nothing to a toggle key; pressing it again is what turns it off. */
+	private static void releaseToggle(KeyMapping key) {
+		if (key.isDown()) key.setDown(true);
+	}
+
 	private static int drain(KeyMapping key) {
 		int n = 0;
 		while (key.consumeClick()) n++;
@@ -168,6 +187,8 @@ public final class PossessionClient {
 		fakeId = fake.getId();
 		breaking = null;
 		useDelay = 0;
+		attackLatched = false;
+		useLatched = false;
 		// the camera is now the fake, so the mouse has to start from where the fake is already looking
 		player.setYRot(fake.getYRot());
 		player.setXRot(fake.getXRot());
@@ -181,6 +202,8 @@ public final class PossessionClient {
 		fakeId = -1;
 		breaking = null;
 		useDelay = 0;
+		attackLatched = false;
+		useLatched = false;
 	}
 
 	private static void stopBreaking(FakePlayerEntity fake) {

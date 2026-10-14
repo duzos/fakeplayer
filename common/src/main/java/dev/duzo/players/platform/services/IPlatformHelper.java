@@ -48,11 +48,11 @@ public interface IPlatformHelper {
     boolean canBreak(ServerLevel level, ServerPlayer player, BlockPos pos);
 
     /**
-     * Whether land-protection mods let this player use the block the hit result points at (a toggle, or an item on it).
-     * Fires the loader's block-use event for the player with the possession guard stood down, and also requires
+     * Whether land-protection mods let this player use the block the hit result points at (a toggle, or an item on it),
+     * and whether a listener already handled the click. Fires the loader's block-use event for the player with the possession guard stood down, and also requires
      * {@code level.mayInteract}. {@code level} is the fake's, which is not necessarily the player's.
      */
-    boolean canUse(ServerLevel level, ServerPlayer player, BlockHitResult hit);
+    UseCheck canUse(ServerLevel level, ServerPlayer player, BlockHitResult hit);
 
     /**
      * Whether land-protection mods and the loader's own place event let this player put {@code state} at {@code pos}.
