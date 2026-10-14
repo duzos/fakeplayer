@@ -23,6 +23,7 @@
 - the addon request API now takes namespaced job IDs.
 - tool requests pick the best usable tool in storage, including supported modded tools. worn-out tools are skipped.
 - crafting requests report missing materials together and only ask for what's still needed.
+- a fake's arrows, explosions and other damage no longer hurt itself, its owner, the owner's other fakes or the owner's pets, and it won't fight back against them.
 
 ## FIXED
 
