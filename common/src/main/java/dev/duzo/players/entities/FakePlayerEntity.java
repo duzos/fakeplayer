@@ -19,6 +19,7 @@ import dev.duzo.players.entities.speech.FakeSpeech;
 import dev.duzo.players.entities.speech.Verbosity;
 import dev.duzo.players.entities.ai.requests.StockKeeper;
 import net.minecraft.core.registries.BuiltInRegistries;
+import dev.duzo.players.compat.TaczGunBridge;
 import dev.duzo.players.entities.ai.RangedWeapon;
 import dev.duzo.players.entities.goal.FakeMeleeAttackGoal;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
@@ -489,6 +490,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	private boolean hasAmmoFor(RangedWeapon kind, ItemStack weapon) {
 		if (kind == RangedWeapon.TRIDENT) return true;
+		// TACZ resolves its own ammo through the item handler, so ask it rather than scanning the inventory here
+		if (kind == RangedWeapon.GUN) return TaczGunBridge.canFire(this, weapon);
 		// a loaded crossbow already holds its bolt: vanilla moves the arrow out of the inventory when charging
 		// completes, tens of ticks before the shot, so requiring inventory ammo here stranded the last arrow
 		if (kind == RangedWeapon.CROSSBOW && CrossbowItem.isCharged(weapon)) return true;
@@ -529,7 +532,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 		ItemStack weapon = this.getItemInHand(hand);
 		RangedWeapon kind = RangedWeapon.of(weapon);
-		if (kind == null) return;
+		if (kind == null || kind == RangedWeapon.GUN) return;
 
 		if (kind == RangedWeapon.TRIDENT) {
 			this.throwTrident(server, target, weapon, hand);

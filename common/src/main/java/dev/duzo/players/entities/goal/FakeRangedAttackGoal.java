@@ -1,7 +1,9 @@
 package dev.duzo.players.entities.goal;
 
+import dev.duzo.players.compat.TaczGunBridge;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.RangedWeapon;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -23,6 +25,7 @@ public class FakeRangedAttackGoal extends Goal {
 	/** Vanilla's minimum trident charge before a throw counts. */
 	private static final int TRIDENT_WINDUP_TICKS = 10;
 	private static final int STRAFE_FLIP_TICKS = 20;
+	private static final float GUN_AIM_TOLERANCE = 25.0F;
 	/** How long the fake keeps hunting after losing sight before it gives up on the shot. */
 	private static final int BLIND_GIVE_UP_TICKS = -60;
 
@@ -35,6 +38,12 @@ public class FakeRangedAttackGoal extends Goal {
 	private boolean strafingClockwise;
 	private boolean strafingBackwards;
 	private int strafingTime = -1;
+
+	private boolean gunReady;
+	@Nullable
+	private InteractionHand gunHand;
+	@Nullable
+	private ItemStack gunStack;
 
 	private CrossbowState crossbowState = CrossbowState.UNCHARGED;
 	private int crossbowDelay;
@@ -77,6 +86,7 @@ public class FakeRangedAttackGoal extends Goal {
 		this.mob.setChargingCrossbow(false);
 		this.releaseCrossbowCharge();
 		this.crossbowState = CrossbowState.UNCHARGED;
+		this.stopGun();
 	}
 
 	// A crossbow left loaded when the goal stops keeps the fake in the aiming pose forever, looking frozen
@@ -120,7 +130,9 @@ public class FakeRangedAttackGoal extends Goal {
 			case BOW -> this.tickBow(target, seen);
 			case CROSSBOW -> this.tickCrossbow(seen);
 			case TRIDENT -> this.tickTrident(target, seen);
+			case GUN -> this.tickGun(target, seen);
 		}
+		if (weapon != RangedWeapon.GUN) this.stopGun();
 	}
 
 	// Hold at range once the target has been in sight for a second, then circle it rather than standing still.
@@ -234,6 +246,44 @@ public class FakeRangedAttackGoal extends Goal {
 			InteractionHand hand = this.handFor(RangedWeapon.TRIDENT);
 			if (hand != null) this.mob.startUsingItem(hand);
 		}
+	}
+
+	// Sequence from TACZ's own operator: draw once when the gun enters the hand (a shot before that crashes in the
+	// bullet constructor), keep aiming, shoot with the two-argument overload, and answer the result.
+	private void tickGun(LivingEntity target, boolean seen) {
+		InteractionHand hand = this.handFor(RangedWeapon.GUN);
+		if (hand == null) return;
+
+		ItemStack held = this.mob.getItemInHand(hand);
+		if (!this.gunReady || hand != this.gunHand || held != this.gunStack) {
+			if (!TaczGunBridge.ready(this.mob, hand)) return;
+			this.gunReady = true;
+			this.gunHand = hand;
+			this.gunStack = held;
+		}
+		if (!seen) return;
+
+		double dx = target.getX() - this.mob.getX();
+		double dy = target.getY(0.6D) - this.mob.getEyeY();
+		double dz = target.getZ() - this.mob.getZ();
+		float yaw = (float) (Mth.atan2(dz, dx) * (180.0D / Math.PI)) - 90.0F;
+		float pitch = (float) -(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * (180.0D / Math.PI));
+		// the bullet leaves along the given angles, so let the head finish turning rather than shooting backwards
+		if (Math.abs(Mth.wrapDegrees(yaw - this.mob.yHeadRot)) > GUN_AIM_TOLERANCE) return;
+
+		switch (TaczGunBridge.fire(this.mob, pitch, yaw)) {
+			case SPRINTING -> this.mob.setSprinting(false);
+			case NOT_DRAWN -> this.gunReady = false;
+			default -> { }
+		}
+	}
+
+	private void stopGun() {
+		if (!this.gunReady) return;
+		this.gunReady = false;
+		this.gunHand = null;
+		this.gunStack = null;
+		TaczGunBridge.stop(this.mob);
 	}
 
 	@Nullable
