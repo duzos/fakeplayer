@@ -21,17 +21,17 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /** Name to template, server side. Names come from clients, so nothing here may leave its search roots. */
-final class SchematicStore {
-	record Result<T>(@Nullable T value, @Nullable String error) {
-		static <T> Result<T> ok(T value) {
+public final class SchematicStore {
+	public record Result<T>(@Nullable T value, @Nullable String error) {
+		public static <T> Result<T> ok(T value) {
 			return new Result<>(value, null);
 		}
 
-		static <T> Result<T> fail(String error) {
+		public static <T> Result<T> fail(String error) {
 			return new Result<>(null, error);
 		}
 
-		boolean ok() {
+		public boolean ok() {
 			return value != null;
 		}
 	}
