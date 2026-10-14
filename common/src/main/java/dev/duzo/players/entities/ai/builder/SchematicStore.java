@@ -5,12 +5,14 @@ import dev.duzo.players.config.PlayersConfig;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import java.util.zip.GZIPInputStream;
 
 /** Name to template, server side. Names come from clients, so nothing here may leave its search roots. */
 public final class SchematicStore {
@@ -60,7 +63,7 @@ public final class SchematicStore {
 			return Result.fail("bad schematic name");
 		}
 		if (n.indexOf(':') >= 0) {
-			Identifier id = Identifier.tryParse(n);
+			ResourceLocation id = ResourceLocation.tryParse(n);
 			if (id == null) return Result.fail("bad schematic name");
 			Optional<StructureTemplate> t = level.getStructureManager().get(id);
 			return t.isPresent() ? checkSize(t.get(), name) : Result.fail("schematic not found: " + n);
@@ -113,7 +116,10 @@ public final class SchematicStore {
 	private static Result<StructureTemplate> read(ServerLevel level, Path file, String name) {
 		try {
 			if (Files.size(file) > MAX_FILE_BYTES) return Result.fail("schematic file too large: " + name);
-			CompoundTag tag = NbtIo.readCompressed(file, NbtAccounter.create(MAX_NBT_BYTES));
+			CompoundTag tag;
+			try (DataInputStream in = new DataInputStream(new BufferedInputStream(new GZIPInputStream(Files.newInputStream(file))))) {
+				tag = NbtIo.read(in, new NbtAccounter(MAX_NBT_BYTES));
+			}
 			return checkSize(level.getStructureManager().readStructure(tag), name);
 		} catch (IOException | RuntimeException e) {
 			Constants.LOG.warn("could not read schematic {}", file, e);

@@ -15,11 +15,11 @@ import dev.duzo.players.entities.ai.builder.SchematicStore;
 import dev.duzo.players.entities.ai.claims.WorkClaims;
 import dev.duzo.players.entities.ai.requests.SenderAlerts;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -40,7 +40,7 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -106,7 +106,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	private String alertKey = "";
 	private boolean alertedBlocked;
 	private boolean alertedDone;
-	private final Set<Identifier> requested = new HashSet<>();
+	private final Set<ResourceLocation> requested = new HashSet<>();
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
@@ -183,7 +183,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		tag.putBoolean("AlertedBlocked", alertedBlocked);
 		tag.putBoolean("AlertedDone", alertedDone);
 		ListTag req = new ListTag();
-		for (Identifier id : requested) {
+		for (ResourceLocation id : requested) {
 			CompoundTag c = new CompoundTag();
 			c.putString("Id", id.toString());
 			req.add(c);
@@ -196,28 +196,28 @@ public class BuilderJobExecutor implements JobExecutor {
 	public void deserialize(CompoundTag tag) {
 		if (tag == null || tag.isEmpty()) return;
 		// every phase but DONE restarts from INIT: the plan is rebuilt and the world rescanned
-		int saved = tag.getIntOr("Phase", 0);
+		int saved = tag.getInt("Phase");
 		phase = saved == Phase.DONE.ordinal() ? Phase.DONE : Phase.INIT;
-		stripeIdx = tag.getIntOr("Stripe", -1);
-		int[] box = tag.getIntArray("Claim").orElse(null);
+		stripeIdx = tag.contains("Stripe") ? tag.getInt("Stripe") : -1;
+		int[] box = tag.contains("Claim") ? tag.getIntArray("Claim") : null;
 		claim = box != null && box.length == 6 ? new BoundingBox(box[0], box[1], box[2], box[3], box[4], box[5]) : null;
-		finishing = tag.getBooleanOr("Finishing", false);
+		finishing = tag.getBoolean("Finishing");
 		blocked = new LinkedHashMap<>();
-		ListTag list = tag.getList("Blocked").orElseGet(ListTag::new);
+		ListTag list = tag.getList("Blocked", Tag.TAG_COMPOUND);
 		for (int i = 0; i < list.size(); i++) {
-			CompoundTag c = list.getCompoundOrEmpty(i);
-			Identifier id = Identifier.tryParse(c.getStringOr("Id", ""));
+			CompoundTag c = list.getCompound(i);
+			ResourceLocation id = ResourceLocation.tryParse(c.getString("Id"));
 			if (id == null) continue;
-			BuiltInRegistries.ITEM.getOptional(id).ifPresent(item -> blocked.put(item, c.getIntOr("N", 0)));
+			BuiltInRegistries.ITEM.getOptional(id).ifPresent(item -> blocked.put(item, c.getInt("N")));
 		}
-		blockedMsg = tag.getStringOr("BlockedMsg", "");
-		alertKey = tag.getStringOr("AlertKey", "");
-		alertedBlocked = tag.getBooleanOr("AlertedBlocked", false);
-		alertedDone = tag.getBooleanOr("AlertedDone", false);
+		blockedMsg = tag.getString("BlockedMsg");
+		alertKey = tag.getString("AlertKey");
+		alertedBlocked = tag.getBoolean("AlertedBlocked");
+		alertedDone = tag.getBoolean("AlertedDone");
 		requested.clear();
-		ListTag req = tag.getList("Requested").orElseGet(ListTag::new);
+		ListTag req = tag.getList("Requested", Tag.TAG_COMPOUND);
 		for (int i = 0; i < req.size(); i++) {
-			Identifier id = Identifier.tryParse(req.getCompoundOrEmpty(i).getStringOr("Id", ""));
+			ResourceLocation id = ResourceLocation.tryParse(req.getCompound(i).getString("Id"));
 			if (id != null) requested.add(id);
 		}
 	}
@@ -495,7 +495,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		entity.getLookControl().setLookAt(first.getX() + 0.5, first.getY() + 0.5, first.getZ() + 0.5);
 		entity.swing(InteractionHand.MAIN_HAND);
 		ItemStack shown = new ItemStack(cost.count() > 0 ? cost.item() : firstState.getBlock().asItem());
-		if (!ItemStack.isSameItemSameComponents(entity.getDisplayItem(), shown)) entity.setDisplayItem(shown);
+		if (!ItemStack.isSameItemSameTags(entity.getDisplayItem(), shown)) entity.setDisplayItem(shown);
 
 		if (!mainDone) {
 			if (!place(level, entity, pos, c.state())) {
@@ -802,7 +802,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		if (requested.isEmpty()) return;
 		UUID owner = entity.getAIState().ownerUUID();
 		if (owner != null) {
-			for (Identifier id : requested) {
+			for (ResourceLocation id : requested) {
 				RequestKey key = new RequestKey(entity.getUUID(), RequesterKind.FAKE, entity.getAIState().jobId(), id);
 				FakePlayerRequests.cancel(level, entity, owner, key);
 			}
@@ -874,7 +874,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	/** Food and tools stay with the fake; so do the materials of an unfinished build. */
 	private boolean keep(ItemStack stack) {
 		if (stack.isEmpty()) return true;
-		if (stack.has(DataComponents.FOOD) || stack.isDamageableItem()) return true;
+		if (stack.isEdible() || stack.isDamageableItem()) return true;
 		return !finishing && plan != null && plan.bom.containsKey(stack.getItem());
 	}
 

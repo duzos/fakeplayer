@@ -11,12 +11,7 @@ import dev.duzo.players.entities.ai.requests.PoolIndex;
 import dev.duzo.players.entities.ai.requests.StoragePool;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-<<<<<<< HEAD
-=======
 import net.minecraft.core.Direction;
-import net.minecraft.core.UUIDUtil;
-import net.minecraft.core.component.DataComponents;
->>>>>>> feat(builder): anchor marker and schematic row in the ai menu
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
