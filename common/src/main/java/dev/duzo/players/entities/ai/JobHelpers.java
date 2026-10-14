@@ -209,7 +209,7 @@ public final class JobHelpers {
 	}
 
 	/** Blocks a pack wants fakes to leave alone even though they expose an item handler: machines, void bins. */
-	public static final TagKey<Block> NOT_STORAGE = TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Constants.MOD_ID, "not_storage"));
+	public static final TagKey<Block> NOT_STORAGE = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "not_storage"));
 	private static boolean warnedProvider;
 
 	/** Insert into a container. Returns the part that did not fit; never mutates {@code stack}. */
