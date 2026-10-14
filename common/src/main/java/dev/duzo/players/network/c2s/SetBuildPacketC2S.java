@@ -7,14 +7,14 @@ import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.builder.BuilderParams;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 
 import java.util.UUID;
 
 public record SetBuildPacketC2S(int id, String schematic, int rotation, int mirror, boolean clear) {
-	public static final Identifier LOCATION = PlayersCommon.id("ai_set_build");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_set_build");
 
 	public static SetBuildPacketC2S decode(FriendlyByteBuf buf) {
 		return new SetBuildPacketC2S(buf.readInt(), buf.readUtf(BuilderParams.MAX_NAME), buf.readVarInt(), buf.readVarInt(), buf.readBoolean());
