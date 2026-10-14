@@ -57,8 +57,10 @@ public final class TaczGuns {
 				return Shot.NOT_DRAWN;
 			case IS_SPRINTING:
 				return Shot.SPRINTING;
-			case COOL_DOWN, IS_RELOADING, IS_DRAWING, IS_BOLTING, IS_MELEE:
+			case COOL_DOWN, IS_RELOADING, IS_DRAWING, IS_BOLTING, IS_MELEE, OVERHEATED:
 				return Shot.WAIT;
+			case ID_NOT_EXIST, NOT_GUN:
+				return Shot.UNUSABLE;
 			default:
 				return Shot.FAILED;
 		}
