@@ -54,6 +54,6 @@ side = "BOTH"
 [[dependencies.${mod_id}]]
 modId = "tide"
 type = "optional"
-versionRange = "[0,)"
+versionRange = "[2.1.1,)"
 ordering = "NONE"
 side = "BOTH"
