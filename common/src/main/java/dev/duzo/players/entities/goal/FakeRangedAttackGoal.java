@@ -52,13 +52,14 @@ public class FakeRangedAttackGoal extends Goal {
 	public boolean canUse() {
 		return this.mob.getTarget() != null
 				&& !this.mob.isSitting()
+				&& !this.mob.isRiding()
 				&& this.mob.allowsCombatMovement()
 				&& this.mob.getUsableRangedWeapon() != null;
 	}
 
 	@Override
 	public boolean canContinueToUse() {
-		return (this.canUse() || !this.mob.getNavigation().isDone()) && this.mob.getUsableRangedWeapon() != null;
+		return !this.mob.isRiding() && (this.canUse() || !this.mob.getNavigation().isDone()) && this.mob.getUsableRangedWeapon() != null;
 	}
 
 	@Override
