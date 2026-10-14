@@ -1,6 +1,7 @@
 package dev.duzo.players.entities;
 
 import net.minecraft.core.BlockPos;
+import dev.duzo.players.Constants;
 import dev.duzo.players.api.CustomBindTracker;
 import dev.duzo.players.api.InteractionRegistry;
 import dev.duzo.players.api.SkinGrabber;
