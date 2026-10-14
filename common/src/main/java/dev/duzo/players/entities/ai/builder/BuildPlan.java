@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -20,7 +21,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -101,16 +102,16 @@ public final class BuildPlan {
 		BoundingBox bounds = raw.moved(shift.getX(), shift.getY(), shift.getZ());
 
 		Map<BlockPos, BlockState> world = new HashMap<>();
-		ListTag blocks = tag.getList(StructureTemplate.BLOCKS_TAG).orElseGet(ListTag::new);
+		ListTag blocks = tag.getList(StructureTemplate.BLOCKS_TAG, Tag.TAG_COMPOUND);
 		for (int i = 0; i < blocks.size(); i++) {
-			CompoundTag b = blocks.getCompoundOrEmpty(i);
-			int id = b.getIntOr(StructureTemplate.BLOCK_TAG_STATE, -1);
+			CompoundTag b = blocks.getCompound(i);
+			int id = b.contains(StructureTemplate.BLOCK_TAG_STATE) ? b.getInt(StructureTemplate.BLOCK_TAG_STATE) : -1;
 			if (id < 0 || id >= palette.size()) continue;
 			BlockState state = palette.get(id);
 			if (state.is(Blocks.JIGSAW) || state.is(Blocks.STRUCTURE_BLOCK) || state.is(Blocks.STRUCTURE_VOID)) continue;
-			ListTag p = b.getList(StructureTemplate.BLOCK_TAG_POS).orElse(null);
-			if (p == null || p.size() < 3) continue;
-			BlockPos local = new BlockPos(p.getIntOr(0, 0), p.getIntOr(1, 0), p.getIntOr(2, 0));
+			ListTag p = b.getList(StructureTemplate.BLOCK_TAG_POS, Tag.TAG_INT);
+			if (p.size() < 3) continue;
+			BlockPos local = new BlockPos(p.getInt(0), p.getInt(1), p.getInt(2));
 			BlockPos at = StructureTemplate.transform(local, key.mirror(), key.rotation(), BlockPos.ZERO).offset(shift);
 			world.put(at, state.mirror(key.mirror()).rotate(key.rotation()));
 		}
@@ -157,14 +158,15 @@ public final class BuildPlan {
 	}
 
 	private static List<BlockState> readPalette(CompoundTag tag) {
-		ListTag list = tag.getList(StructureTemplate.PALETTE_TAG).orElse(null);
+		ListTag list = tag.contains(StructureTemplate.PALETTE_TAG, Tag.TAG_LIST)
+				? tag.getList(StructureTemplate.PALETTE_TAG, Tag.TAG_COMPOUND) : null;
 		if (list == null) {
-			ListTag palettes = tag.getList(StructureTemplate.PALETTE_LIST_TAG).orElseGet(ListTag::new);
-			list = palettes.isEmpty() ? new ListTag() : palettes.getList(0).orElseGet(ListTag::new);
+			ListTag palettes = tag.getList(StructureTemplate.PALETTE_LIST_TAG, Tag.TAG_LIST);
+			list = palettes.isEmpty() ? new ListTag() : palettes.getList(0);
 		}
 		List<BlockState> out = new ArrayList<>(list.size());
 		for (int i = 0; i < list.size(); i++) {
-			out.add(NbtUtils.readBlockState(BuiltInRegistries.BLOCK, list.getCompoundOrEmpty(i)));
+			out.add(NbtUtils.readBlockState(BuiltInRegistries.BLOCK, list.getCompound(i)));
 		}
 		return out;
 	}
