@@ -114,7 +114,7 @@ final class PossessionActions {
 			return;
 		}
 		s.lastAttackTick = now;
-		fake.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
+		fake.swingForAttack(InteractionHand.MAIN_HAND);
 		boolean hit = fake.doHurtTarget(level, target);
 		Constants.traceEvent("possession attack {} target={} hit={}", fake.getUUID(), target.getUUID(), hit);
 	}
