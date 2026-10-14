@@ -3,6 +3,7 @@ package dev.duzo.players;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.core.SessionItemSweeper;
+import dev.duzo.players.entities.ai.FriendlyFire;
 import dev.duzo.players.entities.possession.PossessionGuard;
 import dev.duzo.players.entities.possession.PossessionManager;
 import net.fabricmc.api.ModInitializer;
@@ -25,6 +26,8 @@ public class PlayersFabric implements ModInitializer {
 
         ServerTickEvents.END_SERVER_TICK.register(SessionItemSweeper::tick);
         ServerTickEvents.END_SERVER_TICK.register(PossessionManager::tick);
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
+                !FriendlyFire.shouldBlock(source, entity));
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
             if (entity instanceof ServerPlayer p) {
                 AIMarkerItem.clearAllFor(p);
