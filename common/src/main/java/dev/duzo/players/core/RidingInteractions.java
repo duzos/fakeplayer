@@ -72,7 +72,8 @@ public final class RidingInteractions {
 		if (fake == null) return InteractionResult.PASS;
 		if (!allowed(player, fake)) return InteractionResult.FAIL;
 		if (!(level instanceof ServerLevel server)) return InteractionResult.PASS;
-		if (player.distanceToSqr(Vec3.atCenterOf(pos)) > SEAT_RANGE_SQ || !level.isLoaded(pos)) {
+		if (player.distanceToSqr(Vec3.atCenterOf(pos)) > SEAT_RANGE_SQ || fake.distanceToSqr(Vec3.atCenterOf(pos)) > SEAT_RANGE_SQ
+				|| !level.isLoaded(pos)) {
 			tell(player, "That seat is too far away.", ChatFormatting.RED);
 			return InteractionResult.FAIL;
 		}
