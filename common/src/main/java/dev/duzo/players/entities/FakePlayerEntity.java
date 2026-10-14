@@ -298,7 +298,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	}
 
 	/** Called when TACZ says this gun is not a gun it knows (missing gun pack id), so the fake falls back to another weapon. */
-	public void markGunUnusable(ItemStack gun) {
+	public void markGunUnusable(@Nullable ItemStack gun) {
 		this.unusableGun = gun;
 	}
 

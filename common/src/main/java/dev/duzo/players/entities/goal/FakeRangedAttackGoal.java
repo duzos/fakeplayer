@@ -88,6 +88,7 @@ public class FakeRangedAttackGoal extends Goal {
 		this.releaseCrossbowCharge();
 		this.crossbowState = CrossbowState.UNCHARGED;
 		this.stopGun();
+		this.mob.markGunUnusable(null);
 	}
 
 	// A crossbow left loaded when the goal stops keeps the fake in the aiming pose forever, looking frozen
