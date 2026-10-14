@@ -19,7 +19,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CropBlock;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -448,12 +447,12 @@ public class FarmerJobExecutor implements JobExecutor {
 				int surplus = stack.getCount() - keepNow;
 				if (surplus <= 0) continue;
 				ItemStack toDeposit = stack.copyWithCount(surplus);
-				ItemStack remaining = HopperBlockEntity.addItem(null, chest, toDeposit, null);
+				ItemStack remaining = JobHelpers.insert(chest, toDeposit);
 				stack.setCount(keepNow + remaining.getCount());
 				if (stack.isEmpty()) inv.setItem(i, ItemStack.EMPTY);
 				continue;
 			}
-			ItemStack remaining = HopperBlockEntity.addItem(null, chest, stack, null);
+			ItemStack remaining = JobHelpers.insert(chest, stack);
 			inv.setItem(i, remaining.isEmpty() ? ItemStack.EMPTY : remaining);
 		}
 		chest.setChanged();
@@ -469,11 +468,9 @@ public class FarmerJobExecutor implements JobExecutor {
 	private void pickHoe(Container chest, FakePlayerEntity entity) {
 		if (hasUsableHoe(entity)) return;
 		for (int i = 0; i < chest.getContainerSize(); i++) {
-			if (!isUsableHoe(chest.getItem(i))) continue;
-			ItemStack hoe = chest.removeItemNoUpdate(i);
-			ItemStack leftover = entity.getInventory().addItem(hoe);
-			if (!leftover.isEmpty()) chest.setItem(i, leftover);
-			chest.setChanged();
+			ItemStack hoe = chest.getItem(i);
+			if (!isUsableHoe(hoe)) continue;
+			JobHelpers.withdrawInto(chest, i, hoe.getCount(), entity.getInventory());
 			return;
 		}
 	}
@@ -484,11 +481,7 @@ public class FarmerJobExecutor implements JobExecutor {
 			if (!isSeed(stack)) continue;
 			int have = countItem(entity, stack.getItem());
 			if (have >= SEED_RESERVE) continue;
-			ItemStack taken = stack.split(Math.min(stack.getCount(), SEED_RESERVE - have));
-			ItemStack leftover = entity.getInventory().addItem(taken);
-			if (!leftover.isEmpty()) stack.grow(leftover.getCount());
-			if (stack.isEmpty()) chest.setItem(i, ItemStack.EMPTY);
-			chest.setChanged();
+			JobHelpers.withdrawInto(chest, i, Math.min(stack.getCount(), SEED_RESERVE - have), entity.getInventory());
 		}
 	}
 
@@ -498,12 +491,8 @@ public class FarmerJobExecutor implements JobExecutor {
 			ItemStack stack = chest.getItem(i);
 			if (stack.getItem() != item) continue;
 			int wanted = reserve - countItem(entity, item);
-			ItemStack taken = stack.split(Math.min(stack.getCount(), wanted));
-			ItemStack leftover = entity.getInventory().addItem(taken);
-			if (!leftover.isEmpty()) stack.grow(leftover.getCount());
-			if (stack.isEmpty()) chest.setItem(i, ItemStack.EMPTY);
+			JobHelpers.withdrawInto(chest, i, Math.min(stack.getCount(), wanted), entity.getInventory());
 		}
-		chest.setChanged();
 	}
 
 	private int countItem(FakePlayerEntity entity, net.minecraft.world.item.Item item) {

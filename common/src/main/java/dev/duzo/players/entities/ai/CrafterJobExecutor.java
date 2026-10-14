@@ -26,7 +26,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
 import javax.annotation.Nullable;
 
@@ -641,12 +640,7 @@ public class CrafterJobExecutor implements JobExecutor {
 			Integer per = need.get(stack.getItem());
 			if (per == null) continue;
 			if (countItem(inv, stack.getItem()) >= per * BATCH) continue;
-			ItemStack remainder = HopperBlockEntity.addItem(src, inv, stack.copy(), null);
-			int taken = stack.getCount() - remainder.getCount();
-			if (taken > 0) {
-				stack.shrink(taken);
-				if (stack.isEmpty()) src.setItem(i, ItemStack.EMPTY);
-				src.setChanged();
+			if (JobHelpers.withdrawInto(src, i, stack.getCount(), inv) > 0) {
 				inv.setChanged();
 				return 1;
 			}
@@ -660,13 +654,8 @@ public class CrafterJobExecutor implements JobExecutor {
 			ItemStack stack = inv.getItem(i);
 			if (stack.isEmpty() || need.containsKey(stack.getItem())) continue;
 			if (JobHelpers.depositSurplus(inv, i, dst, reserve)) continue;
-			ItemStack remainder = HopperBlockEntity.addItem(inv, dst, stack.copy(), null);
-			int moved = stack.getCount() - remainder.getCount();
-			if (moved > 0) {
-				stack.shrink(moved);
-				if (stack.isEmpty()) inv.setItem(i, ItemStack.EMPTY);
+			if (JobHelpers.moveSlot(inv, i, dst) > 0) {
 				inv.setChanged();
-				dst.setChanged();
 				return 1;
 			}
 		}
