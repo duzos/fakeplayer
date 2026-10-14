@@ -25,6 +25,7 @@ public record BondPacketC2S(int id, boolean bond) implements CustomPacketPayload
 		if (sender == null) return;
 		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
 		entity.mutateAIState(s -> s.setOwnerUUID(ctx.message().bond() ? sender.getUUID() : null));
+		if (!ctx.message().bond()) dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(entity.getUUID());
 	}
 
 	@Override
