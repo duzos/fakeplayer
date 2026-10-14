@@ -5,6 +5,7 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.core.SessionItemSweeper;
+import dev.duzo.players.entities.possession.PossessionManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -29,16 +30,28 @@ public class ForgeModEvents {
 	public static void onServerTick(TickEvent.ServerTickEvent e) {
 		if (e.phase != TickEvent.Phase.END) return;
 		SessionItemSweeper.tick(e.getServer());
+		PossessionManager.tick(e.getServer());
 	}
 
 	@SubscribeEvent(priority = EventPriority.HIGHEST)
 	public static void onPlayerDeath(LivingDeathEvent e) {
-		if (e.getEntity() instanceof ServerPlayer p) AIMarkerItem.clearAllFor(p);
+		if (e.getEntity() instanceof ServerPlayer p) {
+			AIMarkerItem.clearAllFor(p);
+			PossessionManager.onDeath(p);
+		}
 	}
 
 	@SubscribeEvent
 	public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent e) {
-		if (e.getEntity() instanceof ServerPlayer p) AIMarkerItem.clearAllFor(p);
+		if (e.getEntity() instanceof ServerPlayer p) {
+			AIMarkerItem.clearAllFor(p);
+			PossessionManager.onDisconnect(p);
+		}
+	}
+
+	@SubscribeEvent
+	public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent e) {
+		if (e.getEntity() instanceof ServerPlayer p) PossessionManager.onJoin(p);
 	}
 
 	@SubscribeEvent

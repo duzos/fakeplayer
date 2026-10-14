@@ -3,6 +3,7 @@ package dev.duzo.players.api;
 import dev.duzo.players.Constants;
 import dev.duzo.players.core.FPItems;
 import dev.duzo.players.core.RidingInteractions;
+import dev.duzo.players.core.PossessionLinkItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
 import dev.duzo.players.platform.Services;
@@ -63,6 +64,20 @@ public class InteractionRegistry {
 			if (!player.getAbilities().instabuild) player.getMainHandItem().shrink(1);
 			player.sendSystemMessage(Component.literal("Chunk Anchor installed: this fake keeps working while you are away"), true);
 			playSound(entity, SoundEvents.RESPAWN_ANCHOR_CHARGE);
+			return InteractionResult.SUCCESS;
+		});
+
+		register(FPItems.POSSESSION_LINK.get(), (player, entity) -> {
+			boolean owner = player.getUUID().equals(entity.getAIState().ownerUUID());
+			if (!owner && !dev.duzo.players.core.AIMarkerItem.isOp(player)) {
+				player.sendSystemMessage(Component.literal("Only this fake's owner can bind a Possession Link to it"), true);
+				return InteractionResult.FAIL;
+			}
+			ItemStack link = player.getMainHandItem();
+			if (!link.is(FPItems.POSSESSION_LINK.get())) return InteractionResult.FAIL;
+			PossessionLinkItem.bind(link, entity);
+			player.sendSystemMessage(Component.literal("Linked to " + entity.getSkinData().name() + ". Use it in the air to take control"), true);
+			playSound(entity, SoundEvents.AMETHYST_BLOCK_CHIME);
 			return InteractionResult.SUCCESS;
 		});
 
