@@ -35,14 +35,14 @@ import java.util.TreeMap;
  * `anchor` is the minimum corner of the rotated and mirrored bounding box. Air entries are kept as CLEAR cells
  * so the site is cleared; entities, jigsaw, structure blocks and block entity data are dropped.
  */
-final class BuildPlan {
-	record BuildKey(ResourceKey<Level> dim, String schematic, BlockPos anchor, Rotation rotation, Mirror mirror) {}
+public final class BuildPlan {
+	public record BuildKey(ResourceKey<Level> dim, String schematic, BlockPos anchor, Rotation rotation, Mirror mirror) {}
 
 	/** `partner` is the other half placed in the same action, always after this cell: upper door half, bed head. */
-	record Cell(BlockPos pos, BlockState state, PlacePass pass, @Nullable BlockPos partnerPos, @Nullable BlockState partnerState) {}
+	public record Cell(BlockPos pos, BlockState state, PlacePass pass, @Nullable BlockPos partnerPos, @Nullable BlockState partnerState) {}
 
 	/** `cells` is in work order: CLEAR top-down, then SOLID bottom-up, then ATTACH bottom-up. */
-	record Stripe(int index, BoundingBox box, List<Cell> cells) {}
+	public record Stripe(int index, BoundingBox box, List<Cell> cells) {}
 
 	private static final int CACHE_MAX = 8;
 	private static final Map<BuildKey, BuildPlan> CACHE = new LinkedHashMap<>(16, 0.75F, true) {
@@ -52,13 +52,13 @@ final class BuildPlan {
 		}
 	};
 
-	final BuildKey key;
-	final BoundingBox bounds;
-	final int stripeWidth;
-	final List<Stripe> stripes;
-	final Map<Item, Integer> bom;
+	public final BuildKey key;
+	public final BoundingBox bounds;
+	public final int stripeWidth;
+	public final List<Stripe> stripes;
+	public final Map<Item, Integer> bom;
 	/** Blocks the Builder cannot place, by block, with how many the schematic holds. Their cells are not in any stripe. */
-	final Map<Block, Integer> unsupported;
+	public final Map<Block, Integer> unsupported;
 
 	private BuildPlan(BuildKey key, BoundingBox bounds, int stripeWidth, List<Stripe> stripes,
 					  Map<Item, Integer> bom, Map<Block, Integer> unsupported) {
@@ -70,14 +70,14 @@ final class BuildPlan {
 		this.unsupported = unsupported;
 	}
 
-	int cellCount() {
+	public int cellCount() {
 		int n = 0;
 		for (Stripe s : stripes) n += s.cells().size();
 		return n;
 	}
 
 	/** Cached by key. `owner` only picks where an upload is searched for and is not part of the key. */
-	static synchronized SchematicStore.Result<BuildPlan> get(ServerLevel level, BuildKey key, @Nullable String owner) {
+	public static synchronized SchematicStore.Result<BuildPlan> get(ServerLevel level, BuildKey key, @Nullable String owner) {
 		int width = PlayersConfig.get().builderStripeWidth;
 		BuildPlan cached = CACHE.get(key);
 		if (cached != null && cached.stripeWidth == width) return SchematicStore.Result.ok(cached);
