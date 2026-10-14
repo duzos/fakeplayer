@@ -1,5 +1,6 @@
 package dev.duzo.players.api;
 
+import dev.duzo.players.Constants;
 import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
@@ -90,6 +91,14 @@ public class InteractionRegistry {
 		});
 
 		registerBlockTag(BlockTags.STAIRS, ((player, entity) -> {
+			if (entity.isRiding()) {
+				entity.setOrderedSeat(false);
+				entity.stopRiding();
+				Constants.traceEvent("seat dismount {} by stairs", entity.getUUID());
+				player.sendSystemMessage(Component.literal("Dismounted"), true);
+				playSound(entity, SoundEvents.UI_BUTTON_CLICK.value());
+				return InteractionResult.SUCCESS;
+			}
 			entity.setPhysicalState(entity.isSitting() ? FakePlayerEntity.PhysicalState.STANDING : FakePlayerEntity.PhysicalState.SITTING);
 			player.sendSystemMessage(Component.literal(entity.isSitting() ? "Sitting" : "Standing"), true);
 			playSound(entity, SoundEvents.UI_BUTTON_CLICK.value());
@@ -97,6 +106,10 @@ public class InteractionRegistry {
 		}));
 
 		register(ItemTags.BEDS, ((player, entity) -> {
+			if (entity.isRiding()) {
+				player.sendSystemMessage(Component.literal("Dismount it first"), true);
+				return InteractionResult.FAIL;
+			}
 			entity.setPhysicalState(entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING ? FakePlayerEntity.PhysicalState.STANDING : FakePlayerEntity.PhysicalState.LAYING);
 			player.sendSystemMessage(Component.literal(entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING ? "Laying" : "Standing"), true);
 			playSound(entity, SoundEvents.UI_BUTTON_CLICK.value());
