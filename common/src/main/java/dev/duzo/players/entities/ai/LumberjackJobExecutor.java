@@ -19,7 +19,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SaplingBlock;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -611,7 +610,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			ItemStack stack = inv.getItem(i);
 			if (stack.isEmpty() || isKeep(stack)) continue;
 			if (JobHelpers.depositSurplus(inv, i, chest, reserve)) continue;
-			ItemStack remaining = HopperBlockEntity.addItem(null, chest, stack, null);
+			ItemStack remaining = JobHelpers.insert(chest, stack);
 			inv.setItem(i, remaining.isEmpty() ? ItemStack.EMPTY : remaining);
 		}
 		chest.setChanged();
@@ -636,10 +635,14 @@ public class LumberjackJobExecutor implements JobExecutor {
 			if (speed > bestSpeed) { bestSpeed = speed; bestIdx = i; }
 		}
 		if (bestIdx < 0) return;
-		ItemStack axe = chest.removeItemNoUpdate(bestIdx);
-		if (!current.isEmpty()) chest.setItem(bestIdx, current);
+		ItemStack axe = JobHelpers.extract(chest, bestIdx, chest.getItem(bestIdx).getCount());
+		if (axe.isEmpty()) return;
+		ItemStack back = current.isEmpty() ? ItemStack.EMPTY : JobHelpers.insert(chest, current);
 		entity.setItemSlot(EquipmentSlot.MAINHAND, axe);
-		chest.setChanged();
+		if (!back.isEmpty()) {
+			ItemStack leftover = entity.getInventory().addItem(back);
+			if (!leftover.isEmpty()) entity.spawnAtLocation((ServerLevel) entity.level(), leftover);
+		}
 	}
 
 	private void pickSaplings(Container chest, FakePlayerEntity entity) {
@@ -648,12 +651,8 @@ public class LumberjackJobExecutor implements JobExecutor {
 			ItemStack stack = chest.getItem(i);
 			if (!isSapling(stack)) continue;
 			int wanted = SAPLING_RESERVE - saplingCount(entity);
-			ItemStack taken = stack.split(Math.min(stack.getCount(), wanted));
-			ItemStack leftover = entity.getInventory().addItem(taken);
-			if (!leftover.isEmpty()) stack.grow(leftover.getCount());
-			if (stack.isEmpty()) chest.setItem(i, ItemStack.EMPTY);
+			JobHelpers.withdrawInto(chest, i, Math.min(stack.getCount(), wanted), entity.getInventory());
 		}
-		chest.setChanged();
 	}
 
 	private void pickBonemeal(Container chest, FakePlayerEntity entity) {
@@ -662,12 +661,8 @@ public class LumberjackJobExecutor implements JobExecutor {
 			ItemStack stack = chest.getItem(i);
 			if (!isBonemeal(stack)) continue;
 			int wanted = BONEMEAL_RESERVE - bonemealCount(entity);
-			ItemStack taken = stack.split(Math.min(stack.getCount(), wanted));
-			ItemStack leftover = entity.getInventory().addItem(taken);
-			if (!leftover.isEmpty()) stack.grow(leftover.getCount());
-			if (stack.isEmpty()) chest.setItem(i, ItemStack.EMPTY);
+			JobHelpers.withdrawInto(chest, i, Math.min(stack.getCount(), wanted), entity.getInventory());
 		}
-		chest.setChanged();
 	}
 
 	private PlantTask findPlantTask(ServerLevel level, FakePlayerEntity entity, BlockPos a, BlockPos b) {

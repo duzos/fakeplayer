@@ -23,7 +23,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -155,13 +154,7 @@ public class RunnerJobExecutor implements JobExecutor {
 			ItemStack stack = container.getItem(slot);
 			if (stack.isEmpty()) continue;
 			if (!BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(haul.item())) continue;
-			ItemStack taken = stack.split(Math.min(want, stack.getCount()));
-			// SimpleContainer.addItem copies, so taken keeps its count and the diff is the transfer
-			ItemStack leftover = entity.getInventory().addItem(taken);
-			int got = taken.getCount() - leftover.getCount();
-			if (!leftover.isEmpty()) stack.grow(leftover.getCount());
-			if (stack.isEmpty()) container.setItem(slot, ItemStack.EMPTY);
-			container.setChanged();
+			int got = JobHelpers.withdrawInto(container, slot, Math.min(want, stack.getCount()), entity.getInventory());
 			if (got > 0) {
 				index.noteTaken(haul.item(), source, got);
 				want -= got;
@@ -322,14 +315,11 @@ public class RunnerJobExecutor implements JobExecutor {
 				if (!BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(haul.item())) continue;
 				ItemStack give = stack.split(Math.min(owed, stack.getCount()));
 				int before = give.getCount();
-				// HopperBlockEntity.addItem mutates, and on the partial-merge branch returns the
-				// same object, so diff against a captured count and hand it a copy
-				ItemStack leftover = HopperBlockEntity.addItem(null, container, give.copy(), side);
+				ItemStack leftover = JobHelpers.insert(container, give, side);
 				int moved = before - leftover.getCount();
 				owed -= moved;
 				if (moved < before) stack.grow(before - moved);
 				if (stack.isEmpty()) inv.setItem(slot, ItemStack.EMPTY);
-				container.setChanged();
 			}
 		}
 
