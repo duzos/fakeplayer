@@ -95,6 +95,8 @@ public final class PossessionClient {
 		drain(options.keySwapOffhand);
 		drain(options.keySpectatorOutlines);
 		options.keySpectatorOutlines.setDown(false);
+		// 1.21.8 opens the spectator teleport menu straight from a middle click, not through a key to drain
+		if (client.gui.getSpectatorGui().isMenuActive()) client.gui.getSpectatorGui().onSpectatorMenuClosed(null);
 		int[] hotbar = new int[options.keyHotbarSlots.length];
 		for (int i = 0; i < hotbar.length; i++) hotbar[i] = drain(options.keyHotbarSlots[i]);
 
