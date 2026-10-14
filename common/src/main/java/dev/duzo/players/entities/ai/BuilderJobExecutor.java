@@ -363,7 +363,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		if (!JobHelpers.pollContainer(level, entity, src)) return;
 		for (int slot = 0; slot < container.getContainerSize(); slot++) {
 			ItemStack peek = container.getItem(slot);
-			if (peek.isEmpty() || !peek.getComponentsPatch().isEmpty()) continue;
+			if (peek.isEmpty() || peek.hasTag()) continue;
 			Integer want = shortfall.get(peek.getItem());
 			if (want == null || want <= 0) continue;
 			int moved = JobHelpers.withdrawInto(container, slot, want, inv);
@@ -907,13 +907,11 @@ public class BuilderJobExecutor implements JobExecutor {
 		return !finishing && plan != null && plan.bom.containsKey(stack.getItem());
 	}
 
-	/** A stack that holds nothing: no shulker contents, bundle items, block entity data, loot table, bees, pot decorations, banner patterns or skull profile. Names and custom data are fine. */
+	/** A stack that holds nothing: no shulker contents, bundle items, block entity data, loot table, bees, pot decorations, banner patterns or skull profile. Names are fine. */
 	private static boolean plain(ItemStack stack, Item item) {
 		if (!stack.is(item)) return false;
-		return !stack.has(DataComponents.CONTAINER) && !stack.has(DataComponents.BUNDLE_CONTENTS)
-				&& !stack.has(DataComponents.BLOCK_ENTITY_DATA) && !stack.has(DataComponents.CONTAINER_LOOT)
-				&& !stack.has(DataComponents.BEES) && !stack.has(DataComponents.POT_DECORATIONS)
-				&& !stack.has(DataComponents.BANNER_PATTERNS) && !stack.has(DataComponents.PROFILE);
+		CompoundTag tag = stack.getTag();
+		return tag == null || !(tag.contains("BlockEntityTag") || tag.contains("Items") || tag.contains("SkullOwner"));
 	}
 
 	private static int count(SimpleContainer inv, Item item) {
@@ -944,15 +942,15 @@ public class BuilderJobExecutor implements JobExecutor {
 		AIState state = entity.getAIState();
 		UUID owner = state.ownerUUID();
 		if (owner == null || !FPJobs.is(state.jobId(), FPJobs.BUILDER)) return;
-		Set<Identifier> ids = new LinkedHashSet<>();
+		Set<ResourceLocation> ids = new LinkedHashSet<>();
 		if (entity.activeJobExecutor() instanceof BuilderJobExecutor live) ids.addAll(live.requested);
 		entity.flushJobState();
-		ListTag req = entity.getAIState().jobState().getList("Requested").orElseGet(ListTag::new);
+		ListTag req = entity.getAIState().jobState().getList("Requested", Tag.TAG_COMPOUND);
 		for (int i = 0; i < req.size(); i++) {
-			Identifier id = Identifier.tryParse(req.getCompoundOrEmpty(i).getStringOr("Id", ""));
+			ResourceLocation id = ResourceLocation.tryParse(req.getCompound(i).getString("Id"));
 			if (id != null) ids.add(id);
 		}
-		for (Identifier id : ids) {
+		for (ResourceLocation id : ids) {
 			FakePlayerRequests.cancel(level, entity, owner, new RequestKey(entity.getUUID(), RequesterKind.FAKE, state.jobId(), id));
 		}
 	}
