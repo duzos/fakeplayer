@@ -4,6 +4,7 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.builder.BlockBreaker;
 import dev.duzo.players.platform.Services;
+import dev.duzo.players.platform.services.UseCheck;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -19,6 +20,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
@@ -199,25 +201,32 @@ final class PossessionActions {
 		BlockHitResult hitResult = new BlockHitResult(hit, direction, pos, false);
 		BlockState state = level.getBlockState(pos);
 		boolean toggle = isToggle(state);
-		if ((toggle || !fake.getMainHandItem().isEmpty()) && !Services.PLATFORM.canUse(level, player, hitResult)) {
-			reject(player, "use vetoed at " + pos.toShortString());
-			return;
+		UseCheck check = UseCheck.PROCEED;
+		if (toggle || !fake.getMainHandItem().isEmpty()) {
+			check = Services.PLATFORM.canUse(level, player, hitResult);
+			if (check.verdict() == UseCheck.Verdict.DENY) {
+				reject(player, "use vetoed at " + pos.toShortString());
+				return;
+			}
 		}
 		s.lastUseTick = now;
 		boolean usedItem = false;
 
 		InteractionResult result = InteractionResult.PASS;
+		if (check.verdict() == UseCheck.Verdict.HANDLED) result = InteractionResult.SUCCESS;
 		try {
-			if (toggle) {
+			if (toggle && check.block() && check.verdict() == UseCheck.Verdict.PROCEED) {
 				result = state.useWithoutItem(level, player, hitResult);
 			}
 			ItemStack held = fake.getMainHandItem();
-			if (!result.consumesAction() && !held.isEmpty()) {
+			if (!result.consumesAction() && !held.isEmpty() && check.item()) {
 				if (held.getItem() instanceof BlockItem block) {
 					FakePlaceContext context = new FakePlaceContext(level, fake, InteractionHand.MAIN_HAND, held, hitResult);
+					BlockPlaceContext placing = block.updatePlacementContext(context);
+					BlockState placed = placing == null ? null : block.getBlock().getStateForPlacement(placing);
 					BlockPos placePos = context.getClickedPos();
-					if (!mayEdit(player, s, level, placePos)
-							|| !Services.PLATFORM.canPlace(level, player, placePos, block.getBlock().defaultBlockState())) {
+					if (placed == null || !mayEdit(player, s, level, placePos)
+							|| !Services.PLATFORM.canPlace(level, player, placePos, placed)) {
 						reject(player, "place vetoed at " + placePos.toShortString());
 						return;
 					}
