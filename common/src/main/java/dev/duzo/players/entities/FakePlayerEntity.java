@@ -456,12 +456,23 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	}
 
 	/**
-	 * Runs from setRemoved, so it covers every removal path including teleportCrossDimension, which
-	 * bypasses remove(). On CHANGED_DIMENSION level() is still the old level, so anything keyed on it
-	 * is released in the right place.
+	 * setRemoved is final here, so this covers remove() and removeAfterChangingDimensions(), which
+	 * together are every removal path except chunk unload. On CHANGED_DIMENSION level() is still the
+	 * old level, so anything keyed on it is released in the right place.
 	 */
 	@Override
-	public void setRemoved(RemovalReason reason) {
+	public void remove(RemovalReason reason) {
+		this.releaseOnRemoval(reason);
+		super.remove(reason);
+	}
+
+	@Override
+	protected void removeAfterChangingDimensions() {
+		this.releaseOnRemoval(RemovalReason.CHANGED_DIMENSION);
+		super.removeAfterChangingDimensions();
+	}
+
+	private void releaseOnRemoval(RemovalReason reason) {
 		if (this.level() instanceof ServerLevel server) {
 			if (reason == RemovalReason.UNLOADED_TO_CHUNK) {
 				// chunks stay forced so the fake loads again after a restart
@@ -479,7 +490,6 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 				dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(this.getUUID());
 			}
 		}
-		super.setRemoved(reason);
 	}
 
 	public void flushJobState() {

@@ -945,15 +945,15 @@ public class BuilderJobExecutor implements JobExecutor {
 		AIState state = entity.getAIState();
 		UUID owner = state.ownerUUID();
 		if (owner == null || !FPJobs.is(state.jobId(), FPJobs.BUILDER)) return;
-		Set<Identifier> ids = new LinkedHashSet<>();
+		Set<ResourceLocation> ids = new LinkedHashSet<>();
 		if (entity.activeJobExecutor() instanceof BuilderJobExecutor live) ids.addAll(live.requested);
 		entity.flushJobState();
-		ListTag req = entity.getAIState().jobState().getList("Requested").orElseGet(ListTag::new);
+		ListTag req = entity.getAIState().jobState().getList("Requested", Tag.TAG_COMPOUND);
 		for (int i = 0; i < req.size(); i++) {
-			Identifier id = Identifier.tryParse(req.getCompoundOrEmpty(i).getStringOr("Id", ""));
+			ResourceLocation id = ResourceLocation.tryParse(req.getCompound(i).getString("Id"));
 			if (id != null) ids.add(id);
 		}
-		for (Identifier id : ids) {
+		for (ResourceLocation id : ids) {
 			FakePlayerRequests.cancel(level, entity, owner, new RequestKey(entity.getUUID(), RequesterKind.FAKE, state.jobId(), id));
 		}
 	}

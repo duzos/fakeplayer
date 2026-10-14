@@ -62,7 +62,7 @@ public final class ChunkAnchors {
 		for (long chunk : wanted) {
 			HOLDERS.computeIfAbsent(new Key(level.dimension(), chunk), k -> new HashSet<>()).add(fake.getUUID());
 			if (owned.contains(chunk)) continue;
-			if (level.getForceLoadedChunks().contains(chunk)) continue; // someone else's: never ours to release
+			if (level.getForcedChunks().contains(chunk)) continue; // someone else's: never ours to release
 			level.setChunkForced(ChunkPos.getX(chunk), ChunkPos.getZ(chunk), true);
 			owned.add(chunk);
 		}
