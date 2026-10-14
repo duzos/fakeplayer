@@ -10,6 +10,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.UUID;
+
 public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) {
 	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_give_marker");
 
@@ -26,6 +28,10 @@ public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) {
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
 		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		// an owned fake takes markers from its owner only; the anchor needs an owner, since the build is paid from theirs
+		UUID owner = entity.getAIState().ownerUUID();
+		boolean anchor = ctx.message().mode() == AIMarkerItem.PURPOSE_ANCHOR;
+		if (owner == null ? anchor : !owner.equals(sender.getUUID())) return;
 		AIMarkerItem.clearAllFor(sender);
 		ItemStack stack = AIMarkerItem.make(entity, sender, ctx.message().mode(), ctx.message().slot(), sender.level().getGameTime());
 		// Issue #28 asked for offhand-then-hotbar-then-drop placement, but writing to offhand
