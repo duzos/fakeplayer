@@ -3,6 +3,7 @@ package dev.duzo.players.entities.ai.requests;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.JobHelpers;
+import dev.duzo.players.entities.ai.storage.ExternalStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -20,8 +21,10 @@ import org.jetbrains.annotations.ApiStatus;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -153,6 +156,7 @@ public final class PoolIndex {
 		counts.clear();
 		locations.clear();
 		Set<BlockPos> counted = new HashSet<>();
+		Set<Object> countedStorage = Collections.newSetFromMap(new IdentityHashMap<>());
 		for (BlockPos pos : StoragePool.read(quartermaster.getAIState())) {
 			Container container = JobHelpers.containerAt(level, pos);
 			if (container == null) continue;
@@ -164,6 +168,10 @@ public final class PoolIndex {
 			// every stack. Identity comparison does not work: CompoundContainer is freshly
 			// allocated on each call. Skip a half whose partner is already counted.
 			if (counted.contains(pos)) continue;
+			// Two marked positions can hand back the very same handler object for one inventory.
+			// This only catches that case: many providers build a fresh wrapper per lookup, so a
+			// controller and its drawers can still be counted twice.
+			if (container instanceof ExternalStorage ext && !countedStorage.add(ext.identity())) continue;
 			counted.add(pos.immutable());
 			BlockPos partner = doubleChestPartner(level, pos);
 			if (partner != null) counted.add(partner);
@@ -172,7 +180,7 @@ public final class PoolIndex {
 				ItemStack stack = container.getItem(slot);
 				if (stack.isEmpty()) continue;
 				ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-				counts.merge(id, stack.getCount(), Integer::sum);
+				counts.merge(id, stack.getCount(), (a, b) -> (int) Math.min(Integer.MAX_VALUE, (long) a + b));
 				locations.computeIfAbsent(id, k -> new ArrayList<>())
 						.add(new Loc(pos.immutable(), stack.getCount()));
 			}
