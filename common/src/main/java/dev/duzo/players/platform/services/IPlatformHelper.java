@@ -18,6 +18,13 @@ public interface IPlatformHelper {
     boolean isModLoaded(String modId);
 
     /**
+     * Gets the version string of a loaded mod.
+     *
+     * @return The version, or null if the mod is not loaded.
+     */
+    String getModVersion(String modId);
+
+    /**
      * Check if the game is currently in a development environment.
      *
      * @return True if in a development environment, false otherwise.

@@ -31,6 +31,9 @@
         "minecraft": "${minecraft_version_range_fabric}",
         "java": ">=17"
     },
+    "breaks": {
+        "tide": "<2.1.1"
+    },
     "suggests": {
         "tide": "*"
     }
