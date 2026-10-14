@@ -86,8 +86,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	// client-visual-only "what the job is placing" item, drawn in the main hand by the renderer;
 	// never affects the real MAINHAND equipment slot and does not need to survive a reload
 	private static final EntityDataAccessor<ItemStack> DISPLAY_ITEM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.ITEM_STACK);
-	/** {@code "<gameTime>|<text>"} of the last public line. Not persisted: a bubble is for the moment it was said. */
 	private static final EntityDataAccessor<Byte> STATUS = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BYTE);
+	/** {@code "<gameTime>|<text>"} of the last public line. Not persisted: a bubble is for the moment it was said. */
 	private static final EntityDataAccessor<String> SPEECH = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
 	// drives the client-side crossbow charging pose; combat state only, never persisted
 	private static final EntityDataAccessor<Boolean> CHARGING_CROSSBOW = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
@@ -432,10 +432,10 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	@Override
 	protected void registerGoals() {
 		this.goalSelector.addGoal(7, new HumanoidWaterAvoidingRandomStrollGoal(this, 1.0D));
-		this.goalSelector.addGoal(6, new RandomLookAroundGoal(this));
+		this.goalSelector.addGoal(7, new RandomLookAroundGoal(this));
 		// both only run while idle, see isIdleNow; the owner is watched before a stranger, and both before random glances
 		this.goalSelector.addGoal(5, new WatchOwnerGoal(this));
-		this.goalSelector.addGoal(7, new IdleLookAtPlayerGoal(this, 6.0F));
+		this.goalSelector.addGoal(6, new IdleLookAtPlayerGoal(this, 6.0F));
 		this.goalSelector.addGoal(5, new OpenDoorGoal(this, true));
 		this.targetSelector.addGoal(1, new FakeHurtByTargetGoal(this));
 		this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.5D, true));
@@ -646,6 +646,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	}
 
 	private long lastProgressTick;
+	private long lastCheckTick;
 	private Vec3 lastProgressPos = Vec3.ZERO;
 	private int jobGraceTicks;
 
@@ -672,6 +673,11 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	public void markIdle() {
 		if (this.level().isClientSide()) return;
 		this.restartProgressTimer();
+		if (this.getProblem() == FakeProblem.STUCK) {
+			FakeSpeech.clear(this, "stuck");
+			SenderAlerts.clear(this, "stuck");
+			this.reportProblem(FakeProblem.NONE);
+		}
 	}
 
 	/**
@@ -681,6 +687,9 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	private void checkStuck(ServerLevel level) {
 		if (this.jobGraceTicks <= 0 || this.getProblem() != FakeProblem.NONE) return;
 		long now = level.getGameTime();
+		long sinceCheck = now - this.lastCheckTick;
+		this.lastCheckTick = now;
+		if (sinceCheck > 1L) this.lastProgressTick = now; // not ticked for a while: that time was not spent stuck
 		if (this.position().distanceToSqr(this.lastProgressPos) >= TRAVEL_COUNTS_SQ) {
 			this.lastProgressPos = this.position();
 			this.lastProgressTick = now;
