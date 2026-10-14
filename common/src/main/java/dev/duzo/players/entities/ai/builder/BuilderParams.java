@@ -6,9 +6,13 @@ import dev.duzo.players.entities.ai.BuilderJobExecutor;
 import dev.duzo.players.entities.ai.claims.WorkClaims;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import org.jspecify.annotations.Nullable;
+
+import java.util.UUID;
 
 /** What a Builder is told to build, kept in jobParams so it syncs to the menu. Writing it restarts the job. */
 /** `uploader` is the player whose upload folder the schematic is looked up in, fixed when it is named. */
@@ -26,6 +30,16 @@ public record BuilderParams(String schematic, @Nullable BlockPos anchor, Rotatio
 
 	public BuilderParams withAnchor(BlockPos pos, Rotation rot, String uploader) {
 		return new BuilderParams(schematic, pos, rot, mirror, clear, uploader);
+	}
+
+	/** The stored uploader, unless it is empty or an old name and the owner is online, in which case their current name. */
+	public String effectiveUploader(ServerLevel level, FakePlayerEntity entity) {
+		UUID owner = entity.getAIState().ownerUUID();
+		if (owner == null) return uploader;
+		ServerPlayer online = level.getServer().getPlayerList().getPlayer(owner);
+		if (online == null) return uploader;
+		String name = online.getName().getString();
+		return name.equals(uploader) ? uploader : name;
 	}
 
 	public boolean ready() {
