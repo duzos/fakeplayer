@@ -29,6 +29,7 @@ public record SetJobPacketC2S(int id, ResourceLocation jobId) {
 		// let the old executor's pause path run and its resulting state persist before the job/state
 		// below replaces it, otherwise switching jobs mid-job skips onPause entirely.
 		entity.resetJobExecutor();
+		dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(entity.getUUID());
 		entity.mutateAIState(s -> {
 			s.setJobId(jobId);
 			s.setRunning(false);

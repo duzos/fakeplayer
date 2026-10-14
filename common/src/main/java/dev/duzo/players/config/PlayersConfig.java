@@ -48,6 +48,14 @@ public class PlayersConfig {
 	public int requestStockCheckSeconds = 15;
 	/** Seconds a commissioned craft may run before the Quartermaster gives up on it and asks again. */
 	public int requestCraftTimeoutSeconds = 120;
+	/** Largest schematic a Builder will load, in blocks of bounding volume (x * y * z). Plans hold every cell in
+	 * memory, so this bounds the cost of one build. */
+	public int builderMaxVolume = 32768;
+	/** Width in blocks of the slab one Builder claims at a time, clamped to 1-16. Narrower stripes let more
+	 * Builders share a build at the cost of more claim churn. */
+	public int builderStripeWidth = 4;
+	/** Ticks between two block placements by a Builder, minimum 1. */
+	public int builderPlaceTicks = 4;
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {
@@ -111,6 +119,9 @@ public class PlayersConfig {
 		if (INSTANCE.requestShortfallRetrySeconds < 1) INSTANCE.requestShortfallRetrySeconds = 15;
 		if (INSTANCE.requestStockCheckSeconds < 1) INSTANCE.requestStockCheckSeconds = 15;
 		if (INSTANCE.requestCraftTimeoutSeconds < 5) INSTANCE.requestCraftTimeoutSeconds = 120;
+		if (INSTANCE.builderMaxVolume < 1) INSTANCE.builderMaxVolume = 32768;
+		INSTANCE.builderStripeWidth = Math.max(1, Math.min(16, INSTANCE.builderStripeWidth));
+		if (INSTANCE.builderPlaceTicks < 1) INSTANCE.builderPlaceTicks = 4;
 	}
 
 	private static void save(Gson gson) {

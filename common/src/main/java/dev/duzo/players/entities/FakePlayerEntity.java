@@ -442,6 +442,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		// server thread, and remove() also fires on the client and on every chunk unload
 		if (this.level() instanceof ServerLevel && reason.shouldDestroy()) {
 			dev.duzo.players.entities.ai.requests.SenderAlerts.forget(this.getUUID());
+			dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(this.getUUID());
 		}
 		super.remove(reason);
 	}
