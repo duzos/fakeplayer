@@ -14,6 +14,7 @@ public class PlayersCommonClient {
 		// registered from the client side so the packet class itself never names a Screen: a
 		// dedicated server refuses to load client classes, and it loads every packet it registers
 		StockListPacketS2C.setOpener(PlayersCommonClient::openStockScreen);
+		PossessionClient.init();
 	}
 
 	private static void openStockScreen(int entityId, List<StockListPacketS2C.Entry> stock, int total,
@@ -30,7 +31,13 @@ public class PlayersCommonClient {
 		minecraft.setScreen(new QuartermasterStockScreen(entity, stock, total, pending));
 	}
 
+	/** Before vanilla reads any key, so a possessor's clicks are taken before spectator behaviour sees them. */
+	public static void tickStart(Minecraft client) {
+		PossessionClient.startTick(client);
+	}
+
 	public static void tick(Minecraft client) {
+		PossessionClient.endTick(client);
 		SkinGrabber.INSTANCE.tick();
 		FPKeybinds.tick(client);
 	}
