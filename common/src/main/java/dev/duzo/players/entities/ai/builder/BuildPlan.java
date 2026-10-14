@@ -56,7 +56,9 @@ public final class BuildPlan {
 	};
 
 	private static final long MISS_MILLIS = 5000L;
-	private static final Map<BuildKey, Long> MISSES = new HashMap<>();
+	private record Miss(long until, String error) {}
+
+	private static final Map<BuildKey, Miss> MISSES = new HashMap<>();
 
 	public final BuildKey key;
 	public final BoundingBox bounds;
@@ -88,15 +90,17 @@ public final class BuildPlan {
 		BuildPlan cached = CACHE.get(key);
 		if (cached != null && cached.stripeWidth == width) return SchematicStore.Result.ok(cached);
 		long now = System.currentTimeMillis();
-		MISSES.values().removeIf(until -> until <= now);
-		if (MISSES.containsKey(key)) return SchematicStore.Result.fail("schematic not found: " + key.schematic());
+		MISSES.values().removeIf(m -> m.until() <= now);
+		Miss miss = MISSES.get(key);
+		if (miss != null) return SchematicStore.Result.fail(miss.error());
 		SchematicStore.Result<StructureTemplate> t = SchematicStore.load(level, key.schematic(), key.uploader());
 		if (!t.ok()) {
-			MISSES.put(key, now + MISS_MILLIS);
+			MISSES.put(key, new Miss(now + MISS_MILLIS, t.error()));
 			return SchematicStore.Result.fail(t.error());
 		}
 		SchematicStore.Result<BuildPlan> built = build(t.value(), key, width);
 		if (built.ok()) CACHE.put(key, built.value());
+		else MISSES.put(key, new Miss(now + MISS_MILLIS, built.error()));
 		return built;
 	}
 

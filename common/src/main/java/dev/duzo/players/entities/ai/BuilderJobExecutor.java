@@ -44,6 +44,7 @@ import javax.annotation.Nullable;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -233,7 +234,7 @@ public class BuilderJobExecutor implements JobExecutor {
 			return;
 		}
 		clear = p.clear();
-		BuildPlan.BuildKey key = new BuildPlan.BuildKey(level.dimension(), p.schematic().trim(), p.anchor(), p.rotation(), p.mirror(), p.uploader());
+		BuildPlan.BuildKey key = new BuildPlan.BuildKey(level.dimension(), p.schematic().trim(), p.anchor(), p.rotation(), p.mirror(), p.effectiveUploader(level, entity));
 		// a blocked Builder rechecks often, so the plan is only fetched again when what it builds has changed
 		if (plan == null || !plan.key.equals(key) || plan.stripeWidth != PlayersConfig.get().builderStripeWidth) {
 			SchematicStore.Result<BuildPlan> r = BuildPlan.get(level, key);
@@ -543,6 +544,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	}
 
 	private Step breakIn(ServerLevel level, FakePlayerEntity entity, BlockPos pos, BlockState have) {
+		if (PlacePass.isFluidLike(have)) return Step.SKIP;
 		if (have.hasBlockEntity() || have.getDestroySpeed(level, pos) < 0.0F) {
 			if (obstruction == null) {
 				obstruction = "builder: " + have.getBlock().getName().getString() + " at " + pos.getX() + ", " + pos.getY() + ", "
@@ -667,7 +669,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	}
 
 	private static boolean overwritable(BlockState have) {
-		return have.isAir() || have.getBlock() instanceof LiquidBlock || have.canBeReplaced();
+		return have.isAir() || PlacePass.isFluidLike(have) || have.canBeReplaced();
 	}
 
 	private boolean matchesCell(@Nullable BlockState want, BlockState have) {
@@ -905,9 +907,11 @@ public class BuilderJobExecutor implements JobExecutor {
 		return !finishing && plan != null && plan.bom.containsKey(stack.getItem());
 	}
 
-	/** A stack with no data on it, so it is the plain block: no shulker contents, name or enchantments. */
+	/** A stack that holds nothing: no shulker contents, bundle items, block entity data or loot table. Names and custom data are fine. */
 	private static boolean plain(ItemStack stack, Item item) {
-		return stack.is(item) && stack.getComponentsPatch().isEmpty();
+		if (!stack.is(item)) return false;
+		return !stack.has(DataComponents.CONTAINER) && !stack.has(DataComponents.BUNDLE_CONTENTS)
+				&& !stack.has(DataComponents.BLOCK_ENTITY_DATA) && !stack.has(DataComponents.CONTAINER_LOOT);
 	}
 
 	private static int count(SimpleContainer inv, Item item) {
@@ -932,17 +936,21 @@ public class BuilderJobExecutor implements JobExecutor {
 		inv.setChanged();
 	}
 
-	/** Cancels this fake's open Builder requests, from the persisted list so it works with no live executor. */
+	/** Cancels this fake's open Builder requests: the live executor's full set, plus the persisted list for when there is none. */
 	public static void cancelOutstanding(FakePlayerEntity entity) {
 		if (!(entity.level() instanceof ServerLevel level)) return;
 		AIState state = entity.getAIState();
 		UUID owner = state.ownerUUID();
 		if (owner == null || !FPJobs.is(state.jobId(), FPJobs.BUILDER)) return;
+		Set<Identifier> ids = new LinkedHashSet<>();
+		if (entity.activeJobExecutor() instanceof BuilderJobExecutor live) ids.addAll(live.requested);
 		entity.flushJobState();
 		ListTag req = entity.getAIState().jobState().getList("Requested").orElseGet(ListTag::new);
 		for (int i = 0; i < req.size(); i++) {
 			Identifier id = Identifier.tryParse(req.getCompoundOrEmpty(i).getStringOr("Id", ""));
-			if (id == null) continue;
+			if (id != null) ids.add(id);
+		}
+		for (Identifier id : ids) {
 			FakePlayerRequests.cancel(level, entity, owner, new RequestKey(entity.getUUID(), RequesterKind.FAKE, state.jobId(), id));
 		}
 	}
