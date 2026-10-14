@@ -43,7 +43,7 @@ public final class ChunkAnchors {
 			if (!fake.forcedChunks().isEmpty() || CENTRES.containsKey(fake.getUUID())) release(level, fake);
 			return;
 		}
-		long centre = ChunkPos.asLong(fake.blockPosition());
+		long centre = ChunkPos.pack(fake.blockPosition());
 		Long last = CENTRES.get(fake.getUUID());
 		if (last != null && last == centre) return;
 
@@ -70,7 +70,7 @@ public final class ChunkAnchors {
 		for (long chunk : owned) if (!wanted.contains(chunk)) stale.add(chunk);
 		for (long chunk : stale) letGo(level, fake, chunk);
 		CENTRES.put(fake.getUUID(), centre);
-		Constants.traceEvent("anchor {} centre {} owns {}", fake.getName().getString(), new ChunkPos(centre), owned.size());
+		Constants.traceEvent("anchor {} centre {} owns {}", fake.getName().getString(), ChunkPos.unpack(centre), owned.size());
 	}
 
 	/** Release every chunk this fake forced, keeping any another anchored fake still stands in. */
@@ -117,7 +117,7 @@ public final class ChunkAnchors {
 		int cx = ChunkPos.getX(centre), cz = ChunkPos.getZ(centre);
 		LongSet out = new LongArraySet(9);
 		for (int dx = -1; dx <= 1; dx++) {
-			for (int dz = -1; dz <= 1; dz++) out.add(ChunkPos.asLong(cx + dx, cz + dz));
+			for (int dz = -1; dz <= 1; dz++) out.add(ChunkPos.pack(cx + dx, cz + dz));
 		}
 		return out;
 	}
