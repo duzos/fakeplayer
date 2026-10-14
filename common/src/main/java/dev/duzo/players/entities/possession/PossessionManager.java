@@ -21,7 +21,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.LevelData;
+import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -46,6 +47,9 @@ public final class PossessionManager {
 	private static final int COMBAT_TICKS = 100;
 	/** Clicks a client can land per tick; real play is one or two, so the rest are a modified client flooding the fake. */
 	private static final int MAX_ACTIONS_PER_TICK = 4;
+	/** How many blocks below the saved return point to look for ground before giving up on it. */
+	private static final int GROUND_SEARCH = 4;
+
 	/** How far from the saved return point to look for somewhere safe to stand. */
 	private static final int SAFE_RADIUS = 4;
 
@@ -345,10 +349,8 @@ public final class PossessionManager {
 
 		player.setCamera(player);
 		ServerLevel back = levelOf(server, ret.dimension());
-		if (back != null) {
-			Spot spot = safeSpot(server, player, back, ret);
-			player.teleportTo(spot.level, spot.x, spot.y, spot.z, Set.of(), ret.yRot(), ret.xRot(), true);
-		}
+		Spot spot = safeSpot(server, player, back, ret);
+		player.teleportTo(spot.level, spot.x, spot.y, spot.z, Set.of(), ret.yRot(), ret.xRot(), true);
 		// only a spectator is still in the mode this class put them in; anyone else changed it themselves
 		if (player.isSpectator()) player.setGameMode(GameType.byId(ret.gameMode()));
 
@@ -364,12 +366,17 @@ public final class PossessionManager {
 	private record Spot(ServerLevel level, double x, double y, double z) {}
 
 	/**
-	 * The return point if it is still fit to stand in, else the nearest spot within {@link #SAFE_RADIUS} that is, else the
-	 * player's own respawn point or the world spawn. The world may have changed a lot since the possession began.
+	 * The return point if it is still fit to stand on, else the nearest spot within {@link #SAFE_RADIUS} that is, else where
+	 * vanilla would respawn the player. A return dimension that no longer exists means the overworld spawn. The world may
+	 * have changed a lot since the possession began.
 	 */
-	private static Spot safeSpot(MinecraftServer server, ServerPlayer player, ServerLevel level, PossessionReturn ret) {
+	private static Spot safeSpot(MinecraftServer server, ServerPlayer player, @Nullable ServerLevel level, PossessionReturn ret) {
+		if (level == null) return worldSpawn(server.overworld());
 		BlockPos origin = BlockPos.containing(ret.x(), ret.y(), ret.z());
-		if (standable(level, origin, false)) return new Spot(level, ret.x(), ret.y(), ret.z());
+		if (standable(level, origin, false)) {
+			BlockPos ground = groundBelow(level, origin);
+			if (ground != null) return ground.equals(origin) ? new Spot(level, ret.x(), ret.y(), ret.z()) : spotAt(level, ground);
+		}
 		BlockPos best = null;
 		double bestDist = Double.MAX_VALUE;
 		for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-SAFE_RADIUS, -SAFE_RADIUS, -SAFE_RADIUS), origin.offset(SAFE_RADIUS, SAFE_RADIUS, SAFE_RADIUS))) {
@@ -379,13 +386,30 @@ public final class PossessionManager {
 				bestDist = dist;
 			}
 		}
-		if (best != null) return new Spot(level, best.getX() + 0.5, best.getY(), best.getZ() + 0.5);
-		ServerPlayer.RespawnConfig respawn = player.getRespawnConfig();
-		LevelData.RespawnData data = respawn != null ? respawn.respawnData() : server.overworld().getRespawnData();
-		ServerLevel spawnLevel = server.getLevel(data.globalPos().dimension());
-		if (spawnLevel == null) spawnLevel = server.overworld();
-		BlockPos spawn = data.globalPos().pos();
-		return new Spot(spawnLevel, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		if (best != null) return spotAt(level, best);
+		TeleportTransition respawn = player.findRespawnPositionAndUseSpawnBlock(false, TeleportTransition.DO_NOTHING);
+		Vec3 at = respawn.position();
+		return new Spot(respawn.newLevel(), at.x, at.y, at.z);
+	}
+
+	private static Spot spotAt(ServerLevel level, BlockPos feet) {
+		return new Spot(level, feet.getX() + 0.5, feet.getY(), feet.getZ() + 0.5);
+	}
+
+	private static Spot worldSpawn(ServerLevel level) {
+		BlockPos spawn = level.getRespawnData().pos();
+		BlockPos ground = standable(level, spawn, false) ? groundBelow(level, spawn) : null;
+		return spotAt(level, ground != null ? ground : spawn);
+	}
+
+	/** The feet position at or a few blocks under {@code feet} that has room and something solid beneath, or null. */
+	@Nullable
+	private static BlockPos groundBelow(ServerLevel level, BlockPos feet) {
+		for (int drop = 0; drop <= GROUND_SEARCH; drop++) {
+			BlockPos pos = feet.below(drop);
+			if (standable(level, pos, true)) return pos;
+		}
+		return null;
 	}
 
 	/** Feet and head room free of anything solid, fluid or burning, and when asked, something to stand on. */
