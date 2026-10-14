@@ -109,6 +109,7 @@ public class SleepInBedGoal extends Goal {
 	public void stop() {
 		boolean wasSleeping = this.sleeping;
 		boolean night = this.fake.level() instanceof ServerLevel level && dark(level, this.fake);
+		boolean hurt = this.fake.consumeWokenByDamage();
 		if (this.fake.isBedSleeping()) this.fake.stopSleeping();
 		else this.fake.getNavigation().stop();
 		this.fake.releaseBedClaim();
@@ -116,8 +117,8 @@ public class SleepInBedGoal extends Goal {
 		this.sleeping = false;
 		this.bed = null;
 		long now = this.fake.level().getGameTime();
-		// woken in the middle of the night while still idle means it was hurt, so give the threat time to pass
-		this.cooldownUntil = now + (wasSleeping && night && this.fake.isIdleNow() ? HURT_COOLDOWN : WAKE_COOLDOWN);
+		// a hurt fake gets longer for the threat to pass
+		this.cooldownUntil = now + (wasSleeping && hurt ? HURT_COOLDOWN : WAKE_COOLDOWN);
 	}
 
 	@Override
@@ -129,7 +130,7 @@ public class SleepInBedGoal extends Goal {
 		this.fake.getNavigation().moveTo(this.bed.getX() + 0.5D, this.bed.getY(), this.bed.getZ() + 0.5D, 1.0D);
 	}
 
-	private static boolean dark(ServerLevel level, FakePlayerEntity fake) {
+	public static boolean dark(ServerLevel level, FakePlayerEntity fake) {
 		return level.environmentAttributes().getValue(EnvironmentAttributes.BED_RULE, fake.position()).canSleep(level);
 	}
 
