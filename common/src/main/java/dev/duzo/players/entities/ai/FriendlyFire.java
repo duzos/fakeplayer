@@ -24,8 +24,7 @@ public final class FriendlyFire {
 		if (!block && owner != null) {
 			block = victim.getUUID().equals(owner)
 					|| victim instanceof FakePlayerEntity other && owner.equals(other.getAIState().ownerUUID())
-					|| victim instanceof OwnableEntity pet && pet.getOwnerReference() != null
-						&& owner.equals(pet.getOwnerReference().getUUID());
+					|| victim instanceof OwnableEntity pet && owner.equals(pet.getOwnerUUID());
 		}
 		if (block) Constants.traceEvent("damage on {} blocked, caused by its own side's fake", victim.getName().getString());
 		return block;
