@@ -8,6 +8,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.UUID;
+
 public record BondPacketC2S(int id, boolean bond) {
 	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_bond");
 
@@ -19,6 +21,8 @@ public record BondPacketC2S(int id, boolean bond) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
+import java.util.UUID;
+
 		if (!(sender.serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
 		entity.mutateAIState(s -> s.setOwnerUUID(ctx.message().bond() ? sender.getUUID() : null));
 		if (!ctx.message().bond()) dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(entity.getUUID());

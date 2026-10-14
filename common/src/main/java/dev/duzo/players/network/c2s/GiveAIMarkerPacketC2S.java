@@ -10,6 +10,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.UUID;
+
 public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) {
 	public static final ResourceLocation LOCATION = PlayersCommon.id("ai_give_marker");
 
@@ -25,6 +27,8 @@ public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
+import java.util.UUID;
+
 		if (!(sender.serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
 		AIMarkerItem.clearAllFor(sender);
 		ItemStack stack = AIMarkerItem.make(entity, sender, ctx.message().mode(), ctx.message().slot(), sender.serverLevel().getGameTime());
