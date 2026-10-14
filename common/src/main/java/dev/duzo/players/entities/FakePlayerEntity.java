@@ -20,6 +20,8 @@ import dev.duzo.players.entities.ai.requests.StockKeeper;
 import dev.duzo.players.entities.ai.RangedWeapon;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
 import dev.duzo.players.entities.goal.FollowOwnerGoal;
+import dev.duzo.players.entities.goal.IdleLookAtPlayerGoal;
+import dev.duzo.players.entities.goal.WatchOwnerGoal;
 import dev.duzo.players.entities.goal.JobAwareTemptGoal;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
 import dev.duzo.players.entities.goal.MoveTowardsItemsGoal;
@@ -186,6 +188,18 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			jobExecutor.tick(level, this);
 			this.checkStuck(level);
 		}
+	}
+
+	/**
+	 * Nothing to do and nothing wrong: no job (or the idle job, or a job that is not running), not paused for the
+	 * owner, no problem mark, not fighting, not lying down. Reactions are gated on this so a working fake is never
+	 * turned away from what it is doing.
+	 */
+	public boolean isIdleNow() {
+		if (this.jobPaused || this.getProblem() != FakeProblem.NONE || this.getTarget() != null) return false;
+		if (this.getPhysicalState() == PhysicalState.LAYING) return false;
+		AIState state = this.getAIState();
+		return !state.running() || FPJobs.NONE_ID.equals(state.jobId()) || FPJobs.is(state.jobId(), FPJobs.IDLE);
 	}
 
 	public void setJobPaused(boolean paused) {
@@ -431,6 +445,9 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	protected void registerGoals() {
 		this.goalSelector.addGoal(7, new HumanoidWaterAvoidingRandomStrollGoal(this, 1.0D));
 		this.goalSelector.addGoal(6, new RandomLookAroundGoal(this));
+		// both only run while idle, see isIdleNow; the owner is watched before a stranger, and both before random glances
+		this.goalSelector.addGoal(5, new WatchOwnerGoal(this));
+		this.goalSelector.addGoal(7, new IdleLookAtPlayerGoal(this, 6.0F));
 		this.goalSelector.addGoal(5, new OpenDoorGoal(this, true));
 		this.targetSelector.addGoal(1, new FakeHurtByTargetGoal(this));
 		this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.5D, true));
