@@ -168,8 +168,9 @@ public class AISubMenuScreen extends Screen {
 		noAiButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H, Component.literal("No AI"), this::toggleNoAi);
 		this.addRenderableWidget(noAiButton);
 		y += ROW_H;
-		jobButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H, Component.literal("Cycle"), this::cycleJob);
+		jobButton = new FlatButton(rightBtnX, y, RIGHT_BTN_W, BTN_H, Component.literal("Cycle"), (FlatButton.ModifiedPressHandler) input -> cycleJob(input.hasShiftDown() ? -1 : 1));
 		this.addRenderableWidget(jobButton);
+		hints.add(new Hint(jobButton, Component.literal("Click for the next job, shift-click to go back.")));
 		y += BTN_H + 8;
 
 		markerSectionY = y;
@@ -556,13 +557,14 @@ public class AISubMenuScreen extends Screen {
 		Network.getNetworkHandler().sendToServer(new ToggleFakePlayerFlagPacketC2S(entity.getId(), ToggleFakePlayerFlagPacketC2S.FLAG_NO_AI, newNoAi));
 	}
 
-	private void cycleJob() {
+	private void cycleJob(int step) {
 		List<Identifier> order = FPJobs.selectableOrder();
 		if (order.isEmpty()) return;
 		// an unresolved job has no place in the order, so the cursor lands before the first entry
 		// and one click moves to it. Reassigning is destructive, and it is a deliberate click.
 		int current = order.indexOf(entity.getAIState().jobId());
-		Identifier next = order.get((current + 1) % order.size());
+		if (current < 0 && step < 0) current = 0;
+		Identifier next = order.get(Math.floorMod(current + step, order.size()));
 		Network.getNetworkHandler().sendToServer(new SetJobPacketC2S(entity.getId(), next));
 	}
 
