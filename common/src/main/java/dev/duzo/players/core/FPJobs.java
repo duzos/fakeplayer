@@ -1,6 +1,7 @@
 package dev.duzo.players.core;
 
 import dev.duzo.players.Constants;
+import dev.duzo.players.entities.ai.BuilderJobExecutor;
 import dev.duzo.players.entities.ai.CourierJobExecutor;
 import dev.duzo.players.entities.ai.CrafterJobExecutor;
 import dev.duzo.players.entities.ai.FarmerJobExecutor;
@@ -85,6 +86,10 @@ public class FPJobs {
 	public static final Supplier<JobType> RUNNER = register("runner", b -> b
 			.displayName("Runner")
 			.executor(RunnerJobExecutor::new));
+	public static final Supplier<JobType> BUILDER = register("builder", b -> b
+			.displayName("Builder")
+			.rows(JobRow.SCHEMATIC, JobRow.SOURCE, JobRow.DEPOSIT)
+			.executor(BuilderJobExecutor::new));
 
 	public static Identifier id(String name) {
 		return Identifier.fromNamespaceAndPath(Constants.MOD_ID, name);
