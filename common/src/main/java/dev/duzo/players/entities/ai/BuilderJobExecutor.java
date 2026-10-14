@@ -29,6 +29,7 @@ import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.SoundType;
@@ -493,7 +494,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		if (now < nextActionTick) return Step.WAIT;
 
 		entity.getLookControl().setLookAt(first.getX() + 0.5, first.getY() + 0.5, first.getZ() + 0.5);
-		entity.swing(InteractionHand.MAIN_HAND);
+		entity.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
 		ItemStack shown = new ItemStack(cost.count() > 0 ? cost.item() : firstState.getBlock().asItem());
 		if (!ItemStack.isSameItemSameComponents(entity.getDisplayItem(), shown)) entity.setDisplayItem(shown);
 
@@ -562,7 +563,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	private enum Reach { READY, MOVING, UNREACHABLE }
 
 	private Reach reach(ServerLevel level, FakePlayerEntity entity, BlockPos pos, @Nullable BlockState placing, long now) {
-		Vec3 center = pos.getCenter();
+		Vec3 center = Vec3.atCenterOf(pos);
 		boolean inReach = entity.getEyePosition().distanceToSqr(center) <= REACH * REACH;
 		boolean overlaps = placing != null && overlapsSelf(level, entity, pos, placing);
 		if (inReach && !overlaps) {
@@ -604,7 +605,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	}
 
 	private @Nullable BlockPos findStand(ServerLevel level, FakePlayerEntity entity, BlockPos pos) {
-		Vec3 center = pos.getCenter();
+		Vec3 center = Vec3.atCenterOf(pos);
 		double eye = entity.getEyeHeight();
 		BlockPos best = null;
 		double bestDist = Double.MAX_VALUE;

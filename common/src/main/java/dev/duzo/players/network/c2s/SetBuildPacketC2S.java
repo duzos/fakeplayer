@@ -7,14 +7,18 @@ import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.builder.BuilderParams;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 
 import java.util.UUID;
 
-public record SetBuildPacketC2S(int id, String schematic, int rotation, int mirror, boolean clear) {
+public record SetBuildPacketC2S(int id, String schematic, int rotation, int mirror, boolean clear) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("ai_set_build");
+	public static final CustomPacketPayload.Type<SetBuildPacketC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, SetBuildPacketC2S> CODEC = CustomPacketPayload.codec(SetBuildPacketC2S::encode, SetBuildPacketC2S::decode);
 
 	public static SetBuildPacketC2S decode(FriendlyByteBuf buf) {
 		return new SetBuildPacketC2S(buf.readInt(), buf.readUtf(BuilderParams.MAX_NAME), buf.readVarInt(), buf.readVarInt(), buf.readBoolean());
@@ -37,6 +41,11 @@ public record SetBuildPacketC2S(int id, String schematic, int rotation, int mirr
 				mirrors[Math.floorMod(ctx.message().mirror(), mirrors.length)], ctx.message().clear());
 		if (next.equals(old)) return;
 		next.write(entity);
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

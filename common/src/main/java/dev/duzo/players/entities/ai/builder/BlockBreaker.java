@@ -40,7 +40,7 @@ public final class BlockBreaker {
 		}
 		target = pos.immutable();
 		entity.getLookControl().setLookAt(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-		entity.swing(InteractionHand.MAIN_HAND);
+		entity.swingForAttack(InteractionHand.MAIN_HAND);
 		progress += delta(level, entity, state, pos);
 		updateStage(level, entity, pos);
 		if (progress < 1.0F) return Result.PROGRESS;
