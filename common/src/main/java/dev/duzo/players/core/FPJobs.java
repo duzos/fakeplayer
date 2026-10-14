@@ -58,26 +58,32 @@ public class FPJobs {
 	public static final Supplier<JobType> COURIER = register("courier", b -> b
 			.displayName("Courier")
 			.rows(JobRow.SOURCE, JobRow.DEPOSIT, JobRow.FILTER, JobRow.STOCK)
+			.progressGraceSeconds(60)
 			.executor(CourierJobExecutor::new));
 	public static final Supplier<JobType> MINER = register("miner", b -> b
 			.displayName("Miner")
 			.rows(JobRow.REGION, JobRow.DEPOSIT, JobRow.FILTER, JobRow.STOCK)
+			.progressGraceSeconds(60)
 			.executor(MinerJobExecutor::new));
 	public static final Supplier<JobType> LUMBERJACK = register("lumberjack", b -> b
 			.displayName("Lumberjack")
 			.rows(JobRow.REGION, JobRow.DEPOSIT, JobRow.STOCK)
+			.progressGraceSeconds(60)
 			.executor(LumberjackJobExecutor::new));
 	public static final Supplier<JobType> FISHERMAN = register("fisherman", b -> b
 			.displayName("Fisherman")
 			.rows(JobRow.WAYPOINT, JobRow.DEPOSIT, JobRow.STOCK)
+			.progressGraceSeconds(60)
 			.executor(FishermanJobExecutor::new));
 	public static final Supplier<JobType> FARMER = register("farmer", b -> b
 			.displayName("Farmer")
 			.rows(JobRow.REGION, JobRow.DEPOSIT, JobRow.STOCK)
+			.progressGraceSeconds(60)
 			.executor(FarmerJobExecutor::new));
 	public static final Supplier<JobType> CRAFTER = register("crafter", b -> b
 			.displayName("Crafter")
 			.rows(JobRow.WAYPOINT, JobRow.SOURCE, JobRow.DEPOSIT, JobRow.TEACH, JobRow.STOCK)
+			.progressGraceSeconds(60)
 			.executor(CrafterJobExecutor::new));
 	public static final Supplier<JobType> QUARTERMASTER = register("quartermaster", b -> b
 			.displayName("Quartermaster")
@@ -85,10 +91,12 @@ public class FPJobs {
 			.executor(QuartermasterJobExecutor::new));
 	public static final Supplier<JobType> RUNNER = register("runner", b -> b
 			.displayName("Runner")
+			.progressGraceSeconds(120)
 			.executor(RunnerJobExecutor::new));
 	public static final Supplier<JobType> BUILDER = register("builder", b -> b
 			.displayName("Builder")
 			.rows(JobRow.SCHEMATIC, JobRow.SOURCE, JobRow.DEPOSIT)
+			.progressGraceSeconds(60)
 			.executor(BuilderJobExecutor::new));
 
 	public static ResourceLocation id(String name) {

@@ -212,6 +212,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			return;
 		}
 
+		entity.markIdle(); // nothing to cut or plant yet: waiting for trees is not being stuck
 		waitAtChest(level, entity, IDLE_WAIT_TICKS);
 	}
 
@@ -351,6 +352,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 				if (broke && isLoggingTool(tool)) tool.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
 			}
 		}
+		if (destroy) entity.markProgress();
 		targets.poll();
 		clearTarget();
 		activeTree.clear();
@@ -396,6 +398,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		lookAndSwing(entity, pos);
 		level.setBlockAndUpdate(pos, plantTask.state);
 		sapling.shrink(1);
+		entity.markProgress();
 		plantTask.remaining.poll();
 		actionCooldown = ACTION_COOLDOWN_TICKS;
 		pathFailCount = 0;
@@ -427,6 +430,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		lookAndSwing(entity, target);
 		if (BoneMealItem.growCrop(bonemeal, level, target)) {
 			level.levelEvent(1505, target, 0);
+			entity.markProgress();
 		}
 		actionCooldown = ACTION_COOLDOWN_TICKS;
 		pathFailCount = 0;
