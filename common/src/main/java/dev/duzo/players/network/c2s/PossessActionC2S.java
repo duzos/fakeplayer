@@ -6,7 +6,7 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.possession.PossessionManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * One click from a possessor, performed by the fake. Which fields matter depends on {@code action}:
@@ -15,7 +15,7 @@ import net.minecraft.resources.Identifier;
  * Unused fields are sent as zero. Every field is validated on the server.
  */
 public record PossessActionC2S(int fakeId, byte action, int targetId, BlockPos pos, byte face, float hx, float hy, float hz, byte slot) {
-	public static final Identifier LOCATION = PlayersCommon.id("possess_action");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("possess_action");
 
 	public static final byte ATTACK = 0;
 	public static final byte BREAK_START = 1;

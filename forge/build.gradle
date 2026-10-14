@@ -56,7 +56,6 @@ dependencies {
     compileOnly('maven.modrinth:tacz-1.21.1:62q6mB5Q') { transitive = false }
     compileOnly 'dev.architectury:architectury-neoforge:13.0.8'
     compileOnly project(":common")
-    annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
     jarJar(implementation("mysticdrew:common-networking-neoforge:${project.common_network_version}")) {
         transitive = false
     }

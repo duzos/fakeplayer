@@ -6,9 +6,15 @@
     " M "
   ],
   "key": {
-    "M": "minecraft:amethyst_shard",
-    "E": "minecraft:ender_pearl",
-    "A": "players:player_ai"
+    "M": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "E": {
+      "item": "minecraft:ender_pearl"
+    },
+    "A": {
+      "item": "players:player_ai"
+    }
   },
   "result": {
     "id": "players:possession_link",

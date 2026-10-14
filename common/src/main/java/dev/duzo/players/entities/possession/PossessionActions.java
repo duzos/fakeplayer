@@ -28,7 +28,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * What a possessor's clicks do to the world, performed by the fake from its own eyes. Every number a client sends is
@@ -83,8 +83,8 @@ final class PossessionActions {
 		if (!level.mayInteract(player, target.blockPosition())) return "protected area";
 		if (target instanceof HangingEntity || target instanceof ArmorStand) return "decoration";
 		if (target instanceof FakePlayerEntity other && !player.getUUID().equals(other.getAIState().ownerUUID())) return "someone else's fake";
-		if (target instanceof OwnableEntity pet && pet.getOwnerReference() != null
-				&& !pet.getOwnerReference().getUUID().equals(player.getUUID())) return "someone else's pet";
+		if (target instanceof OwnableEntity pet && pet.getOwnerUUID() != null
+				&& !pet.getOwnerUUID().equals(player.getUUID())) return "someone else's pet";
 		return null;
 	}
 
@@ -99,7 +99,7 @@ final class PossessionActions {
 			reject(player, "bad attack target " + targetId);
 			return;
 		}
-		if (target instanceof Player && !level.isPvpAllowed()) {
+		if (target instanceof Player && !level.getServer().isPvpAllowed()) {
 			reject(player, "pvp is off");
 			return;
 		}
@@ -114,7 +114,7 @@ final class PossessionActions {
 		}
 		s.lastAttackTick = now;
 		fake.swing(InteractionHand.MAIN_HAND);
-		boolean hit = fake.doHurtTarget(level, target);
+		boolean hit = fake.doHurtTarget(target);
 		Constants.traceEvent("possession attack {} target={} hit={}", fake.getUUID(), target.getUUID(), hit);
 	}
 
@@ -233,7 +233,7 @@ final class PossessionActions {
 					result = block.place(context);
 				} else {
 					usedItem = true;
-					result = held.useOn(new UseOnContext(level, null, InteractionHand.MAIN_HAND, held, hitResult));
+					result = held.useOn(new FakeUseContext(level, held, hitResult));
 				}
 			}
 		} catch (RuntimeException e) {
