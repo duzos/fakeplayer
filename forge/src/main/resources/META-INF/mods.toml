@@ -37,3 +37,10 @@ mandatory = false
 versionRange = "[2.1.1,)"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "tacz"
+mandatory = false
+versionRange = "[0,)"
+ordering = "NONE"
+side = "BOTH"

@@ -1,5 +1,6 @@
 package dev.duzo.players;
 
+import dev.duzo.players.compat.TaczForgeCompat;
 import dev.duzo.players.platform.ForgeCommonRegistry;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -15,6 +16,7 @@ public class PlayersForge {
 
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         ForgeCommonRegistry.init(bus);
+        TaczForgeCompat.init();
 
         // check if this is for client
         if (FMLLoader.getDist() == Dist.CLIENT) {

@@ -1,5 +1,6 @@
 package dev.duzo.players;
 
+import dev.duzo.players.compat.TaczFabricCompat;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.core.SessionItemSweeper;
@@ -22,6 +23,7 @@ public class PlayersFabric implements ModInitializer {
     @Override
     public void onInitialize() {
         PlayersCommon.init();
+        TaczFabricCompat.init();
 
         ServerTickEvents.END_SERVER_TICK.register(SessionItemSweeper::tick);
         ServerTickEvents.END_SERVER_TICK.register(PossessionManager::tick);
