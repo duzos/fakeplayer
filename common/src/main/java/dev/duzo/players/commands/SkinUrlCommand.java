@@ -6,7 +6,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.duzo.players.Constants;
-import dev.duzo.players.api.SkinGrabber;
+import dev.duzo.players.api.SkinHash;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.commands.CommandSourceStack;
@@ -45,7 +45,7 @@ public class SkinUrlCommand {
 		}
 
 		String texture = StringArgumentType.getString(context, "texture");
-		String key = SkinGrabber.encodeURL(texture);
+		String key = SkinHash.ofText(texture);
 		String name = target.hasCustomName() ? target.getCustomName().getString() : PlayersConfig.get().defaultSkin;
 
 		target.setSkin(new FakePlayerEntity.SkinData(name, key, texture));
