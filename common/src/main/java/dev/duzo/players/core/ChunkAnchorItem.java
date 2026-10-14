@@ -1,5 +1,6 @@
 package dev.duzo.players.core;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -15,6 +16,8 @@ public class ChunkAnchorItem extends Item {
 
 	@Override
 	public void appendHoverText(ItemStack stack, Item.TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag flag) {
-		tooltip.accept(Component.translatable("item.players.chunk_anchor.tooltip"));
+		for (int i = 1; i <= 3; i++) {
+			tooltip.accept(Component.translatable("item.players.chunk_anchor.tooltip." + i).withStyle(ChatFormatting.GRAY));
+		}
 	}
 }
