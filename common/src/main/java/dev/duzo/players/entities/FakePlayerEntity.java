@@ -153,7 +153,9 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	@Nullable
 	private BlockPos bedClaim;
+	private String bedClaimDim = "";
 	private boolean bedReconciled;
+	private boolean wokenByDamage;
 
 	@Nullable
 	public BlockPos bedClaim() {
@@ -162,6 +164,23 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	public void setBedClaim(BlockPos pos) {
 		this.bedClaim = pos.immutable();
+		this.bedClaimDim = this.level().dimension().location().toString();
+	}
+
+	/** True once, if the last bed sleep ended because the fake took damage. Reading it clears it. */
+	public boolean consumeWokenByDamage() {
+		boolean was = this.wokenByDamage;
+		this.wokenByDamage = false;
+		return was;
+	}
+
+	@Override
+	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+		boolean asleep = this.isBedSleeping();
+		if (asleep) this.wokenByDamage = true;
+		boolean hurt = super.hurtServer(level, source, amount);
+		if (asleep && !hurt) this.wokenByDamage = false;
+		return hurt;
 	}
 
 	/** Asleep in a real bed, as opposed to the LAYING pose, which {@link #isSleeping()} also reports. */
@@ -177,8 +196,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		if (this.level() instanceof ServerLevel server) {
 			try {
 				server.getPoiManager().release(pos);
-			} catch (IllegalStateException ignored) {
-				// the bed and its POI are already gone
+			} catch (IllegalStateException e) {
+				Constants.traceEvent("bed release failed {} at {}: {}", this.getUUID(), pos, e.getMessage());
 			}
 			Constants.traceEvent("bed release {} at {}", this.getUUID(), pos);
 		}
@@ -204,7 +223,9 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 				this.releaseBedClaim();
 			}
 		}
-		if (this.bedClaim != null && this.isBedSleeping() && !this.isIdleNow()) this.wakeFromBed();
+		if (this.bedClaim != null && this.isBedSleeping() && (!this.isIdleNow() || !SleepInBedGoal.dark(server, this))) {
+			this.wakeFromBed();
+		}
 	}
 
 	// Pause the running job while the owner is holding a bound marker or has this fake's menu open,
@@ -533,7 +554,10 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.flushJobState();
 		nbt.put("AIState", this.entityData.get(AI_STATE));
 		if (chunkAnchored) nbt.putBoolean("ChunkAnchor", true);
-		if (bedClaim != null) nbt.put("BedClaim", NbtUtils.writeBlockPos(bedClaim));
+		if (bedClaim != null) {
+			nbt.put("BedClaim", NbtUtils.writeBlockPos(bedClaim));
+			nbt.putString("BedClaimDim", bedClaimDim);
+		}
 		if (!forcedChunks.isEmpty()) {
 			nbt.putLongArray("ForcedChunks", forcedChunks.toLongArray());
 			nbt.putString("ForcedDim", this.level().dimension().location().toString());
@@ -612,6 +636,11 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		for (EquipmentSlot slot : EquipmentSlot.values()) this.setGuaranteedDrop(slot);
 
 		this.bedClaim = NbtUtils.readBlockPos(nbt, "BedClaim").orElse(null);
+		this.bedClaimDim = nbt.getString("BedClaimDim");
+		// a claim copied across by a dimension change names a bed in the other dimension; the original releases it
+		if (this.bedClaim != null && !this.bedClaimDim.equals(this.level().dimension().location().toString())) {
+			this.bedClaim = null;
+		}
 		this.bedReconciled = false;
 		this.chunkAnchored = nbt.getBoolean("ChunkAnchor");
 		this.forcedChunks.clear();
@@ -853,11 +882,6 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	@Override
 	public boolean isNoAi() {
 		return super.isNoAi() || this.getPhysicalState() == PhysicalState.LAYING;
-	}
-
-	@Override
-	protected boolean isImmobile() {
-		return super.isImmobile() || this.isBedSleeping();
 	}
 
 	@Override
