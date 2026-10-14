@@ -1,6 +1,8 @@
 package dev.duzo.players.entities;
 
 import com.mojang.serialization.Codec;
+import dev.duzo.players.Constants;
+import net.minecraft.core.BlockPos;
 import dev.duzo.players.api.InteractionRegistry;
 import dev.duzo.players.api.SkinGrabber;
 import dev.duzo.players.config.PlayersConfig;
@@ -21,6 +23,7 @@ import dev.duzo.players.entities.ai.RangedWeapon;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
 import dev.duzo.players.entities.goal.FollowOwnerGoal;
 import dev.duzo.players.entities.goal.IdleLookAtPlayerGoal;
+import dev.duzo.players.entities.goal.SleepInBedGoal;
 import dev.duzo.players.entities.goal.WatchOwnerGoal;
 import dev.duzo.players.entities.goal.JobAwareTemptGoal;
 import dev.duzo.players.entities.goal.HumanoidWaterAvoidingRandomStrollGoal;
@@ -142,8 +145,67 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		if (this.level() instanceof ServerLevel server) {
 			if (chunkAnchored && this.isAlive()) ChunkAnchors.update(server, this);
 			this.updateFollowOverridePause();
+			this.reconcileBed(server);
 			this.tickJobExecutor(server);
 		}
+	}
+
+	// ---- bed ----
+
+	@Nullable
+	private BlockPos bedClaim;
+	private boolean bedReconciled;
+
+	@Nullable
+	public BlockPos bedClaim() {
+		return this.bedClaim;
+	}
+
+	public void setBedClaim(BlockPos pos) {
+		this.bedClaim = pos.immutable();
+	}
+
+	/** Asleep in a real bed, as opposed to the LAYING pose, which {@link #isSleeping()} also reports. */
+	public boolean isBedSleeping() {
+		return this.getSleepingPos().isPresent();
+	}
+
+	/** Gives the bed's POI ticket back. Safe to call with no claim, twice, or after the bed has gone. */
+	public void releaseBedClaim() {
+		BlockPos pos = this.bedClaim;
+		if (pos == null) return;
+		this.bedClaim = null;
+		if (this.level() instanceof ServerLevel server) {
+			try {
+				server.getPoiManager().release(pos);
+			} catch (IllegalStateException ignored) {
+				// the bed and its POI are already gone
+			}
+			Constants.traceEvent("bed release {} at {}", this.getUUID(), pos);
+		}
+	}
+
+	private void wakeFromBed() {
+		if (this.isBedSleeping()) this.stopSleeping();
+		this.releaseBedClaim();
+	}
+
+	/**
+	 * After a reload the claim and sleeping position are both persisted. Keep them only as a matched pair (the goal then
+	 * resumes), and drop whichever is left over so neither a ticket nor a bed-bound fake leaks. Also wakes a sleeper
+	 * that has been given something to do even if the goal is not running.
+	 */
+	private void reconcileBed(ServerLevel server) {
+		if (!this.bedReconciled) {
+			this.bedReconciled = true;
+			BlockPos claim = this.bedClaim;
+			boolean paired = claim != null && this.getSleepingPos().filter(claim::equals).isPresent();
+			if (!paired) {
+				if (this.isBedSleeping()) this.stopSleeping();
+				this.releaseBedClaim();
+			}
+		}
+		if (this.bedClaim != null && this.isBedSleeping() && !this.isIdleNow()) this.wakeFromBed();
 	}
 
 	// Pause the running job while the owner is holding a bound marker or has this fake's menu open,
@@ -279,6 +341,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		if (hand != InteractionHand.MAIN_HAND) {
 			return super.mobInteract(player, hand);
 		}
+
+		if (!player.level().isClientSide() && this.bedClaim != null) this.wakeFromBed();
 
 		// a client that has bound the open-menu key opens the menu with that instead, leaving right-click
 		// free for other mods that claim it
@@ -438,6 +502,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.goalSelector.addGoal(7, new RandomLookAroundGoal(this));
 		// both only run while idle, see isIdleNow; the owner is watched before a stranger, and both before random glances
 		this.goalSelector.addGoal(5, new WatchOwnerGoal(this));
+		this.goalSelector.addGoal(2, new SleepInBedGoal(this));
 		this.goalSelector.addGoal(6, new IdleLookAtPlayerGoal(this, 6.0F));
 		this.goalSelector.addGoal(5, new OpenDoorGoal(this, true));
 		this.targetSelector.addGoal(1, new FakeHurtByTargetGoal(this));
@@ -473,6 +538,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.flushJobState();
 		output.store("AIState", CompoundTag.CODEC, this.entityData.get(AI_STATE));
 		if (chunkAnchored) output.putBoolean("ChunkAnchor", true);
+		if (bedClaim != null) output.store("BedClaim", BlockPos.CODEC, bedClaim);
 		if (!forcedChunks.isEmpty()) {
 			output.store("ForcedChunks", Codec.LONG.listOf(), new ArrayList<>(forcedChunks));
 			output.putString("ForcedDim", this.level().dimension().location().toString());
@@ -498,6 +564,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	@Override
 	public void onRemoval(RemovalReason reason) {
 		if (this.level() instanceof ServerLevel server) {
+			// an unload keeps the claim, which is saved and reconciled on the next load; anything else frees the bed
+			if (reason != RemovalReason.UNLOADED_TO_CHUNK) this.releaseBedClaim();
 			if (reason == RemovalReason.UNLOADED_TO_CHUNK) {
 				// chunks stay forced so the fake loads again after a restart
 				ChunkAnchors.unloaded(this);
@@ -548,6 +616,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		// so it never self-heals; re-apply the guarantee every load instead.
 		for (EquipmentSlot slot : EquipmentSlot.values()) this.setGuaranteedDrop(slot);
 
+		this.bedClaim = input.read("BedClaim", BlockPos.CODEC).orElse(null);
+		this.bedReconciled = false;
 		this.chunkAnchored = input.getBooleanOr("ChunkAnchor", false);
 		this.forcedChunks.clear();
 		// a list recorded in another dimension (copied across by a dimension change) is not ours to unforce here
@@ -796,6 +866,11 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	@Override
 	public boolean isNoAi() {
 		return super.isNoAi() || this.getPhysicalState() == PhysicalState.LAYING;
+	}
+
+	@Override
+	protected boolean isImmobile() {
+		return super.isImmobile() || this.isBedSleeping();
 	}
 
 	@Override
