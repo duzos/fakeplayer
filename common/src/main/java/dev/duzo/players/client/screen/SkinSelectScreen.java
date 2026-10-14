@@ -5,6 +5,7 @@ import dev.duzo.players.Constants;
 import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.api.LocalSkinStore;
 import dev.duzo.players.api.SkinGrabber;
+import dev.duzo.players.api.SkinHash;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.network.c2s.SetSkinKeyPacketC2S;
 import dev.duzo.players.network.c2s.UploadSkinPacketC2S;
@@ -214,7 +215,7 @@ public class SkinSelectScreen extends Screen {
 			Path path = Paths.get(picked);
 			byte[] bytes = Files.readAllBytes(path);
 			LocalSkinStore.validate(bytes);
-			String key = SkinGrabber.encodeURL(new String(bytes));
+			String key = SkinHash.ofText(new String(bytes));
 			SkinGrabber.INSTANCE.registerLocalBytes(key, bytes);
 			Network.getNetworkHandler().sendToServer(new UploadSkinPacketC2S(this.target.getId(), key, bytes));
 			this.onClose();
