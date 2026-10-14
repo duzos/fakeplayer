@@ -42,7 +42,7 @@ public class SleepInBedGoal extends Goal {
 
 	@Override
 	public boolean canUse() {
-		if (!(this.fake.level() instanceof ServerLevel level)) return false;
+		if (!(this.fake.level() instanceof ServerLevel level) || this.fake.isRiding()) return false;
 		BlockPos claim = this.fake.bedClaim();
 		// a reload while asleep: the claim and the sleeping position both persisted, so carry on
 		if (claim != null && this.fake.isBedSleeping() && this.fake.getSleepingPos().filter(claim::equals).isPresent()) {
@@ -78,7 +78,7 @@ public class SleepInBedGoal extends Goal {
 
 	@Override
 	public boolean canContinueToUse() {
-		if (!(this.fake.level() instanceof ServerLevel level)) return false;
+		if (!(this.fake.level() instanceof ServerLevel level) || this.fake.isRiding()) return false;
 		if (this.bed == null || !this.bed.equals(this.fake.bedClaim())) return false;
 		if (!this.fake.isIdleNow() || !this.fake.isStanding() || !dark(level, this.fake)) return false;
 		if (this.sleeping) return this.fake.isBedSleeping();

@@ -30,11 +30,11 @@ public class JobAwareTemptGoal extends TemptGoal {
 
 	@Override
 	public boolean canUse() {
-		return !this.fake.isMovementManagedByJob() && super.canUse();
+		return !this.fake.isMovementManagedByJob() && !this.fake.isRiding() && super.canUse();
 	}
 
 	@Override
 	public boolean canContinueToUse() {
-		return !this.fake.isMovementManagedByJob() && super.canContinueToUse();
+		return !this.fake.isMovementManagedByJob() && !this.fake.isRiding() && super.canContinueToUse();
 	}
 }

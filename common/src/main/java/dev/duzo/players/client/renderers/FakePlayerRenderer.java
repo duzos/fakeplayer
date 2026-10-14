@@ -57,7 +57,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 		super.extractRenderState(entity, state, partialTick);
 		if (state instanceof FakeAvatarRenderState fake) {
 			fake.skinTexture = entity.getSkin();
-			fake.isSitting = entity.isSitting();
+			fake.isSitting = entity.isSitting() && !entity.isPassenger(); // riding wins over the sitting offset
 			fake.slim = entity.isSlim();
 			state.skin = PlayerSkin.insecure(
 				new ClientAsset.DownloadedTexture(fake.skinTexture, ""),
@@ -67,7 +67,7 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, A
 				state.isPassenger = true; // seated pose; the -0.5 lower is applied once in submit()
 			}
 		}
-		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING || entity.isBedSleeping()) {
+		if (!entity.isPassenger() && (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING || entity.isBedSleeping())) {
 			state.pose = Pose.SLEEPING;
 			net.minecraft.core.Direction bed = entity.getBedOrientation();
 			state.bedOrientation = bed != null ? bed : entity.getDirection();
