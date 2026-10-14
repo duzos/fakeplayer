@@ -251,7 +251,7 @@ public class FakeRangedAttackGoal extends Goal {
 	// Sequence from TACZ's own operator: draw once when the gun enters the hand (a shot before that crashes in the
 	// bullet constructor), keep aiming, shoot with the two-argument overload, and answer the result.
 	private void tickGun(LivingEntity target, boolean seen) {
-		InteractionHand hand = this.handFor(RangedWeapon.GUN);
+		InteractionHand hand = this.mob.getUsableRangedHand();
 		if (hand == null) return;
 
 		ItemStack held = this.mob.getItemInHand(hand);
@@ -274,6 +274,7 @@ public class FakeRangedAttackGoal extends Goal {
 		switch (TaczGunBridge.fire(this.mob, pitch, yaw)) {
 			case SPRINTING -> this.mob.setSprinting(false);
 			case NOT_DRAWN -> this.gunReady = false;
+			case UNUSABLE -> this.mob.markGunUnusable(this.mob.getItemInHand(hand));
 			default -> { }
 		}
 	}
