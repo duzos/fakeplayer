@@ -20,6 +20,7 @@ import dev.duzo.players.entities.speech.FakeSpeech;
 import dev.duzo.players.entities.speech.Verbosity;
 import dev.duzo.players.entities.ai.requests.StockKeeper;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import dev.duzo.players.entities.ai.RangedWeapon;
 import dev.duzo.players.entities.goal.FakeMeleeAttackGoal;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
