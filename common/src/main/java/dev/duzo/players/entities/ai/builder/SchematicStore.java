@@ -5,11 +5,11 @@ import dev.duzo.players.config.PlayersConfig;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -60,7 +60,7 @@ public final class SchematicStore {
 			return Result.fail("bad schematic name");
 		}
 		if (n.indexOf(':') >= 0) {
-			Identifier id = Identifier.tryParse(n);
+			ResourceLocation id = ResourceLocation.tryParse(n);
 			if (id == null) return Result.fail("bad schematic name");
 			Optional<StructureTemplate> t = level.getStructureManager().get(id);
 			return t.isPresent() ? checkSize(t.get(), name) : Result.fail("schematic not found: " + n);

@@ -35,13 +35,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-<<<<<<< HEAD
 import net.minecraft.resources.ResourceLocation;
-=======
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
->>>>>>> feat(builder): anchor marker and schematic row in the ai menu
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -620,9 +616,6 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	@Override
-<<<<<<< HEAD
-	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-=======
 	public void removed() {
 		super.removed();
 		if (schematicEdit != null && entity != null && FPJobs.is(entity.getAIState().jobId(), FPJobs.BUILDER)) {
@@ -632,21 +625,20 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	@Override
-	public boolean keyPressed(KeyEvent event) {
+	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		if (this.schematicEdit != null && this.schematicEdit.isFocused()) {
-			if (event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) {
+			if (keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_NUMPADENTER) {
 				BuilderParams p = BuilderParams.read(entity.getAIState());
 				sendBuild(p.rotation().ordinal(), p.mirror().ordinal());
 				this.schematicEdit.setFocused(false);
 				return true;
 			}
-			if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_TAB) {
-				return super.keyPressed(event);
+			if (keyCode == InputConstants.KEY_ESCAPE || keyCode == InputConstants.KEY_TAB) {
+				return super.keyPressed(keyCode, scanCode, modifiers);
 			}
-			this.schematicEdit.keyPressed(event);
+			this.schematicEdit.keyPressed(keyCode, scanCode, modifiers);
 			return true;
 		}
->>>>>>> feat(builder): anchor marker and schematic row in the ai menu
 		if (this.filterEdit != null && this.filterEdit.isFocused()) {
 			if (keyCode == InputConstants.KEY_ESCAPE || keyCode == InputConstants.KEY_TAB) {
 				return super.keyPressed(keyCode, scanCode, modifiers);
@@ -658,15 +650,11 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	@Override
-<<<<<<< HEAD
 	public boolean charTyped(char codePoint, int modifiers) {
-=======
-	public boolean charTyped(CharacterEvent event) {
 		if (this.schematicEdit != null && this.schematicEdit.isFocused()) {
-			this.schematicEdit.charTyped(event);
+			this.schematicEdit.charTyped(codePoint, modifiers);
 			return true;
 		}
->>>>>>> feat(builder): anchor marker and schematic row in the ai menu
 		if (this.filterEdit != null && this.filterEdit.isFocused()) {
 			this.filterEdit.charTyped(codePoint, modifiers);
 			return true;
