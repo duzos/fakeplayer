@@ -50,6 +50,7 @@ legacyForge {
 sourceSets.main.resources.srcDir 'src/generated/resources'
 
 dependencies {
+    modCompileOnly('maven.modrinth:tide:umdDq2ok') { transitive = false }
     compileOnly project(":common")
     annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
     jarJar(implementation("mysticdrew:common-networking-forge:${project.common_network_version}")) {

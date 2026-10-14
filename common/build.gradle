@@ -11,6 +11,7 @@ legacyForge {
 }
 
 dependencies {
+    modCompileOnly('maven.modrinth:tide:umdDq2ok') { transitive = false }
     compileOnly group: 'org.spongepowered', name: 'mixin', version: '0.8.5'
     implementation group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.1'
     implementation "mysticdrew:common-networking-common:${project.common_network_version}"
