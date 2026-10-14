@@ -8,7 +8,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
 public class CourierJobExecutor implements JobExecutor {
 	private static final double ARRIVAL_DIST_SQR = 6.0;
@@ -129,19 +128,13 @@ public class CourierJobExecutor implements JobExecutor {
 		}
 	}
 
-	private int pullMatching(Container src, Container dst, CompoundTag filter, int budget) {
+	private int pullMatching(Container src, SimpleContainer dst, CompoundTag filter, int budget) {
 		int moved = 0;
 		for (int i = 0; i < src.getContainerSize() && moved < budget; i++) {
 			ItemStack stack = src.getItem(i);
 			if (stack.isEmpty()) continue;
 			if (!matchesFilter(stack, filter)) continue;
-			ItemStack take = stack.copy();
-			ItemStack remainder = HopperBlockEntity.addItem(src, dst, take, null);
-			int taken = stack.getCount() - remainder.getCount();
-			if (taken > 0) {
-				stack.shrink(taken);
-				if (stack.isEmpty()) src.setItem(i, ItemStack.EMPTY);
-				src.setChanged();
+			if (JobHelpers.withdrawInto(src, i, stack.getCount(), dst) > 0) {
 				dst.setChanged();
 				moved++;
 			}
@@ -149,20 +142,14 @@ public class CourierJobExecutor implements JobExecutor {
 		return moved;
 	}
 
-	private int dumpAll(Container src, Container dst, int budget, StockReserve reserve) {
+	private int dumpAll(SimpleContainer src, Container dst, int budget, StockReserve reserve) {
 		int moved = 0;
 		for (int i = 0; i < src.getContainerSize() && moved < budget; i++) {
 			ItemStack stack = src.getItem(i);
 			if (stack.isEmpty()) continue;
-			if (src instanceof SimpleContainer inv && JobHelpers.depositSurplus(inv, i, dst, reserve)) continue;
-			ItemStack take = stack.copy();
-			ItemStack remainder = HopperBlockEntity.addItem(src, dst, take, null);
-			int put = stack.getCount() - remainder.getCount();
-			if (put > 0) {
-				stack.shrink(put);
-				if (stack.isEmpty()) src.setItem(i, ItemStack.EMPTY);
+			if (JobHelpers.depositSurplus(src, i, dst, reserve)) continue;
+			if (JobHelpers.moveSlot(src, i, dst) > 0) {
 				src.setChanged();
-				dst.setChanged();
 				moved++;
 			}
 		}

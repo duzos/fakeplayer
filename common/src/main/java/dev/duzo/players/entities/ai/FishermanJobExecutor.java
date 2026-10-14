@@ -28,7 +28,6 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
@@ -439,7 +438,7 @@ public class FishermanJobExecutor implements JobExecutor {
 			if (stack.isEmpty()) continue;
 			if (FishingRods.isFishingRod(stack) && keepRod) { keepRod = false; continue; }
 			if (JobHelpers.depositSurplus(inv, i, dst, reserve)) continue;
-			ItemStack rem = HopperBlockEntity.addItem(null, dst, stack, null);
+			ItemStack rem = JobHelpers.insert(dst, stack);
 			inv.setItem(i, rem.isEmpty() ? ItemStack.EMPTY : rem);
 		}
 		dst.setChanged();
@@ -449,13 +448,8 @@ public class FishermanJobExecutor implements JobExecutor {
 	private void restockRod(FakePlayerEntity e, Container chest) {
 		if (!rod(e).isEmpty()) return;
 		for (int i = 0; i < chest.getContainerSize(); i++) {
-			ItemStack stack = chest.getItem(i);
-			if (!FishingRods.isFishingRod(stack)) continue;
-			ItemStack one = stack.split(1);
-			ItemStack leftover = e.getInventory().addItem(one);
-			if (!leftover.isEmpty()) stack.grow(leftover.getCount());
-			if (stack.isEmpty()) chest.setItem(i, ItemStack.EMPTY);
-			chest.setChanged();
+			if (!FishingRods.isFishingRod(chest.getItem(i))) continue;
+			JobHelpers.withdrawInto(chest, i, 1, e.getInventory());
 			return;
 		}
 	}
