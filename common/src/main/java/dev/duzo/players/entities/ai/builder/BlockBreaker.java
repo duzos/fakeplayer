@@ -10,7 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.List;
 
@@ -47,7 +47,7 @@ public final class BlockBreaker {
 
 		ItemStack tool = entity.getMainHandItem();
 		boolean broke = breakIntoInventory(level, entity, pos, state, tool);
-		if (broke && tool.isDamageableItem()) tool.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
+		if (broke && tool.isDamageableItem()) tool.hurtAndBreak(1, entity, e -> e.broadcastBreakEvent(EquipmentSlot.MAINHAND));
 		reset(level, entity);
 		return broke ? Result.BROKEN : Result.FULL;
 	}

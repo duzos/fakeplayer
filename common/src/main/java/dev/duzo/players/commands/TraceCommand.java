@@ -11,7 +11,7 @@ public class TraceCommand {
 		dispatcher.register(
 				Commands.literal(Constants.MOD_ID)
 						.then(Commands.literal("trace")
-								.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+								.requires((p) -> p.hasPermission(Commands.LEVEL_GAMEMASTERS))
 								.then(Commands.literal("on").executes(ctx -> set(ctx.getSource(), true)))
 								.then(Commands.literal("off").executes(ctx -> set(ctx.getSource(), false)))));
 	}

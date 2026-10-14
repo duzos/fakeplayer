@@ -7,7 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /** What a Builder is told to build, kept in jobParams so it syncs to the menu. Writing it restarts the job. */
 public record BuilderParams(String schematic, @Nullable BlockPos anchor, Rotation rotation, Mirror mirror, boolean clear) {
@@ -15,11 +15,11 @@ public record BuilderParams(String schematic, @Nullable BlockPos anchor, Rotatio
 
 	public static BuilderParams read(AIState s) {
 		CompoundTag t = s.jobParams();
-		BlockPos anchor = t.getLong("Anchor").map(BlockPos::of).orElse(null);
-		return new BuilderParams(t.getStringOr("Schematic", ""), anchor,
-				byOrdinal(Rotation.values(), t.getIntOr("Rot", 0), Rotation.NONE),
-				byOrdinal(Mirror.values(), t.getIntOr("Mirror", 0), Mirror.NONE),
-				t.getBooleanOr("Clear", true));
+		BlockPos anchor = t.contains("Anchor") ? BlockPos.of(t.getLong("Anchor")) : null;
+		return new BuilderParams(t.getString("Schematic"), anchor,
+				byOrdinal(Rotation.values(), t.getInt("Rot"), Rotation.NONE),
+				byOrdinal(Mirror.values(), t.getInt("Mirror"), Mirror.NONE),
+				!t.contains("Clear") || t.getBoolean("Clear"));
 	}
 
 	public BuilderParams withAnchor(BlockPos pos, Rotation rot) {
