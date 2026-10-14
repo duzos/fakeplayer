@@ -56,6 +56,9 @@ public class PlayersConfig {
 	public int builderStripeWidth = 4;
 	/** Ticks between two block placements by a Builder, minimum 1. */
 	public int builderPlaceTicks = 4;
+	/** Whether an installed Chunk Anchor keeps a fake's chunks loaded. False disables every anchor on the server
+	 * without taking the items away; the recipe itself can be removed with a datapack. */
+	public boolean chunkAnchors = true;
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {
