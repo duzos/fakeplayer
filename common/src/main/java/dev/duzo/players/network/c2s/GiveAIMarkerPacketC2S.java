@@ -27,9 +27,11 @@ public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-import java.util.UUID;
-
 		if (!(sender.serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		// an owned fake takes markers from its owner only; the anchor needs an owner, since the build is paid from theirs
+		UUID owner = entity.getAIState().ownerUUID();
+		boolean anchor = ctx.message().mode() == AIMarkerItem.PURPOSE_ANCHOR;
+		if (owner == null ? anchor : !owner.equals(sender.getUUID())) return;
 		AIMarkerItem.clearAllFor(sender);
 		ItemStack stack = AIMarkerItem.make(entity, sender, ctx.message().mode(), ctx.message().slot(), sender.serverLevel().getGameTime());
 		// Issue #28 asked for offhand-then-hotbar-then-drop placement, but writing to offhand
