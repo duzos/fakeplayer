@@ -4,11 +4,13 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
+import net.minecraft.world.scores.Team;
 import org.joml.Matrix4f;
 
 import java.util.ArrayList;
@@ -41,6 +43,9 @@ public final class SpeechBubbles {
 	/** Draws this fake's bubble above its name tag position. Call with the pose at the entity origin. */
 	public static void render(FakePlayerEntity entity, PoseStack pose, MultiBufferSource buffers, int light,
 							  EntityRenderDispatcher dispatcher, Font font, boolean nameShown) {
+		// hidden wherever vanilla would hide the name tag (F1, invisible, teams, sneaking, 64 blocks)
+		if (!nameTagAllowed(entity, dispatcher)) return;
+
 		PlayersConfig config = PlayersConfig.get();
 		double distanceSq = dispatcher.distanceToSqr(entity);
 		List<Component> rows = bubbleRows(entity, config, distanceSq);
@@ -53,6 +58,35 @@ public final class SpeechBubbles {
 			// not see-through, unlike a name tag: speech should not read through walls
 			drawLine(entity, rows.get(i), base + (last - i), pose, buffers, light, dispatcher, font, false);
 		}
+	}
+
+	/** Vanilla's LivingEntityRenderer.shouldShowName without the custom-name-visible rule, which the fake adds itself. */
+	private static boolean nameTagAllowed(FakePlayerEntity entity, EntityRenderDispatcher dispatcher) {
+		double distanceSq = dispatcher.distanceToSqr(entity);
+		float limit = entity.isDiscrete() ? 32.0F : 64.0F;
+		if (distanceSq >= (double) (limit * limit)) return false;
+
+		Minecraft minecraft = Minecraft.getInstance();
+		LocalPlayer player = minecraft.player;
+		if (player == null) return false;
+		boolean visible = !entity.isInvisibleTo(player);
+		Team team = entity.getTeam();
+		if (team != null) {
+			Team playerTeam = player.getTeam();
+			switch (team.getNameTagVisibility()) {
+				case ALWAYS:
+					return visible;
+				case NEVER:
+					return false;
+				case HIDE_FOR_OTHER_TEAMS:
+					return playerTeam == null ? visible : team.isAlliedTo(playerTeam) && (team.canSeeFriendlyInvisibles() || visible);
+				case HIDE_FOR_OWN_TEAM:
+					return playerTeam == null ? visible : !team.isAlliedTo(playerTeam) && visible;
+				default:
+					return true;
+			}
+		}
+		return Minecraft.renderNames() && entity != minecraft.getCameraEntity() && visible && !entity.isVehicle();
 	}
 
 	private static void drawLine(FakePlayerEntity entity, Component text, int step, PoseStack pose, MultiBufferSource buffers,
@@ -101,13 +135,21 @@ public final class SpeechBubbles {
 	private static boolean isAmongNearestSpeakers(FakePlayerEntity entity, double distanceSq, PlayersConfig config) {
 		double reach = config.bubbleRange * 2.0;
 		var dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
+		long now = entity.level().getGameTime();
+		long maxAge = (long) (config.bubbleSeconds * 20.0);
 		int closer = 0;
 		for (FakePlayerEntity other : entity.level().getEntitiesOfClass(FakePlayerEntity.class, entity.getBoundingBox().inflate(reach))) {
-			if (other == entity || other.speechLines().isEmpty()) continue;
+			if (other == entity || !hasLiveLine(other, now, maxAge)) continue;
 			double d = dispatcher.distanceToSqr(other);
 			if (d < distanceSq || (d == distanceSq && other.getId() < entity.getId())) closer++;
 		}
 		return closer < config.bubbleMaxSpeakers;
+	}
+
+	/** An expired newest line means nothing is showing, even if prune has not run for that fake yet. */
+	private static boolean hasLiveLine(FakePlayerEntity other, long now, long maxAge) {
+		FakePlayerEntity.SpeechLine newest = other.speechLines().peekLast();
+		return newest != null && now - newest.tick() <= maxAge;
 	}
 
 	private static List<Component> wrap(String text) {
