@@ -207,7 +207,7 @@ public class AIMarkerItem extends Item {
 
 		UUID boundOwner = entity.getAIState().ownerUUID();
 		if (boundOwner != null && !boundOwner.equals(player.getUUID()) && !isOp(player)) {
-			player.displayClientMessage(Component.literal("You do not own this fake.").withStyle(ChatFormatting.RED), true);
+			player.sendOverlayMessage(Component.literal("You do not own this fake.").withStyle(ChatFormatting.RED));
 			silentlyConsume(player, stack);
 			return InteractionResult.FAIL;
 		}
@@ -293,7 +293,7 @@ public class AIMarkerItem extends Item {
 			}
 			case PURPOSE_ANCHOR -> {
 				if (!player.getUUID().equals(entity.getAIState().ownerUUID())) {
-					player.displayClientMessage(Component.literal("Only this fake's owner can set its anchor.").withStyle(ChatFormatting.RED), true);
+					player.sendOverlayMessage(Component.literal("Only this fake's owner can set its anchor.").withStyle(ChatFormatting.RED));
 					return InteractionResult.FAIL;
 				}
 				if (!FPJobs.is(entity.getAIState().jobId(), FPJobs.BUILDER)) {
@@ -308,7 +308,7 @@ public class AIMarkerItem extends Item {
 				BlockPos anchorPos = pos.relative(ctx.getClickedFace()).immutable();
 				int maxDist = PlayersConfig.get().builderMaxAnchorDistance;
 				if (maxDist > 0 && entity.distanceToSqr(Vec3.atCenterOf(anchorPos)) > (double) maxDist * maxDist) {
-					player.displayClientMessage(Component.literal("That is more than " + maxDist + " blocks from the Builder.").withStyle(ChatFormatting.RED), true);
+					player.sendOverlayMessage(Component.literal("That is more than " + maxDist + " blocks from the Builder.").withStyle(ChatFormatting.RED));
 					return InteractionResult.FAIL;
 				}
 				BuilderParams next = params.withAnchor(anchorPos, rotationFor(player.getDirection()),
