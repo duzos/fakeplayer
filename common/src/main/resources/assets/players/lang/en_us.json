@@ -22,5 +22,12 @@
   "item.players.chunk_anchor": "Chunk Anchor",
   "item.players.chunk_anchor.tooltip.1": "Right-click your fake to install",
   "item.players.chunk_anchor.tooltip.2": "Keeps the area around it loaded",
-  "item.players.chunk_anchor.tooltip.3": "Drops when the fake dies"
+  "item.players.chunk_anchor.tooltip.3": "Drops when the fake dies",
+  "item.players.possession_link": "Possession Link",
+  "item.players.possession_link.tooltip.unbound": "Right-click your fake to link",
+  "item.players.possession_link.tooltip.bound": "Linked to %s",
+  "item.players.possession_link.tooltip.use": "Use in the air to take control",
+  "item.players.possession_link.tooltip.sneak": "Sneak to let go. Costs durability",
+  "hud.players.possession.status": "%s  |  %s/%s hp  |  %s",
+  "hud.players.possession.empty_hand": "empty hand"
 }
