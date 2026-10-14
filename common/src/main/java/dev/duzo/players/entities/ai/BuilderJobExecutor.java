@@ -83,6 +83,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	private boolean stocked;
 	private boolean depositTried;
 	private boolean announced;
+	private boolean announcedUnsupported;
 	private int pathFail;
 	private long nextActionTick;
 	private long nextRenew;
@@ -251,13 +252,13 @@ public class BuilderJobExecutor implements JobExecutor {
 			block(level, entity, "setup", "builder: " + p.schematic() + " has nothing to place", Map.of());
 			return;
 		}
+		// a flag is only set once the line is settled, so a rate-limited line is retried on a later tick
 		if (!announced) {
-			announced = true;
-			FakeSpeech.say(entity, Verbosity.CHATTY, "started", "builder: building " + p.schematic() + ", " + plan.cellCount() + " blocks");
-			if (!plan.unsupported.isEmpty()) {
-				int n = plan.unsupported.values().stream().mapToInt(Integer::intValue).sum();
-				FakeSpeech.say(entity, Verbosity.NORMAL, "unsupported", "builder: cannot place " + n + " blocks of this schematic (fluids, unbreakable or itemless blocks)");
-			}
+			announced = FakeSpeech.settle(entity, Verbosity.CHATTY, "started", "builder: building " + p.schematic() + ", " + plan.cellCount() + " blocks");
+		}
+		if (!announcedUnsupported && !plan.unsupported.isEmpty()) {
+			int n = plan.unsupported.values().stream().mapToInt(Integer::intValue).sum();
+			announcedUnsupported = FakeSpeech.settle(entity, Verbosity.NORMAL, "unsupported", "builder: cannot place " + n + " blocks of this schematic (fluids, unbreakable or itemless blocks)");
 		}
 		dry.clear();
 		pathFail = 0;
@@ -737,8 +738,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		JobHelpers.closeContainer(level, entity);
 		entity.setDisplayItem(ItemStack.EMPTY);
 		if (!alertedDone) {
-			alertedDone = true;
-			FakeSpeech.say(entity, Verbosity.NORMAL, "complete", "builder: build complete");
+			alertedDone = FakeSpeech.settle(entity, Verbosity.NORMAL, "complete", "builder: build complete");
 		}
 		entity.mutateAIState(s -> s.setRunning(false));
 	}

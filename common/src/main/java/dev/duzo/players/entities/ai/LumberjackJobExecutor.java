@@ -181,7 +181,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			for (int i = 0; i < n; i++) targets.add(matches.get(i));
 			phase = Phase.PATHING_TO_BLOCK;
 			pathFailCount = 0;
-			lastBlocker = ""; // making progress again - let the next problem re-announce
+			resumed(entity); // making progress again - let the next problem re-announce
 			return;
 		}
 
@@ -197,7 +197,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			actionStand = null;
 			phase = Phase.BONEMEALING;
 			pathFailCount = 0;
-			lastBlocker = ""; // making progress again - let the next problem re-announce
+			resumed(entity); // making progress again - let the next problem re-announce
 			return;
 		}
 
@@ -206,7 +206,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			actionStand = null;
 			phase = Phase.PLANTING;
 			pathFailCount = 0;
-			lastBlocker = ""; // making progress again - let the next problem re-announce
+			resumed(entity); // making progress again - let the next problem re-announce
 			return;
 		}
 
@@ -455,7 +455,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			return;
 		}
 		pathFailCount = 0;
-		lastBlocker = ""; // making progress again - let the next problem re-announce
+		resumed(entity); // making progress again - let the next problem re-announce
 		phase = Phase.SCANNING;
 	}
 
@@ -862,7 +862,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 	private void waitAtChest(ServerLevel level, FakePlayerEntity entity, int ticks) {
 		phase = Phase.WAITING_AT_CHEST;
 		waitUntilTick = level.getGameTime() + ticks;
-		lastBlocker = "";
+		resumed(entity);
 		entity.getNavigation().stop();
 	}
 
@@ -884,8 +884,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		pathFailCount = 0;
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
 		if (!message.equals(lastBlocker)) { // tell the owner once per distinct problem, not every retry
-			FakeSpeech.say(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry");
-			lastBlocker = message;
+			if (FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry")) lastBlocker = message;
 		}
 		entity.getNavigation().stop();
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
@@ -933,5 +932,11 @@ public class LumberjackJobExecutor implements JobExecutor {
 			this.state = state;
 			this.remaining = remaining;
 		}
+	}
+
+	/** Work is moving again: forget the blocker, and its speech latch so a recurrence is announced. */
+	private void resumed(FakePlayerEntity entity) {
+		FakeSpeech.clearBlocked(entity, lastBlocker);
+		lastBlocker = "";
 	}
 }
