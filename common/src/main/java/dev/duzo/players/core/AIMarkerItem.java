@@ -283,23 +283,23 @@ public class AIMarkerItem extends Item {
 			}
 			case PURPOSE_ANCHOR -> {
 				if (!FPJobs.is(entity.getAIState().jobId(), FPJobs.BUILDER)) {
-					player.displayClientMessage(Component.literal("That fake is not a Builder.").withStyle(ChatFormatting.RED), true);
+					player.sendOverlayMessage(Component.literal("That fake is not a Builder.").withStyle(ChatFormatting.RED));
 					return InteractionResult.FAIL;
 				}
 				BuilderParams params = BuilderParams.read(entity.getAIState());
 				if (params.schematic().isBlank()) {
-					player.displayClientMessage(Component.literal("Name a schematic in the AI menu first.").withStyle(ChatFormatting.RED), true);
+					player.sendOverlayMessage(Component.literal("Name a schematic in the AI menu first.").withStyle(ChatFormatting.RED));
 					return InteractionResult.FAIL;
 				}
 				BuilderParams next = params.withAnchor(pos.relative(ctx.getClickedFace()).immutable(), rotationFor(player.getDirection()));
 				next.write(entity);
-				player.displayClientMessage(Component.literal("Anchor set.").withStyle(ChatFormatting.GREEN), true);
+				player.sendOverlayMessage(Component.literal("Anchor set.").withStyle(ChatFormatting.GREEN));
 				BuildPlan.BuildKey key = new BuildPlan.BuildKey(level.dimension(), next.schematic().trim(), next.anchor(), next.rotation(), next.mirror());
 				SchematicStore.Result<BuildPlan> plan = BuildPlan.get(level, key, player.getName().getString());
 				if (plan.ok()) {
-					for (Component line : BuildReport.lines(plan.value())) player.displayClientMessage(line, false);
+					for (Component line : BuildReport.lines(plan.value())) player.sendSystemMessage(line);
 				} else {
-					player.displayClientMessage(Component.literal(plan.error()).withStyle(ChatFormatting.RED), false);
+					player.sendSystemMessage(Component.literal(plan.error()).withStyle(ChatFormatting.RED));
 				}
 				silentlyConsume(player, stack);
 			}
