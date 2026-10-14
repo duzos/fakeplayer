@@ -44,7 +44,17 @@ public final class TideFishingBridge {
 	}
 
 	/** True for Tide's rods, including the vanilla rod when Tide's overrideVanillaRod swaps its item. */
-	public static boolean isRod(ItemStack rod) { return present() && TideCatches.isRod(rod); }
+	public static boolean isRod(ItemStack rod) {
+		if (!present()) return false;
+		try {
+			return TideCatches.isRod(rod);
+		} catch (RuntimeException | LinkageError ex) {
+			// first call that links TideCatches, so a Tide whose classes moved fails here, not in roll
+			disabled = true;
+			Constants.LOG.warn("Tide rod check threw, disabling Tide support", ex);
+			return false;
+		}
+	}
 
 	/** Null means fall back to the vanilla loot path; an empty list is a no-catch cycle. */
 	public static List<ItemStack> roll(ServerLevel level, ItemStack rod, BlockPos bobber, Vec3 origin,
