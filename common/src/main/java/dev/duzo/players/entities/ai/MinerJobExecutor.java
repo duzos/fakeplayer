@@ -2,6 +2,7 @@ package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.requests.StockReserve;
 import dev.duzo.players.entities.ai.requests.ToolRequest;
 import dev.duzo.players.entities.speech.FakeSpeech;
@@ -233,6 +234,7 @@ public class MinerJobExecutor implements JobExecutor {
 		}
 		if (!canHarvest(entity, state)) {
 			cursor++;
+			entity.reportProblem(FakeProblem.NO_TOOL);
 			FakeSpeech.say(entity, Verbosity.NORMAL, "notool", "miner: skipping block, no correct tool for " + blockName(state));
 			clearActive();
 			return;
@@ -255,7 +257,10 @@ public class MinerJobExecutor implements JobExecutor {
 		ItemStack tool = entity.getMainHandItem();
 		boolean broke = breakIntoInventory(level, entity, activeTarget, state, tool);
 		if (broke && isMiningTool(tool)) tool.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
-		if (broke) cursor++; // else the drops couldn't fit (canHoldKeptDrops) - block still stands, retry this cell
+		if (broke) {
+			entity.clearProblem();
+			cursor++;
+		} // else the drops couldn't fit (canHoldKeptDrops) - block still stands, retry this cell
 		clearActive(level, entity);
 
 		double bps = Math.max(0.5, cfg.minerMaxBlocksPerSecond);
@@ -283,6 +288,7 @@ public class MinerJobExecutor implements JobExecutor {
 			ensurePickaxe(entity);
 			if (!canHarvest(entity, state)) {
 				cursor++;
+				entity.reportProblem(FakeProblem.NO_TOOL);
 				FakeSpeech.say(entity, Verbosity.NORMAL, "notool", "miner: skipping block, no correct tool for " + blockName(state));
 				continue;
 			}
@@ -1062,6 +1068,7 @@ public class MinerJobExecutor implements JobExecutor {
 	}
 
 	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
+		entity.reportProblem(FakeProblem.fromBlocker(message));
 		entity.getNavigation().stop();
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
 		boolean fresh = !waiting || waitMessage == null || !waitMessage.equals(message);
@@ -1074,6 +1081,7 @@ public class MinerJobExecutor implements JobExecutor {
 
 	private void clearWait(FakePlayerEntity entity) {
 		waiting = false;
+		entity.clearProblem();
 		waitUntilTick = 0L;
 		waitMessage = "";
 		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.SITTING) {
