@@ -1,6 +1,7 @@
 package dev.duzo.players.platform;
 
 import dev.duzo.players.platform.services.IPlatformHelper;
+import dev.duzo.players.platform.services.UseCheck;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import dev.duzo.players.entities.possession.PossessionGuard;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -46,10 +47,16 @@ public class FabricPlatformHelper implements IPlatformHelper {
     }
 
     @Override
-    public boolean canUse(ServerLevel level, ServerPlayer player, BlockHitResult hit) {
-        if (!level.mayInteract(player, hit.getBlockPos())) return false;
-        return PossessionGuard.queryBypassed(() ->
-                UseBlockCallback.EVENT.invoker().interact(player, level, InteractionHand.MAIN_HAND, hit) != InteractionResult.FAIL);
+    public UseCheck canUse(ServerLevel level, ServerPlayer player, BlockHitResult hit) {
+        if (!level.mayInteract(player, hit.getBlockPos())) return UseCheck.DENY;
+        // listeners see the possessor's hand, not the fake's
+        InteractionResult[] result = new InteractionResult[1];
+        PossessionGuard.queryBypassed(() -> {
+            result[0] = UseBlockCallback.EVENT.invoker().interact(player, level, InteractionHand.MAIN_HAND, hit);
+            return true;
+        });
+        if (result[0] == InteractionResult.FAIL) return UseCheck.DENY;
+        return result[0] == InteractionResult.PASS ? UseCheck.PROCEED : UseCheck.HANDLED;
     }
 
     @Override
