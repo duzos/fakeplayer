@@ -907,11 +907,13 @@ public class BuilderJobExecutor implements JobExecutor {
 		return !finishing && plan != null && plan.bom.containsKey(stack.getItem());
 	}
 
-	/** A stack that holds nothing: no shulker contents, bundle items, block entity data or loot table. Names and custom data are fine. */
+	/** A stack that holds nothing: no shulker contents, bundle items, block entity data, loot table, bees, pot decorations, banner patterns or skull profile. Names and custom data are fine. */
 	private static boolean plain(ItemStack stack, Item item) {
 		if (!stack.is(item)) return false;
 		return !stack.has(DataComponents.CONTAINER) && !stack.has(DataComponents.BUNDLE_CONTENTS)
-				&& !stack.has(DataComponents.BLOCK_ENTITY_DATA) && !stack.has(DataComponents.CONTAINER_LOOT);
+				&& !stack.has(DataComponents.BLOCK_ENTITY_DATA) && !stack.has(DataComponents.CONTAINER_LOOT)
+				&& !stack.has(DataComponents.BEES) && !stack.has(DataComponents.POT_DECORATIONS)
+				&& !stack.has(DataComponents.BANNER_PATTERNS) && !stack.has(DataComponents.PROFILE);
 	}
 
 	private static int count(SimpleContainer inv, Item item) {
