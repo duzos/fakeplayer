@@ -4,6 +4,7 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.component.SwingAnimation;
 
 import java.util.EnumSet;
 
@@ -60,7 +61,7 @@ public class WatchOwnerGoal extends Goal {
 		this.watchTicks = MIN_WATCH + this.fake.getRandom().nextInt(WATCH_SPREAD);
 		if (this.greet) {
 			this.greet = false;
-			this.fake.swing(InteractionHand.MAIN_HAND);
+			this.fake.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
 		}
 	}
 
