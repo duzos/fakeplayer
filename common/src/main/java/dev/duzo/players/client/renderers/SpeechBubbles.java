@@ -2,6 +2,8 @@ package dev.duzo.players.client.renderers;
 
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.network.chat.Component;
@@ -40,19 +42,38 @@ public final class SpeechBubbles {
 
 	private SpeechBubbles() {}
 
-	/** Fills the bubble fields of the render state. Leaves them empty when this fake should not show one. */
+	/** Fills the bubble and status mark fields of the render state. Leaves them empty when this fake should show neither. */
 	public static void extract(FakePlayerEntity entity, FakePlayerRenderState fake, boolean nameTagAllowed, boolean customNameVisible, double distanceToCameraSq, float partialTick) {
 		fake.bubbleRows = List.of();
 		fake.bubbleAnchor = null;
+		fake.statusMark = null;
 		// hidden wherever vanilla would hide the name tag (F1, invisible, teams, sneaking, 64 blocks)
 		if (!nameTagAllowed) return;
 
-		PlayersConfig config = PlayersConfig.get();
-		if (!prune(entity, config)) return;
+		// vanilla only fills the name tag attachment while the name shows, so it is read here directly
+		Vec3 anchor = entity.getAttachments().getNullable(EntityAttachment.NAME_TAG, 0, entity.getYRot(partialTick));
+		if (anchor == null) return;
+		fake.bubbleAnchor = anchor;
+		// the name tag sits at offset 0, so with a name actually drawn the bubble starts one row above it
+		fake.bubbleBase = customNameVisible ? -LINE_HEIGHT : 0;
 
+		PlayersConfig config = PlayersConfig.get();
+		List<Component> rows = bubbleRows(entity, config, distanceToCameraSq);
+		fake.bubbleRows = rows;
+
+		FakeProblem problem = entity.getProblem();
+		if (problem != FakeProblem.NONE) {
+			fake.statusMark = markFor(problem);
+			// above the name and any bubble
+			fake.markBase = fake.bubbleBase - rows.size() * LINE_HEIGHT;
+		}
+	}
+
+	private static List<Component> bubbleRows(FakePlayerEntity entity, PlayersConfig config, double distanceToCameraSq) {
+		if (!prune(entity, config)) return List.of();
 		double range = config.bubbleRange;
-		if (distanceToCameraSq > range * range) return;
-		if (!isAmongNearestSpeakers(entity, distanceToCameraSq, config)) return;
+		if (distanceToCameraSq > range * range) return List.of();
+		if (!isAmongNearestSpeakers(entity, distanceToCameraSq, config)) return List.of();
 
 		List<FakePlayerEntity.SpeechLine> lines = new ArrayList<>(entity.speechLines());
 		if (lines.size() > config.bubbleMaxLines) lines = lines.subList(lines.size() - config.bubbleMaxLines, lines.size());
@@ -60,16 +81,17 @@ public final class SpeechBubbles {
 		List<Component> rows = new ArrayList<>();
 		for (FakePlayerEntity.SpeechLine line : lines) rows.addAll(wrap(line.text()));
 		if (rows.size() > MAX_ROWS) rows = rows.subList(rows.size() - MAX_ROWS, rows.size());
+		return rows;
+	}
 
-		fake.bubbleRows = rows;
-		// vanilla only fills the name tag attachment while the name shows, so it is read here directly
-		fake.bubbleAnchor = entity.getAttachments().getNullable(EntityAttachment.NAME_TAG, 0, entity.getYRot(partialTick));
-		// the name tag sits at offset 0, so with a name actually drawn the bubble starts one row above it
-		fake.bubbleBase = customNameVisible ? -LINE_HEIGHT : 0;
+	private static Component markFor(FakeProblem problem) {
+		return problem == FakeProblem.STUCK
+			? Component.literal("?").withStyle(ChatFormatting.RED, ChatFormatting.BOLD)
+			: Component.literal("!").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD);
 	}
 
 	public static void render(FakePlayerRenderer renderer, FakePlayerRenderState state, PoseStack pose, MultiBufferSource buffer, int light) {
-		if (state.bubbleAnchor == null || state.bubbleRows.isEmpty()) return;
+		if (state.bubbleAnchor == null) return;
 		// vanilla draws a name tag from this field, which it only fills while the name shows
 		Vec3 previous = state.nameTagAttachment;
 		state.nameTagAttachment = state.bubbleAnchor;
@@ -80,6 +102,11 @@ public final class SpeechBubbles {
 		int last = state.bubbleRows.size() - 1;
 		for (int i = 0; i <= last; i++) {
 			drawRow(renderer, state, state.bubbleRows.get(i), state.bubbleBase - (last - i) * LINE_HEIGHT, pose, buffer, light);
+		}
+		// the mark may be seen through walls, so a fake in trouble can be found
+		if (state.statusMark != null) {
+			state.isDiscrete = false;
+			drawRow(renderer, state, state.statusMark, state.markBase, pose, buffer, light);
 		}
 		state.isDiscrete = wasDiscrete;
 		state.nameTagAttachment = previous;
