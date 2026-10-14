@@ -44,6 +44,10 @@ public class PlayersConfig {
 	public int requestMaxPerQuartermaster = 64;
 	/** Seconds before a shortfalled request is retried against the pool. */
 	public int requestShortfallRetrySeconds = 15;
+	/** Seconds between keep-stocked checks on a fake that has a stock list. */
+	public int requestStockCheckSeconds = 15;
+	/** Seconds a commissioned craft may run before the Quartermaster gives up on it and asks again. */
+	public int requestCraftTimeoutSeconds = 120;
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {
@@ -105,6 +109,8 @@ public class PlayersConfig {
 			INSTANCE.requestMaxPerQuartermaster = 64;
 		}
 		if (INSTANCE.requestShortfallRetrySeconds < 1) INSTANCE.requestShortfallRetrySeconds = 15;
+		if (INSTANCE.requestStockCheckSeconds < 1) INSTANCE.requestStockCheckSeconds = 15;
+		if (INSTANCE.requestCraftTimeoutSeconds < 5) INSTANCE.requestCraftTimeoutSeconds = 120;
 	}
 
 	private static void save(Gson gson) {

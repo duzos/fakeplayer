@@ -7,6 +7,8 @@
 - added modded fishing rod support. thanks to RageQKM for the Aquaculture report and suggestion.
 - added Aquaculture tackle, bait, hook textures and dyed lines on Forge/NeoForge. lava fishing also works with its lava fishing addon and a suitable hook.
 - addons can register jobs and manage item requests through the API.
+- added a Stock box to worker AI menus. set items and amounts, and workers request refills while they work.
+- Crafters can fill requests using materials from storage, including recipes with several steps. this needs a free, bonded Crafter with a marked table.
 
 ## CHANGED
 
