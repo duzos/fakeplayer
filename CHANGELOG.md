@@ -14,6 +14,7 @@
 - a miner with no pickaxe, a lumberjack with no axe, a farmer with no hoe and a fisherman with no rod now request one and carry on once it arrives. it asks for the best tool the storeroom holds, judged on real stats, so modded tools count and worn ones are passed over.
 - a Runner that finds its requester gone now says so once, then still waits out the orphan window.
 - fakes now ride boats, minecarts, Create seats and trains and other mods' seats. seat one with its AI marker, and use stairs on it to get off. a fake at a train's conductor seat runs the train from a schedule.
+- added the Possession Link. link it to your fake, use it in the air to see and act through the fake, and sneak to return.
 
 ## CHANGED
 
