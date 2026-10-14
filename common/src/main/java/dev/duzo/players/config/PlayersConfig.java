@@ -67,8 +67,9 @@ public class PlayersConfig {
 	/** Whether a Possession Link may be used to take control of a fake. False ends every possession in progress. */
 	public boolean possession = true;
 	/** Farthest a possessed fake may be from where the player started, in blocks; going past it ends the possession.
-	 * 0 means no limit, which also allows crossing dimensions. */
-	public int possessionMaxDistance = 0;
+	 * Defaults to 128 so a possessor is never left idle and unprotected far from their own body. 0 means no limit,
+	 * which also allows crossing dimensions. */
+	public int possessionMaxDistance = 128;
 	/** How much fakes say: "off" (only lines a player asked for), "quiet" (plus problems they need to act on) or
 	 * "chatty" (plus progress chatter). Each kind of line is spoken at most once per 30 seconds per fake, and a
 	 * fake speaks at most once per 2 seconds. Lines a player asked for are exempt from both limits. */
