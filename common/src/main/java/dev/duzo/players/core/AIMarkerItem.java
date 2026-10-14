@@ -331,7 +331,7 @@ public class AIMarkerItem extends Item {
 
 	/** Permission level 2 or higher: may manage any fake, whoever owns it. */
 	public static boolean isOp(Player player) {
-		return player instanceof ServerPlayer sp && Commands.LEVEL_GAMEMASTERS.check(sp.permissions());
+		return player instanceof ServerPlayer sp && sp.hasPermissions(Commands.LEVEL_GAMEMASTERS);
 	}
 
 	private static Rotation rotationFor(Direction facing) {
