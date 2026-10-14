@@ -20,7 +20,8 @@ public final class MaterialRules {
 	}
 
 	private static final IntegerProperty[] STACKED = {
-			BlockStateProperties.CANDLES, BlockStateProperties.PICKLES, BlockStateProperties.EGGS, BlockStateProperties.LAYERS
+			BlockStateProperties.CANDLES, BlockStateProperties.PICKLES, BlockStateProperties.EGGS, BlockStateProperties.LAYERS,
+			BlockStateProperties.FLOWER_AMOUNT, BlockStateProperties.SEGMENT_AMOUNT
 	};
 
 	private MaterialRules() {}
