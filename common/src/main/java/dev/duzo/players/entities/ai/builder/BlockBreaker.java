@@ -1,10 +1,10 @@
 package dev.duzo.players.entities.ai.builder;
 
 import dev.duzo.players.entities.FakePlayerEntity;
-import dev.duzo.players.entities.ai.JobHelpers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -76,12 +76,20 @@ public final class BlockBreaker {
 		return speed / hardness / (harvest ? 30.0F : 100.0F);
 	}
 
+	/** Whether every drop fits at once, on a copy, so a block with several drops is not broken for only the first. */
+	private static boolean fitsTogether(SimpleContainer inv, List<ItemStack> drops) {
+		SimpleContainer trial = new SimpleContainer(inv.getContainerSize());
+		for (int i = 0; i < inv.getContainerSize(); i++) trial.setItem(i, inv.getItem(i).copy());
+		for (ItemStack drop : drops) {
+			if (!trial.addItem(drop.copy()).isEmpty()) return false;
+		}
+		return true;
+	}
+
 	private static boolean breakIntoInventory(ServerLevel level, FakePlayerEntity entity, BlockPos pos, BlockState state, ItemStack tool) {
 		BlockEntity blockEntity = state.hasBlockEntity() ? level.getBlockEntity(pos) : null;
 		List<ItemStack> drops = Block.getDrops(state, level, pos, blockEntity, entity, tool);
-		for (ItemStack drop : drops) {
-			if (!JobHelpers.canAccept(entity.getInventory(), drop)) return false;
-		}
+		if (!fitsTogether(entity.getInventory(), drops)) return false;
 		if (!level.destroyBlock(pos, false, entity)) return false;
 		for (ItemStack drop : drops) {
 			ItemStack left = entity.getInventory().addItem(drop.copy());
