@@ -10,6 +10,8 @@ import dev.duzo.players.entities.ai.requests.RecipeGraph;
 import dev.duzo.players.entities.ai.requests.RequestRouting;
 import dev.duzo.players.entities.ai.requests.SenderAlerts;
 import dev.duzo.players.entities.ai.requests.StockReserve;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -546,7 +548,7 @@ public class CrafterJobExecutor implements JobExecutor {
 			pathFails = 0;
 			entity.getNavigation().stop();
 			String message = "crafter: cannot reach " + what;
-			if (!message.equals(lastBlocker)) entity.sendChat(message + " - waiting 15s before retry");
+			if (!message.equals(lastBlocker)) FakeSpeech.say(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry");
 			lastBlocker = message;
 			waitUntil = level.getGameTime() + RETRY_WAIT_TICKS;
 		}

@@ -7,6 +7,8 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.duzo.players.Constants;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -45,7 +47,7 @@ public class SendChatCommand {
 
 	private static void execute(Entity e, String message) {
 		if (e instanceof FakePlayerEntity) {
-			((FakePlayerEntity) e).sendChat(message);
+			FakeSpeech.say((FakePlayerEntity) e, Verbosity.ALWAYS, "command", message);
 		}
 	}
 }

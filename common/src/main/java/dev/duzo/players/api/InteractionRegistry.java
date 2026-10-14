@@ -4,6 +4,8 @@ import dev.duzo.players.core.FPItems;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.menu.FakePlayerMenuProvider;
 import dev.duzo.players.platform.Services;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -102,7 +104,7 @@ public class InteractionRegistry {
 			if (!stack.is(Items.PAPER)) return InteractionResult.FAIL;
 
 			String text = stack.hasCustomHoverName() ? stack.getHoverName().getString() : "Hello World!";
-			entity.sendChat(text);
+			FakeSpeech.say(entity, Verbosity.ALWAYS, "paper", text);
 			playSound(entity, SoundEvents.BOOK_PAGE_TURN);
 			return InteractionResult.SUCCESS;
 		}));
