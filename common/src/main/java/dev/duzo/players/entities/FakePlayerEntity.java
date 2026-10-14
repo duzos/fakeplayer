@@ -81,6 +81,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	// never affects the real MAINHAND equipment slot and does not need to survive a reload
 	private static final EntityDataAccessor<ItemStack> DISPLAY_ITEM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.ITEM_STACK);
 	/** {@code "<gameTime>|<text>"} of the last public line. Not persisted: a bubble is for the moment it was said. */
+	private static final EntityDataAccessor<Byte> STATUS = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BYTE);
 	private static final EntityDataAccessor<String> SPEECH = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
 	// drives the client-side crossbow charging pose; combat state only, never persisted
 	private static final EntityDataAccessor<Boolean> CHARGING_CROSSBOW = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
@@ -160,6 +161,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			jobExecutorJob = job;
 			jobExecutorBound = true;
 			jobActivePrev = false;
+			resetProblem();
 		}
 		if (jobExecutor == null) return;
 		boolean active = state.running() && !jobPaused;
@@ -167,6 +169,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			if (active) jobExecutor.onResume(this);
 			else jobExecutor.onPause(this);
 			jobActivePrev = active;
+			resetProblem();
 		}
 		if (active) {
 			// before the job runs, and outside the executor, so a job keeps stock by declaring the
@@ -603,6 +606,31 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		while (this.speechLines.size() > SPEECH_BUFFER) this.speechLines.removeFirst();
 	}
 
+	/** The problem mark to draw, synced. Never persisted: a job that is still blocked after a reload reports it again. */
+	public FakeProblem getProblem() {
+		return FakeProblem.byId(this.entityData.get(STATUS));
+	}
+
+	/** Server side: something is wrong with the running job. Replaces any earlier problem. */
+	public void reportProblem(FakeProblem problem) {
+		if (this.level().isClientSide()) return;
+		FakeProblem old = this.getProblem();
+		if (old == problem) return;
+		this.entityData.set(STATUS, (byte) problem.ordinal());
+		Constants.traceEvent("status {} {} -> {}", this.getUUID(), old, problem);
+	}
+
+	/** Server side: the job it was blocked on is moving again. Leaves a stuck mark alone, which only progress clears. */
+	public void clearProblem() {
+		FakeProblem old = this.getProblem();
+		if (old != FakeProblem.NONE && old != FakeProblem.STUCK) this.reportProblem(FakeProblem.NONE);
+	}
+
+	/** Server side: the job was stopped, paused or replaced, so no problem carries over. */
+	private void resetProblem() {
+		this.reportProblem(FakeProblem.NONE);
+	}
+
 	/** Server side: show a line above this fake. Callers go through FakeSpeech, which gates and rate limits. */
 	public void speak(String text) {
 		if (this.level().isClientSide()) return;
@@ -620,6 +648,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.entityData.define(AI_STATE, new AIState().toNbt());
 		this.entityData.define(DISPLAY_ITEM, ItemStack.EMPTY);
 		this.entityData.define(SPEECH, "");
+		this.entityData.define(STATUS, (byte) 0);
 		this.entityData.define(CHARGING_CROSSBOW, false);
 	}
 

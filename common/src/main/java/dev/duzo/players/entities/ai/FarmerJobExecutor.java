@@ -1,6 +1,7 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.requests.StockReserve;
 import dev.duzo.players.entities.ai.requests.ToolRequest;
 import dev.duzo.players.entities.speech.FakeSpeech;
@@ -558,6 +559,7 @@ public class FarmerJobExecutor implements JobExecutor {
 	}
 
 	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
+		entity.reportProblem(FakeProblem.fromBlocker(message));
 		pathFailCount = 0;
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
 		entity.getNavigation().stop();
@@ -651,5 +653,6 @@ public class FarmerJobExecutor implements JobExecutor {
 	private void resumed(FakePlayerEntity entity) {
 		FakeSpeech.clearBlocked(entity, lastBlocker);
 		lastBlocker = "";
+		entity.clearProblem();
 	}
 }
