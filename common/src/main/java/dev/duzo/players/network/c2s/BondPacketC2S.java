@@ -21,11 +21,19 @@ public record BondPacketC2S(int id, boolean bond) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-import java.util.UUID;
-
 		if (!(sender.serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
-		entity.mutateAIState(s -> s.setOwnerUUID(ctx.message().bond() ? sender.getUUID() : null));
-		if (!ctx.message().bond()) dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(entity.getUUID());
+		UUID owner = entity.getAIState().ownerUUID();
+		if (ctx.message().bond()) {
+			// a bonded fake has to be unbonded by its owner first
+			if (owner != null && !owner.equals(sender.getUUID())) return;
+			entity.mutateAIState(s -> s.setOwnerUUID(sender.getUUID()));
+			return;
+		}
+		if (owner == null || !owner.equals(sender.getUUID())) return;
+		// needs the owner still on the fake, to find its requests
+		dev.duzo.players.entities.ai.BuilderJobExecutor.cancelOutstanding(entity);
+		entity.mutateAIState(s -> s.setOwnerUUID(null));
+		dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(entity.getUUID());
 	}
 
 	public void encode(FriendlyByteBuf buf) {
