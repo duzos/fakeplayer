@@ -5,7 +5,6 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.village.poi.PoiManager;
 import net.minecraft.world.entity.ai.village.poi.PoiTypes;
@@ -131,7 +130,7 @@ public class SleepInBedGoal extends Goal {
 	}
 
 	public static boolean dark(ServerLevel level, FakePlayerEntity fake) {
-		return level.environmentAttributes().getValue(EnvironmentAttributes.BED_RULE, fake.position()).canSleep(level);
+		return level.dimensionType().bedWorks() && level.isDarkOutside();
 	}
 
 	private BlockPos findBed(ServerLevel level) {
@@ -154,9 +153,8 @@ public class SleepInBedGoal extends Goal {
 		for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
 			ServerPlayer.RespawnConfig config = player.getRespawnConfig();
 			if (config == null) continue;
-			var spawn = config.respawnData().globalPos();
-			if (spawn.dimension() != level.dimension()) continue;
-			if (spawn.pos().equals(head) || spawn.pos().equals(foot)) return true;
+			if (config.dimension() != level.dimension()) continue;
+			if (config.pos().equals(head) || config.pos().equals(foot)) return true;
 		}
 		return false;
 	}

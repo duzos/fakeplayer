@@ -165,7 +165,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	public void setBedClaim(BlockPos pos) {
 		this.bedClaim = pos.immutable();
-		this.bedClaimDim = this.level().dimension().identifier().toString();
+		this.bedClaimDim = this.level().dimension().location().toString();
 	}
 
 	/** True once, if the last bed sleep ended because the fake took damage. Reading it clears it. */
@@ -643,7 +643,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.bedClaim = input.read("BedClaim", BlockPos.CODEC).orElse(null);
 		this.bedClaimDim = input.getStringOr("BedClaimDim", "");
 		// a claim copied across by a dimension change names a bed in the other dimension; the original releases it
-		if (this.bedClaim != null && !this.bedClaimDim.equals(this.level().dimension().identifier().toString())) {
+		if (this.bedClaim != null && !this.bedClaimDim.equals(this.level().dimension().location().toString())) {
 			this.bedClaim = null;
 		}
 		this.bedReconciled = false;
