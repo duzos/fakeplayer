@@ -443,6 +443,7 @@ public class BuilderJobExecutor implements JobExecutor {
 				case PLACED -> {
 					cursor++;
 					passProgress = true;
+					entity.markProgress();
 					settle(level, entity);
 					return;
 				}
@@ -593,6 +594,7 @@ public class BuilderJobExecutor implements JobExecutor {
 				return Step.WAIT;
 			case BROKEN:
 				passProgress = true;
+				entity.markProgress();
 				nextActionTick = now + Math.max(1, PlayersConfig.get().builderPlaceTicks);
 				return Step.WAIT;
 			case FULL:
