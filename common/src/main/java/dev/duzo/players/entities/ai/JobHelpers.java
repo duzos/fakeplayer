@@ -270,9 +270,11 @@ public final class JobHelpers {
 			ItemStack peek = src.getItem(slot);
 			if (peek.isEmpty()) break;
 			int ask = Math.min(amount - got, roomFor(inv, peek));
+			// a vanilla container hands back its live stack, so describe it before extraction shrinks it
+			String before = Constants.TRACE ? peek.toString() : "";
 			ItemStack taken = extract(src, slot, ask);
 			Constants.traceEvent("withdraw from {} slot {} peek {} ask {} took {}",
-					src.getClass().getSimpleName(), slot, peek, ask, taken);
+					src.getClass().getSimpleName(), slot, before, ask, taken);
 			if (taken.isEmpty()) break;
 			int count = taken.getCount();
 			ItemStack leftover = inv.addItem(taken);
