@@ -105,9 +105,7 @@ public class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlaye
 	}
 
 	private static boolean shiftHeld() {
-		var window = Minecraft.getInstance().getWindow();
-		return InputConstants.isKeyDown(window, InputConstants.KEY_LSHIFT)
-				|| InputConstants.isKeyDown(window, 344);
+		return Minecraft.getInstance().hasShiftDown();
 	}
 
 	private void refreshTooltipsIfShiftChanged() {

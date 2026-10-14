@@ -20,9 +20,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
+import org.lwjgl.sdl.SDLDialog;
+import org.lwjgl.sdl.SDL_DialogFileCallback;
+import org.lwjgl.sdl.SDL_DialogFileFilter;
+import org.lwjgl.system.MemoryUtil;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -102,9 +103,7 @@ public class SkinSelectScreen extends Screen {
 	}
 
 	private static boolean shiftHeld() {
-		var window = Minecraft.getInstance().getWindow();
-		return InputConstants.isKeyDown(window, InputConstants.KEY_LSHIFT)
-				|| InputConstants.isKeyDown(window, 344);
+		return Minecraft.getInstance().hasShiftDown();
 	}
 
 	private void applyTooltips() {
@@ -211,19 +210,35 @@ public class SkinSelectScreen extends Screen {
 		this.updateSelectedSkin();
 	}
 
+	// 26.3 dropped tinyfd for SDL3, whose dialog is asynchronous and may call back off the render
+	// thread. The filter and callback have to outlive the call, so both are freed in the callback.
 	private void uploadSkin() {
-		String picked;
-		try (MemoryStack stack = MemoryStack.stackPush()) {
-			PointerBuffer filters = stack.mallocPointer(1);
-			filters.put(stack.UTF8("*.png"));
-			filters.flip();
-			picked = TinyFileDialogs.tinyfd_openFileDialog("Select skin PNG", null, filters, "PNG image", false);
+		SDL_DialogFileFilter.Buffer filters = SDL_DialogFileFilter.calloc(1);
+		filters.get(0).name(MemoryUtil.memUTF8("PNG image")).pattern(MemoryUtil.memUTF8("png"));
+		SDL_DialogFileCallback[] holder = new SDL_DialogFileCallback[1];
+		holder[0] = SDL_DialogFileCallback.create((userdata, filelist, filter) -> {
+			String picked = filelist == 0L || MemoryUtil.memGetAddress(filelist) == 0L
+					? null
+					: MemoryUtil.memUTF8(MemoryUtil.memGetAddress(filelist));
+			boolean failed = filelist == 0L;
+			MemoryUtil.memFree(filters.get(0).name());
+			MemoryUtil.memFree(filters.get(0).pattern());
+			filters.free();
+			holder[0].free();
+			Minecraft.getInstance().execute(() -> {
+				if (failed) setUploadStatus("error opening file picker");
+				else if (picked != null) uploadPicked(picked);
+			});
+		});
+		try {
+			SDLDialog.SDL_ShowOpenFileDialog(holder[0], 0L, Minecraft.getInstance().getWindow().handle(), filters, (CharSequence) null, false);
 		} catch (Exception e) {
 			Constants.LOG.error("File picker failed", e);
 			setUploadStatus("error opening file picker");
-			return;
 		}
-		if (picked == null) return;
+	}
+
+	private void uploadPicked(String picked) {
 		try {
 			Path path = Paths.get(picked);
 			byte[] bytes = Files.readAllBytes(path);

@@ -7,12 +7,12 @@ import dev.duzo.players.network.c2s.OpenFakeMenuPacketC2S;
 import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.api.CustomBindTracker;
 import net.minecraft.client.KeyMapping;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * The open-menu keybind. Unbound by default, in which case sneak + right-click keeps working as it always
@@ -23,7 +23,7 @@ public class FPKeybinds {
 	public static final String OPEN_MENU_KEY = "key.players.open_menu";
 
 	public static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(PlayersCommon.id("main"));
-	public static final KeyMapping OPEN_MENU = new KeyMapping(OPEN_MENU_KEY, GLFW.GLFW_KEY_UNKNOWN, CATEGORY);
+	public static final KeyMapping OPEN_MENU = new KeyMapping(OPEN_MENU_KEY, InputConstants.UNKNOWN.getValue(), CATEGORY);
 
 	private static Boolean lastSentBound;
 	private static LocalPlayer lastSentFor;
