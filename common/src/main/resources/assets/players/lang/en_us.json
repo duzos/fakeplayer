@@ -20,5 +20,7 @@
   "players.upload.error.format": "File is not a valid PNG.",
   "players.upload.error.empty": "Skin file is empty.",
   "item.players.chunk_anchor": "Chunk Anchor",
-  "item.players.chunk_anchor.tooltip": "Right-click your fake to install. Keeps the area around it loaded. Drops when the fake dies."
+  "item.players.chunk_anchor.tooltip.1": "Right-click your fake to install",
+  "item.players.chunk_anchor.tooltip.2": "Keeps the area around it loaded",
+  "item.players.chunk_anchor.tooltip.3": "Drops when the fake dies"
 }
