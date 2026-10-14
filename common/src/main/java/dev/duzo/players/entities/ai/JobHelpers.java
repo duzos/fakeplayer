@@ -124,7 +124,9 @@ public final class JobHelpers {
 			return WalkResult.ARRIVED;
 		}
 		if (!e.getNavigation().isDone()) return WalkResult.MOVING;
-		return moveToChecked(e, dest.getX() + 0.5, dest.getY(), dest.getZ() + 0.5, speed) ? WalkResult.MOVING : WalkResult.UNREACHABLE;
+		WalkResult result = moveToChecked(e, dest.getX() + 0.5, dest.getY(), dest.getZ() + 0.5, speed) ? WalkResult.MOVING : WalkResult.UNREACHABLE;
+		Constants.trace(e.getUUID() + "/walk/result", "{} path to {} from {}: {}", e.getName().getString(), dest, e.blockPosition(), result);
+		return result;
 	}
 
 	/**
@@ -157,8 +159,9 @@ public final class JobHelpers {
 	 * multi-leg travel beyond FOLLOW_RANGE work at all - so it's always followed. Real unreachability is instead
 	 * caught by tracking distance-to-destination across completed legs: once a leg finishes without closing at
 	 * least {@link #MIN_LEG_PROGRESS} blocks, {@link #STALE_LEG_LIMIT} times in a row for the same destination,
-	 * this reports failure instead of computing yet another going-nowhere path, and keeps reporting it without
-	 * searching again until {@link #FAIL_COOLDOWN_TICKS} have passed.
+	 * this reports failure once instead of computing yet another going-nowhere path, then waits
+	 * {@link #FAIL_COOLDOWN_TICKS} before searching again. The wait itself reports true, so each search that
+	 * actually fails counts once.
 	 */
 	public static boolean moveToChecked(FakePlayerEntity e, double x, double y, double z, double speed) {
 		BlockPos dest = BlockPos.containing(x, y, z);
@@ -167,7 +170,9 @@ public final class JobHelpers {
 		long now = e.level().getGameTime();
 		Long retryAfter = RETRY_AFTER.get(e.getUUID());
 		if (retryAfter != null) {
-			if (now < retryAfter) return false;
+			// Waiting out the cooldown after a failed path is not a fresh failure. Every caller counts
+			// false results, so reporting one per tick here spent a whole failure budget on one null path.
+			if (now < retryAfter) return true;
 			RETRY_AFTER.remove(e.getUUID());
 		}
 
@@ -264,7 +269,10 @@ public final class JobHelpers {
 		while (got < amount) {
 			ItemStack peek = src.getItem(slot);
 			if (peek.isEmpty()) break;
-			ItemStack taken = extract(src, slot, Math.min(amount - got, roomFor(inv, peek)));
+			int ask = Math.min(amount - got, roomFor(inv, peek));
+			ItemStack taken = extract(src, slot, ask);
+			Constants.traceEvent("withdraw from {} slot {} peek {} ask {} took {}",
+					src.getClass().getSimpleName(), slot, peek, ask, taken);
 			if (taken.isEmpty()) break;
 			int count = taken.getCount();
 			ItemStack leftover = inv.addItem(taken);
