@@ -58,7 +58,7 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 
 		if (state instanceof FakePlayerRenderState fake) {
 			fake.skinTexture = entity.getSkin();
-			fake.isSitting = entity.isSitting();
+			fake.isSitting = entity.isSitting() && !entity.isPassenger(); // riding wins over the sitting offset
 			fake.slim = entity.isSlim();
 			// vanilla extraction has set nameTag by now using every name tag rule except the custom-name-visible
 			// one, which the fake adds below, so a non-null tag is exactly "a name tag could be drawn here"
@@ -66,7 +66,7 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 			state.skin = new PlayerSkin(fake.skinTexture, null, null, null,
 				fake.slim ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE, false);
 		}
-		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING || entity.isBedSleeping()) {
+		if (!entity.isPassenger() && (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING || entity.isBedSleeping())) {
 			state.pose = Pose.SLEEPING;
 			net.minecraft.core.Direction bed = entity.getBedOrientation();
 			state.bedOrientation = bed != null ? bed : entity.getDirection();
