@@ -273,7 +273,10 @@ public class FishermanJobExecutor implements JobExecutor {
 			entity.swing(InteractionHand.MAIN_HAND);
 			List<ItemStack> drops = river.finish(level, entity, held);
 			for (ItemStack drop : drops) flingCatch(level, entity, activeHook.position(), drop);
-			if (!drops.isEmpty()) caught++;
+			if (!drops.isEmpty()) {
+				caught++;
+				entity.markProgress();
+			}
 			clearHook();
 			if ((caught >= DEPOSIT_EVERY || held.isEmpty()) && deposit != null) {
 				caught = 0;
