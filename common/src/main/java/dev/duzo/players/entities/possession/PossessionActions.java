@@ -225,7 +225,12 @@ final class PossessionActions {
 			Constants.LOG.warn("possession use failed for {} at {}", fake.getUUID(), pos, e);
 			return;
 		}
-		if (result.consumesAction()) fake.swing(InteractionHand.MAIN_HAND);
+		if (result.consumesAction()) {
+			fake.swing(InteractionHand.MAIN_HAND);
+			// the context has no player, so the item skipped its own wear
+			ItemStack worn = fake.getMainHandItem();
+			if (!(worn.getItem() instanceof BlockItem) && worn.isDamageableItem()) worn.hurtAndBreak(1, fake, EquipmentSlot.MAINHAND);
+		}
 		Constants.traceEvent("possession use {} at {} face={} -> {}", fake.getUUID(), pos.toShortString(), direction, result);
 	}
 
