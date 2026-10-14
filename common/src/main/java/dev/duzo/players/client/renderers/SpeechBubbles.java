@@ -41,9 +41,11 @@ public final class SpeechBubbles {
 	private SpeechBubbles() {}
 
 	/** Fills the bubble fields of the render state. Leaves them empty when this fake should not show one. */
-	public static void extract(FakePlayerEntity entity, FakePlayerRenderState fake, double distanceToCameraSq, boolean nameShown, float partialTick) {
+	public static void extract(FakePlayerEntity entity, FakePlayerRenderState fake, boolean nameTagAllowed, boolean customNameVisible, double distanceToCameraSq, float partialTick) {
 		fake.bubbleRows = List.of();
 		fake.bubbleAnchor = null;
+		// hidden wherever vanilla would hide the name tag (F1, invisible, teams, sneaking, 64 blocks)
+		if (!nameTagAllowed) return;
 
 		PlayersConfig config = PlayersConfig.get();
 		if (!prune(entity, config)) return;
@@ -62,8 +64,8 @@ public final class SpeechBubbles {
 		fake.bubbleRows = rows;
 		// vanilla only fills the name tag attachment while the name shows, so it is read here directly
 		fake.bubbleAnchor = entity.getAttachments().getNullable(EntityAttachment.NAME_TAG, 0, entity.getYRot(partialTick));
-		// the name tag sits at offset 0, so with a name showing the bubble starts one row above it
-		fake.bubbleBase = nameShown ? -LINE_HEIGHT : 0;
+		// the name tag sits at offset 0, so with a name actually drawn the bubble starts one row above it
+		fake.bubbleBase = customNameVisible ? -LINE_HEIGHT : 0;
 	}
 
 	public static void render(FakePlayerRenderer renderer, FakePlayerRenderState state, PoseStack pose, MultiBufferSource buffer, int light) {
@@ -71,10 +73,15 @@ public final class SpeechBubbles {
 		// vanilla draws a name tag from this field, which it only fills while the name shows
 		Vec3 previous = state.nameTagAttachment;
 		state.nameTagAttachment = state.bubbleAnchor;
+		// not see-through, unlike a name tag: speech should not read through walls. Discrete is the
+		// name tag path that skips the see-through pass.
+		boolean wasDiscrete = state.isDiscrete;
+		state.isDiscrete = true;
 		int last = state.bubbleRows.size() - 1;
 		for (int i = 0; i <= last; i++) {
 			drawRow(renderer, state, state.bubbleRows.get(i), state.bubbleBase - (last - i) * LINE_HEIGHT, pose, buffer, light);
 		}
+		state.isDiscrete = wasDiscrete;
 		state.nameTagAttachment = previous;
 	}
 
@@ -99,13 +106,21 @@ public final class SpeechBubbles {
 	private static boolean isAmongNearestSpeakers(FakePlayerEntity entity, double distanceSq, PlayersConfig config) {
 		double reach = config.bubbleRange * 2.0;
 		var dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
+		long now = entity.level().getGameTime();
+		long maxAge = (long) (config.bubbleSeconds * 20.0);
 		int closer = 0;
 		for (FakePlayerEntity other : entity.level().getEntitiesOfClass(FakePlayerEntity.class, entity.getBoundingBox().inflate(reach))) {
-			if (other == entity || other.speechLines().isEmpty()) continue;
+			if (other == entity || !hasLiveLine(other, now, maxAge)) continue;
 			double d = dispatcher.distanceToSqr(other);
 			if (d < distanceSq || (d == distanceSq && other.getId() < entity.getId())) closer++;
 		}
 		return closer < config.bubbleMaxSpeakers;
+	}
+
+	/** An expired newest line means nothing is showing, even if prune has not run for that fake yet. */
+	private static boolean hasLiveLine(FakePlayerEntity other, long now, long maxAge) {
+		FakePlayerEntity.SpeechLine newest = other.speechLines().peekLast();
+		return newest != null && now - newest.tick() <= maxAge;
 	}
 
 	private static List<Component> wrap(String text) {
