@@ -2,7 +2,7 @@ package dev.duzo.players.platform;
 
 import dev.duzo.players.platform.services.IPlatformHelper;
 import dev.duzo.players.platform.services.UseCheck;
-import net.minecraft.util.TriState;
+import net.neoforged.neoforge.common.util.TriState;
 import dev.duzo.players.entities.possession.PossessionGuard;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;

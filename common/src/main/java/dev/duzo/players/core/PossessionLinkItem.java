@@ -16,12 +16,11 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.UUID;
-import java.util.function.Consumer;
+import java.util.List;
 
 /**
  * Right-click one of your fakes to bind it, then use it in the air to take control of that fake from anywhere it is loaded.
@@ -42,7 +41,8 @@ public class PossessionLinkItem extends Item {
 	public static UUID boundFake(ItemStack stack) {
 		CompoundTag tag = read(stack);
 		if (tag == null) return null;
-		return tag.getIntArray(TAG_FAKE).filter(arr -> arr.length == 4).map(UUIDUtil::uuidFromIntArray).orElse(null);
+		int[] arr = tag.getIntArray(TAG_FAKE);
+		return arr.length == 4 ? UUIDUtil.uuidFromIntArray(arr) : null;
 	}
 
 	public static void bind(ItemStack stack, FakePlayerEntity fake) {
@@ -56,7 +56,7 @@ public class PossessionLinkItem extends Item {
 	@Nullable
 	public static PossessionReturn readReturn(ItemStack stack) {
 		CompoundTag tag = read(stack);
-		return tag == null ? null : PossessionReturn.fromTag(tag.getCompoundOrEmpty(TAG_RETURN));
+		return tag == null || !tag.contains(TAG_RETURN) ? null : PossessionReturn.fromTag(tag.getCompound(TAG_RETURN));
 	}
 
 	public static void writeReturn(ItemStack stack, PossessionReturn record) {
@@ -92,15 +92,15 @@ public class PossessionLinkItem extends Item {
 	}
 
 	@Override
-	public void appendHoverText(ItemStack stack, Item.TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag flag) {
+	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
 		CompoundTag tag = read(stack);
-		String name = tag == null ? "" : tag.getStringOr(TAG_NAME, "");
+		String name = tag == null ? "" : tag.getString(TAG_NAME);
 		if (boundFake(stack) == null) {
-			tooltip.accept(Component.translatable("item.players.possession_link.tooltip.unbound").withStyle(ChatFormatting.GRAY));
+			tooltip.add(Component.translatable("item.players.possession_link.tooltip.unbound").withStyle(ChatFormatting.GRAY));
 		} else {
-			tooltip.accept(Component.translatable("item.players.possession_link.tooltip.bound", name).withStyle(ChatFormatting.AQUA));
-			tooltip.accept(Component.translatable("item.players.possession_link.tooltip.use").withStyle(ChatFormatting.GRAY));
+			tooltip.add(Component.translatable("item.players.possession_link.tooltip.bound", name).withStyle(ChatFormatting.AQUA));
+			tooltip.add(Component.translatable("item.players.possession_link.tooltip.use").withStyle(ChatFormatting.GRAY));
 		}
-		tooltip.accept(Component.translatable("item.players.possession_link.tooltip.sneak").withStyle(ChatFormatting.GRAY));
+		tooltip.add(Component.translatable("item.players.possession_link.tooltip.sneak").withStyle(ChatFormatting.GRAY));
 	}
 }
