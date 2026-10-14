@@ -3,6 +3,7 @@ package dev.duzo.players.entities.ai;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.requests.Commission;
 import dev.duzo.players.entities.ai.requests.CraftPlan;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
@@ -549,6 +550,7 @@ public class CrafterJobExecutor implements JobExecutor {
 			pathFails = 0;
 			entity.getNavigation().stop();
 			String message = "crafter: cannot reach " + what;
+			entity.reportProblem(FakeProblem.BLOCKED);
 			if (!message.equals(lastBlocker) && FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry")) lastBlocker = message;
 			waitUntil = level.getGameTime() + RETRY_WAIT_TICKS;
 		}
@@ -692,5 +694,6 @@ public class CrafterJobExecutor implements JobExecutor {
 	private void resumed(FakePlayerEntity entity) {
 		FakeSpeech.clearBlocked(entity, lastBlocker);
 		lastBlocker = "";
+		entity.clearProblem();
 	}
 }

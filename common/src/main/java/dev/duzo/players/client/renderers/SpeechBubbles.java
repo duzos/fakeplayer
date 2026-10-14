@@ -3,6 +3,8 @@ package dev.duzo.players.client.renderers;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -41,7 +43,7 @@ public final class SpeechBubbles {
 
 	private SpeechBubbles() {}
 
-	/** Draws the bubble above the fake. Draws nothing when this fake should not show one. */
+	/** Draws the bubble and status mark above the fake. Draws nothing when this fake should show neither. */
 	public static void render(FakePlayerEntity entity, boolean nameTagAllowed, boolean customNameVisible, PoseStack pose, MultiBufferSource buffer,
 							  int light, EntityRenderDispatcher dispatcher, Font font, float partialTick) {
 		// hidden wherever vanilla would hide the name tag (F1, invisible, teams, sneaking, 64 blocks)
@@ -49,7 +51,6 @@ public final class SpeechBubbles {
 
 		PlayersConfig config = PlayersConfig.get();
 		List<Component> rows = bubbleRows(entity, config, dispatcher.distanceToSqr(entity), dispatcher);
-		if (rows.isEmpty()) return;
 
 		// the name tag sits at level 0, so with a name actually drawn the bubble starts one row above it
 		int base = customNameVisible ? 1 : 0;
@@ -58,6 +59,17 @@ public final class SpeechBubbles {
 			// not see-through, unlike a name tag: speech should not read through walls
 			drawRow(entity, rows.get(i), base + (last - i), false, pose, buffer, light, dispatcher, font, partialTick);
 		}
+		// the mark may be seen through walls, so a fake in trouble can be found; above the name and any bubble
+		FakeProblem problem = entity.getProblem();
+		if (problem != FakeProblem.NONE) {
+			drawRow(entity, markFor(problem), base + rows.size(), true, pose, buffer, light, dispatcher, font, partialTick);
+		}
+	}
+
+	private static Component markFor(FakeProblem problem) {
+		return problem == FakeProblem.STUCK
+			? Component.literal("?").withStyle(ChatFormatting.RED, ChatFormatting.BOLD)
+			: Component.literal("!").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD);
 	}
 
 	private static void drawRow(FakePlayerEntity entity, Component text, int level, boolean seeThrough, PoseStack pose,
