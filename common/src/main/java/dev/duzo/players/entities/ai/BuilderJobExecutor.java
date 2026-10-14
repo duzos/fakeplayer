@@ -562,7 +562,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	private enum Reach { READY, MOVING, UNREACHABLE }
 
 	private Reach reach(ServerLevel level, FakePlayerEntity entity, BlockPos pos, @Nullable BlockState placing, long now) {
-		Vec3 center = pos.getCenter();
+		Vec3 center = Vec3.atCenterOf(pos);
 		boolean inReach = entity.getEyePosition().distanceToSqr(center) <= REACH * REACH;
 		boolean overlaps = placing != null && overlapsSelf(level, entity, pos, placing);
 		if (inReach && !overlaps) {
@@ -604,7 +604,7 @@ public class BuilderJobExecutor implements JobExecutor {
 	}
 
 	private @Nullable BlockPos findStand(ServerLevel level, FakePlayerEntity entity, BlockPos pos) {
-		Vec3 center = pos.getCenter();
+		Vec3 center = Vec3.atCenterOf(pos);
 		double eye = entity.getEyeHeight();
 		BlockPos best = null;
 		double bestDist = Double.MAX_VALUE;

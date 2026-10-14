@@ -3,8 +3,11 @@ package dev.duzo.players.entities.ai.builder;
 import dev.duzo.players.Constants;
 import dev.duzo.players.config.PlayersConfig;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.Vec3i;
@@ -114,7 +117,11 @@ public final class SchematicStore {
 		try {
 			if (Files.size(file) > MAX_FILE_BYTES) return Result.fail("schematic file too large: " + name);
 			CompoundTag tag = NbtIo.readCompressed(file, NbtAccounter.create(MAX_NBT_BYTES));
-			return checkSize(level.getStructureManager().readStructure(tag), name);
+			StructureTemplate template = new StructureTemplate();
+			int version = NbtUtils.getDataVersion(tag, 500);
+			template.load(level.registryAccess().lookupOrThrow(Registries.BLOCK),
+					DataFixTypes.STRUCTURE.updateToCurrentVersion(level.getServer().getFixerUpper(), tag, version));
+			return checkSize(template, name);
 		} catch (IOException | RuntimeException e) {
 			Constants.LOG.warn("could not read schematic {}", file, e);
 			return Result.fail("could not read schematic: " + name);
