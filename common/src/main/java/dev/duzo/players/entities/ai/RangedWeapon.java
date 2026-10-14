@@ -1,5 +1,6 @@
 package dev.duzo.players.entities.ai;
 
+import dev.duzo.players.compat.TaczGunBridge;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.BowItem;
@@ -19,7 +20,9 @@ import java.util.function.Predicate;
 public enum RangedWeapon {
 	BOW,
 	CROSSBOW,
-	TRIDENT;
+	TRIDENT,
+	/** A TACZ gun. Only ever matched when TACZ is installed and a supported version. */
+	GUN;
 
 	@Nullable
 	public static RangedWeapon of(ItemStack stack) {
@@ -30,6 +33,7 @@ public enum RangedWeapon {
 		// the offhand. A modded crossbow would charge, eat an arrow and never fire.
 		if (stack.is(Items.CROSSBOW)) return CROSSBOW;
 		if (stack.getItem() instanceof TridentItem) return TRIDENT;
+		if (TaczGunBridge.isGun(stack)) return GUN;
 		return null;
 	}
 

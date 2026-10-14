@@ -29,7 +29,7 @@ public final class TideFishingBridge {
 		return supported;
 	}
 
-	private static boolean atLeast(String version, int[] min) {
+	static boolean atLeast(String version, int[] min) {
 		String[] parts = version.split("[^0-9]+");
 		int idx = 0;
 		for (int need : min) {
