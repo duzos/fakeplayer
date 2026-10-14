@@ -68,7 +68,7 @@ public class FakeRangedAttackGoal extends Goal {
 
 	@Override
 	public boolean canContinueToUse() {
-		return (this.canUse() || !this.mob.getNavigation().isDone()) && this.mob.getUsableRangedWeapon() != null;
+		return !this.mob.isRiding() && (this.canUse() || !this.mob.getNavigation().isDone()) && this.mob.getUsableRangedWeapon() != null;
 	}
 
 	@Override
