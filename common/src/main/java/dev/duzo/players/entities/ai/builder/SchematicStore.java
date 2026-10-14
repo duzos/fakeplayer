@@ -21,7 +21,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 /** Name to template, server side. Names come from clients, so nothing here may leave its search roots. */
 public final class SchematicStore {
@@ -50,10 +49,10 @@ public final class SchematicStore {
 	private SchematicStore() {}
 
 	/**
-	 * Search order: the Create folder, the uploads of `owner` (every uploader when null), the mod's own config
-	 * folder, then a namespaced id through the structure manager.
+	 * Search order: the Create folder, the uploads of `uploader` (none when null or empty), the mod's own config
+	 * folder, then a namespaced id through the structure manager. Other players' upload folders are never searched.
 	 */
-	static Result<StructureTemplate> load(ServerLevel level, String name, @Nullable String owner) {
+	static Result<StructureTemplate> load(ServerLevel level, String name, @Nullable String uploader) {
 		if (name == null) return Result.fail("no schematic set");
 		String n = name.trim();
 		if (n.endsWith(".nbt")) n = n.substring(0, n.length() - 4);
@@ -72,8 +71,7 @@ public final class SchematicStore {
 
 		List<Path> roots = new ArrayList<>();
 		roots.add(CREATE_ROOT);
-		if (owner != null && isPlainName(owner)) roots.add(UPLOAD_ROOT.resolve(owner));
-		else if (owner == null) roots.addAll(uploadDirs());
+		if (uploader != null && isPlainName(uploader)) roots.add(UPLOAD_ROOT.resolve(uploader));
 		roots.add(CONFIG_ROOT);
 		for (Path root : roots) {
 			Path file = resolve(root, n + ".nbt");
@@ -86,17 +84,6 @@ public final class SchematicStore {
 	private static boolean isPlainName(String s) {
 		return !s.isEmpty() && s.length() <= MAX_NAME && s.indexOf('/') < 0 && s.indexOf('\\') < 0
 				&& s.indexOf(':') < 0 && !s.contains("..") && !s.startsWith(".");
-	}
-
-	private static List<Path> uploadDirs() {
-		List<Path> out = new ArrayList<>();
-		if (!Files.isDirectory(UPLOAD_ROOT)) return out;
-		try (Stream<Path> s = Files.list(UPLOAD_ROOT)) {
-			s.filter(Files::isDirectory).sorted().forEach(out::add);
-		} catch (IOException e) {
-			Constants.LOG.warn("could not list {}", UPLOAD_ROOT, e);
-		}
-		return out;
 	}
 
 	/** The real path of `child` under `root`, or null when it is missing or resolves outside the root. */
