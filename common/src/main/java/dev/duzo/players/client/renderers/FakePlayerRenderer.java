@@ -51,10 +51,10 @@ public class FakePlayerRenderer extends LivingEntityRenderer<FakePlayerEntity, P
 		super.extractRenderState(entity, state, partialTick);
 		if (state instanceof FakePlayerRenderState fake) {
 			fake.skinTexture = entity.getSkin();
-			fake.isSitting = entity.isSitting();
+			fake.isSitting = entity.isSitting() && !entity.isPassenger(); // riding wins over the sitting offset
 			fake.slim = entity.isSlim();
 		}
-		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING || entity.isBedSleeping()) {
+		if (!entity.isPassenger() && (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING || entity.isBedSleeping())) {
 			state.pose = Pose.SLEEPING;
 			net.minecraft.core.Direction bed = entity.getBedOrientation();
 			state.bedOrientation = bed != null ? bed : entity.getDirection();
