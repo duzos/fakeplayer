@@ -27,7 +27,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 
@@ -1002,13 +1001,13 @@ public class MinerJobExecutor implements JobExecutor {
 				if (move <= 0) continue;
 				ItemStack moving = stack.copy();
 				moving.setCount(move);
-				ItemStack remaining = HopperBlockEntity.addItem(null, chest, moving, null);
+				ItemStack remaining = JobHelpers.insert(chest, moving);
 				int moved = move - remaining.getCount();
 				if (moved > 0) stack.shrink(moved);
 				if (stack.isEmpty()) inv.setItem(i, ItemStack.EMPTY);
 				continue;
 			}
-			ItemStack remaining = HopperBlockEntity.addItem(null, chest, stack, null);
+			ItemStack remaining = JobHelpers.insert(chest, stack);
 			inv.setItem(i, remaining.isEmpty() ? ItemStack.EMPTY : remaining);
 		}
 		chest.setChanged();
@@ -1024,13 +1023,9 @@ public class MinerJobExecutor implements JobExecutor {
 			ItemStack stack = chest.getItem(i);
 			if (stack.isEmpty()) continue;
 			if (!shouldTakeFromDeposit(entity, stack)) continue;
-			ItemStack moved = stack.copy();
-			ItemStack leftover = inv.addItem(moved);
-			int taken = moved.getCount() - leftover.getCount();
-			if (taken > 0) chest.removeItem(i, taken);
+			JobHelpers.withdrawInto(chest, i, stack.getCount(), inv);
 			if (inventoryFull(entity)) break;
 		}
-		chest.setChanged();
 	}
 
 	private boolean shouldTakeFromDeposit(FakePlayerEntity entity, ItemStack stack) {
@@ -1053,10 +1048,14 @@ public class MinerJobExecutor implements JobExecutor {
 			if (speed > bestSpeed) { bestSpeed = speed; bestIdx = i; }
 		}
 		if (bestIdx < 0) return;
-		ItemStack pick = chest.removeItemNoUpdate(bestIdx);
-		if (!current.isEmpty()) chest.setItem(bestIdx, current);
+		ItemStack pick = JobHelpers.extract(chest, bestIdx, chest.getItem(bestIdx).getCount());
+		if (pick.isEmpty()) return;
+		ItemStack back = current.isEmpty() ? ItemStack.EMPTY : JobHelpers.insert(chest, current);
 		entity.setItemSlot(EquipmentSlot.MAINHAND, pick);
-		chest.setChanged();
+		if (!back.isEmpty()) {
+			ItemStack leftover = entity.getInventory().addItem(back);
+			if (!leftover.isEmpty()) entity.spawnAtLocation((ServerLevel) entity.level(), leftover);
+		}
 	}
 
 	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
