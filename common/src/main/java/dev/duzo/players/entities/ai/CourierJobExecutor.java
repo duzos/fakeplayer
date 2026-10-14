@@ -1,7 +1,10 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.requests.StockReserve;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -29,7 +32,10 @@ public class CourierJobExecutor implements JobExecutor {
 		AIState state = entity.getAIState();
 		BlockPos source = state.sourceChest();
 		BlockPos deposit = state.depositChest();
-		if (source == null || deposit == null) return;
+		if (source == null || deposit == null) { // not set up yet, which is not being stuck
+			entity.markIdle();
+			return;
+		}
 
 		if (phase != Phase.PULL && phase != Phase.DUMP && phase != Phase.WAITING_AT_DEPOSIT) JobHelpers.closeContainer(level, entity);
 
@@ -55,7 +61,10 @@ public class CourierJobExecutor implements JobExecutor {
 				}
 				int moved = pullMatching(src, dest, state.filter(), TRANSFER_PER_TICK);
 				if (moved == 0) phase = Phase.TO_DEPOSIT;
-				else lastBlocker = ""; // making progress again - let the next problem re-announce
+				else {
+					entity.markProgress();
+					resumed(entity);
+				} // making progress again - let the next problem re-announce
 			}
 			case TO_DEPOSIT -> walkTo(entity, deposit, Phase.DUMP);
 			case DUMP -> {
@@ -77,9 +86,11 @@ public class CourierJobExecutor implements JobExecutor {
 					// nothing left our inventory and it's still full: the deposit chest has no room, not just empty
 					// pockets - cycling straight back to PULL would only bounce between the two chests forever
 					if (JobHelpers.isFull(src)) { waitForBlocker(level, entity, "courier: deposit chest full"); return; }
+					entity.markIdle(); // nothing to move either way: waiting for stock is not being stuck
 					phase = Phase.TO_SOURCE;
 				} else {
-					lastBlocker = "";
+					entity.markProgress();
+					resumed(entity);
 				}
 			}
 			case WAITING_AT_DEPOSIT -> tickWaitingAtDeposit(level, entity, deposit);
@@ -92,7 +103,8 @@ public class CourierJobExecutor implements JobExecutor {
 			int moved = dumpAll(entity.getInventory(), dst, TRANSFER_PER_TICK, StockReserve.of(entity));
 			if (moved > 0) { // owner made room - resume the normal drain
 				entity.setPhysicalState(FakePlayerEntity.PhysicalState.STANDING);
-				lastBlocker = "";
+				entity.markProgress();
+				resumed(entity);
 				phase = Phase.DUMP;
 				return;
 			}
@@ -104,13 +116,13 @@ public class CourierJobExecutor implements JobExecutor {
 	}
 
 	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
+		entity.reportProblem(FakeProblem.fromBlocker(message));
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
 		entity.getNavigation().stop();
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
 		phase = Phase.WAITING_AT_DEPOSIT;
 		if (!message.equals(lastBlocker)) { // tell the owner once per distinct problem, not every retry
-			entity.sendChat(message + " - waiting 15s before retry");
-			lastBlocker = message;
+			if (FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry")) lastBlocker = message;
 		}
 	}
 
@@ -194,5 +206,12 @@ public class CourierJobExecutor implements JobExecutor {
 			try { phase = Phase.valueOf(name); } catch (IllegalArgumentException ignored) {}
 		}
 		waitUntilTick = tag.getLongOr("WaitUntil", 0L);
+	}
+
+	/** Work is moving again: forget the blocker, and its speech latch so a recurrence is announced. */
+	private void resumed(FakePlayerEntity entity) {
+		FakeSpeech.clearBlocked(entity, lastBlocker);
+		lastBlocker = "";
+		entity.clearProblem();
 	}
 }

@@ -3,6 +3,7 @@ package dev.duzo.players.entities.ai;
 import dev.duzo.players.entities.FakeFishingHook;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.requests.StockReserve;
 import dev.duzo.players.entities.ai.requests.ToolRequest;
 import dev.duzo.players.entities.LavaProofItemEntity;
@@ -59,7 +60,10 @@ public class FishermanJobExecutor implements JobExecutor {
 		AIState s = entity.getAIState();
 		BlockPos spot = s.waypoint();
 		BlockPos deposit = s.depositChest();
-		if (spot == null) return; // no spot set: idle (GUI shows "Waypoint unset")
+		if (spot == null) { // no spot set: idle (GUI shows "Waypoint unset")
+			entity.reportProblem(FakeProblem.BLOCKED);
+			return;
+		}
 
 		JobHelpers.vacuum(level, entity, VACUUM_RADIUS); // catch flying back from the bobber lands here
 		ensureRod(entity); // a fisherman always holds his rod
@@ -83,6 +87,7 @@ public class FishermanJobExecutor implements JobExecutor {
 			case CAST -> {
 				ItemStack held = rod(entity);
 				if (held.isEmpty()) {
+					entity.reportProblem(FakeProblem.NO_TOOL);
 					// raise() scans for a quartermaster before it can dedupe, so ask about once a
 					// second rather than paying that scan every tick while blocked
 					if (--requestCooldown <= 0) {
@@ -97,7 +102,11 @@ public class FishermanJobExecutor implements JobExecutor {
 				}
 				Tackle tackle = Services.TACKLE.read(held);
 				BlockPos water = findCastTarget(level, spot, entity, tackle);
-				if (water == null) return; // no fishable fluid near the waypoint: idle
+				if (water == null) { // no fishable fluid near the waypoint: idle
+					entity.reportProblem(FakeProblem.BLOCKED);
+					return;
+				}
+				entity.clearProblem();
 				double surfaceY = water.getY() + 0.9;
 				Vec3 target = new Vec3(water.getX() + 0.5, surfaceY, water.getZ() + 0.5);
 				entity.getLookControl().setLookAt(target.x, target.y, target.z);
@@ -160,6 +169,7 @@ public class FishermanJobExecutor implements JobExecutor {
 				clearHook();
 				damageRod(entity, reeled);
 				caught++;
+				entity.markProgress();
 				boolean rodBroken = rod(entity).isEmpty();
 				if ((caught >= DEPOSIT_EVERY || rodBroken) && deposit != null) {
 					caught = 0;

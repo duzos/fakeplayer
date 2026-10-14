@@ -1,8 +1,11 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.requests.StockReserve;
 import dev.duzo.players.entities.ai.requests.ToolRequest;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -180,7 +183,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			for (int i = 0; i < n; i++) targets.add(matches.get(i));
 			phase = Phase.PATHING_TO_BLOCK;
 			pathFailCount = 0;
-			lastBlocker = ""; // making progress again - let the next problem re-announce
+			resumed(entity); // making progress again - let the next problem re-announce
 			return;
 		}
 
@@ -196,7 +199,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			actionStand = null;
 			phase = Phase.BONEMEALING;
 			pathFailCount = 0;
-			lastBlocker = ""; // making progress again - let the next problem re-announce
+			resumed(entity); // making progress again - let the next problem re-announce
 			return;
 		}
 
@@ -205,10 +208,11 @@ public class LumberjackJobExecutor implements JobExecutor {
 			actionStand = null;
 			phase = Phase.PLANTING;
 			pathFailCount = 0;
-			lastBlocker = ""; // making progress again - let the next problem re-announce
+			resumed(entity); // making progress again - let the next problem re-announce
 			return;
 		}
 
+		entity.markIdle(); // nothing to cut or plant yet: waiting for trees is not being stuck
 		waitAtChest(level, entity, IDLE_WAIT_TICKS);
 	}
 
@@ -348,6 +352,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 				if (broke && isLoggingTool(tool)) tool.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
 			}
 		}
+		if (destroy) entity.markProgress();
 		targets.poll();
 		clearTarget();
 		activeTree.clear();
@@ -393,6 +398,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		lookAndSwing(entity, pos);
 		level.setBlockAndUpdate(pos, plantTask.state);
 		sapling.shrink(1);
+		entity.markProgress();
 		plantTask.remaining.poll();
 		actionCooldown = ACTION_COOLDOWN_TICKS;
 		pathFailCount = 0;
@@ -424,6 +430,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 		lookAndSwing(entity, target);
 		if (BoneMealItem.growCrop(bonemeal, level, target)) {
 			level.levelEvent(1505, target, 0);
+			entity.markProgress();
 		}
 		actionCooldown = ACTION_COOLDOWN_TICKS;
 		pathFailCount = 0;
@@ -454,7 +461,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 			return;
 		}
 		pathFailCount = 0;
-		lastBlocker = ""; // making progress again - let the next problem re-announce
+		resumed(entity); // making progress again - let the next problem re-announce
 		phase = Phase.SCANNING;
 	}
 
@@ -856,7 +863,7 @@ public class LumberjackJobExecutor implements JobExecutor {
 	private void waitAtChest(ServerLevel level, FakePlayerEntity entity, int ticks) {
 		phase = Phase.WAITING_AT_CHEST;
 		waitUntilTick = level.getGameTime() + ticks;
-		lastBlocker = "";
+		resumed(entity);
 		entity.getNavigation().stop();
 	}
 
@@ -874,12 +881,12 @@ public class LumberjackJobExecutor implements JobExecutor {
 	}
 
 	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
+		entity.reportProblem(FakeProblem.fromBlocker(message));
 		bailed = false;
 		pathFailCount = 0;
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
 		if (!message.equals(lastBlocker)) { // tell the owner once per distinct problem, not every retry
-			entity.sendChat(message + " - waiting 15s before retry");
-			lastBlocker = message;
+			if (FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry")) lastBlocker = message;
 		}
 		entity.getNavigation().stop();
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
@@ -927,5 +934,12 @@ public class LumberjackJobExecutor implements JobExecutor {
 			this.state = state;
 			this.remaining = remaining;
 		}
+	}
+
+	/** Work is moving again: forget the blocker, and its speech latch so a recurrence is announced. */
+	private void resumed(FakePlayerEntity entity) {
+		FakeSpeech.clearBlocked(entity, lastBlocker);
+		lastBlocker = "";
+		entity.clearProblem();
 	}
 }

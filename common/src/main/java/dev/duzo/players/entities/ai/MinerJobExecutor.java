@@ -2,8 +2,11 @@ package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.requests.StockReserve;
 import dev.duzo.players.entities.ai.requests.ToolRequest;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -177,7 +180,7 @@ public class MinerJobExecutor implements JobExecutor {
 		activeStand = null;
 		pathFailCount = 0;
 		phase = Phase.QUARRY;
-		entity.sendChat("miner: quarry started " + width() + "x" + length() + " to Y=" + bottomY);
+		FakeSpeech.say(entity, Verbosity.CHATTY, "started", "miner: quarry started " + width() + "x" + length() + " to Y=" + bottomY);
 		walkToSafeStep(level, entity);
 	}
 
@@ -185,7 +188,7 @@ public class MinerJobExecutor implements JobExecutor {
 		if (currentY < bottomY) {
 			phase = Phase.CAP;
 			capCursor = 0;
-			entity.sendChat("miner: quarry floor reached, capping top");
+			FakeSpeech.say(entity, Verbosity.CHATTY, "floor", "miner: quarry floor reached, capping top");
 			return;
 		}
 		ensurePickaxe(entity); // upgrade out of a near-broken main hand before judging whether service is needed
@@ -231,7 +234,8 @@ public class MinerJobExecutor implements JobExecutor {
 		}
 		if (!canHarvest(entity, state)) {
 			cursor++;
-			entity.sendChat("miner: skipping block, no correct tool for " + blockName(state));
+			entity.reportProblem(FakeProblem.NO_TOOL);
+			FakeSpeech.say(entity, Verbosity.NORMAL, "notool", "miner: skipping block, no correct tool for " + blockName(state));
 			clearActive();
 			return;
 		}
@@ -240,6 +244,7 @@ public class MinerJobExecutor implements JobExecutor {
 				waitForBlocker(level, entity, "miner: out of build blocks for liquid hazard");
 				return;
 			}
+			entity.markProgress();
 			cursor++;
 			clearActive();
 			return;
@@ -253,7 +258,10 @@ public class MinerJobExecutor implements JobExecutor {
 		ItemStack tool = entity.getMainHandItem();
 		boolean broke = breakIntoInventory(level, entity, activeTarget, state, tool);
 		if (broke && isMiningTool(tool)) tool.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
-		if (broke) cursor++; // else the drops couldn't fit (canHoldKeptDrops) - block still stands, retry this cell
+		if (broke) {
+			entity.markProgress();
+			cursor++;
+		} // else the drops couldn't fit (canHoldKeptDrops) - block still stands, retry this cell
 		clearActive(level, entity);
 
 		double bps = Math.max(0.5, cfg.minerMaxBlocksPerSecond);
@@ -281,7 +289,8 @@ public class MinerJobExecutor implements JobExecutor {
 			ensurePickaxe(entity);
 			if (!canHarvest(entity, state)) {
 				cursor++;
-				entity.sendChat("miner: skipping block, no correct tool for " + blockName(state));
+				entity.reportProblem(FakeProblem.NO_TOOL);
+				FakeSpeech.say(entity, Verbosity.NORMAL, "notool", "miner: skipping block, no correct tool for " + blockName(state));
 				continue;
 			}
 			BlockPos stand = findStand(level, target, targetIndex);
@@ -393,9 +402,10 @@ public class MinerJobExecutor implements JobExecutor {
 		}
 		if (level.getGameTime() < throttleUntilTick) return;
 		if (capCursor >= area()) {
+			// finish only once the line is settled, so a rate-limited completion is retried next tick
+			if (!FakeSpeech.settle(entity, Verbosity.NORMAL, "complete", "miner: quarry complete")) return;
 			phase = Phase.DONE;
 			entity.mutateAIState(s -> s.setRunning(false));
-			entity.sendChat("miner: quarry complete");
 			return;
 		}
 		BlockPos target = posForIndex(capCursor, topY + 1);
@@ -404,7 +414,7 @@ public class MinerJobExecutor implements JobExecutor {
 		// protected cell / a full build-block reserve would silently hole the cap
 		if (isProtected(level, target)) {
 			capCursor++;
-			entity.sendChat("miner: skipping protected cap cell");
+			FakeSpeech.say(entity, Verbosity.CHATTY, "protected", "miner: skipping protected cap cell");
 			return;
 		}
 		if (!level.getBlockState(target).isAir() && !isLiquid(level, target)) {
@@ -415,6 +425,7 @@ public class MinerJobExecutor implements JobExecutor {
 			waitForBlocker(level, entity, "miner: out of build blocks for cap");
 			return;
 		}
+		entity.markProgress();
 		capCursor++;
 		double bps = Math.max(0.5, cfg.minerMaxBlocksPerSecond);
 		throttleUntilTick = level.getGameTime() + Math.max(1L, (long) (20.0 / bps));
@@ -1059,18 +1070,20 @@ public class MinerJobExecutor implements JobExecutor {
 	}
 
 	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
+		entity.reportProblem(FakeProblem.fromBlocker(message));
 		entity.getNavigation().stop();
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
-		if (!waiting || waitMessage == null || !waitMessage.equals(message)) {
-			entity.sendChat(message + " - waiting 15s before retry");
-		}
+		boolean fresh = !waiting || waitMessage == null || !waitMessage.equals(message);
+		boolean told = !fresh || FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry");
 		waiting = true;
-		waitMessage = message;
+		// left unset when the line was rate limited, so the next wait announces it again
+		if (told) waitMessage = message;
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
 	}
 
 	private void clearWait(FakePlayerEntity entity) {
 		waiting = false;
+		entity.clearProblem();
 		waitUntilTick = 0L;
 		waitMessage = "";
 		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.SITTING) {

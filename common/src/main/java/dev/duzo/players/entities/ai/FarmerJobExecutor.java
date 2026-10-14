@@ -1,8 +1,11 @@
 package dev.duzo.players.entities.ai;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.requests.StockReserve;
 import dev.duzo.players.entities.ai.requests.ToolRequest;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -157,26 +160,27 @@ public class FarmerJobExecutor implements JobExecutor {
 		}
 
 		// water grid first so freshly tilled farmland is hydrated and never reverts to dirt
-		if (harvest != null) { begin(Action.HARVEST, harvest); return; }
-		if (water != null) { begin(Action.WATER, water); return; }
-		if (till != null) { begin(Action.TILL, till); return; }
-		if (plant != null) { begin(Action.PLANT, plant); return; }
-		if (bonemeal != null) { begin(Action.BONEMEAL, bonemeal); return; }
+		if (harvest != null) { begin(entity, Action.HARVEST, harvest); return; }
+		if (water != null) { begin(entity, Action.WATER, water); return; }
+		if (till != null) { begin(entity, Action.TILL, till); return; }
+		if (plant != null) { begin(entity, Action.PLANT, plant); return; }
+		if (bonemeal != null) { begin(entity, Action.BONEMEAL, bonemeal); return; }
 
 		if (!atChest(entity)) {
 			phase = Phase.RETURNING;
 			return;
 		}
 		serviceAtChest(level, entity);
+		entity.markIdle(); // nothing to tend until crops grow: waiting is not being stuck
 		waitAtChest(level, entity, IDLE_WAIT_TICKS);
 	}
 
-	private void begin(Action a, BlockPos pos) {
+	private void begin(FakePlayerEntity entity, Action a, BlockPos pos) {
 		action = a;
 		target = pos;
 		actionStand = null;
 		pathFailCount = 0;
-		lastBlocker = ""; // making progress again - let the next problem re-announce
+		resumed(entity); // making progress again - let the next problem re-announce
 		phase = Phase.WORKING;
 	}
 
@@ -201,6 +205,7 @@ public class FarmerJobExecutor implements JobExecutor {
 		entity.getNavigation().stop();
 		if (actionCooldown > 0) return;
 		perform(level, entity);
+		entity.markProgress();
 		actionCooldown = ACTION_COOLDOWN_TICKS;
 		clearTarget();
 		phase = Phase.SCANNING;
@@ -553,17 +558,18 @@ public class FarmerJobExecutor implements JobExecutor {
 		phase = Phase.WAITING_AT_CHEST;
 		waitUntilTick = level.getGameTime() + ticks;
 		entity.getNavigation().stop();
+		resumed(entity);
 	}
 
 	private void waitForBlocker(ServerLevel level, FakePlayerEntity entity, String message) {
+		entity.reportProblem(FakeProblem.fromBlocker(message));
 		pathFailCount = 0;
 		waitUntilTick = level.getGameTime() + RETRY_WAIT_TICKS;
 		entity.getNavigation().stop();
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
 		phase = Phase.WAITING_AT_CHEST;
 		if (!message.equals(lastBlocker)) { // tell the owner once per distinct problem, not every retry
-			entity.sendChat(message + " - waiting 15s before retry");
-			lastBlocker = message;
+			if (FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry")) lastBlocker = message;
 		}
 	}
 
@@ -644,5 +650,12 @@ public class FarmerJobExecutor implements JobExecutor {
 		action = null;
 		// resume cleanly: re-scan rather than trust a stale target/action
 		if (phase == Phase.WORKING || phase == Phase.COLLECTING_DROPS) phase = Phase.SCANNING;
+	}
+
+	/** Work is moving again: forget the blocker, and its speech latch so a recurrence is announced. */
+	private void resumed(FakePlayerEntity entity) {
+		FakeSpeech.clearBlocked(entity, lastBlocker);
+		lastBlocker = "";
+		entity.clearProblem();
 	}
 }

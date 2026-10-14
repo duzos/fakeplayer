@@ -62,6 +62,9 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 			fake.skinTexture = entity.getSkin();
 			fake.isSitting = entity.isSitting();
 			fake.slim = entity.isSlim();
+			// vanilla extraction has set nameTag by now using every name tag rule except the custom-name-visible
+			// one, which the fake adds below, so a non-null tag is exactly "a name tag could be drawn here"
+			SpeechBubbles.extract(entity, fake, state.nameTag != null, entity.isCustomNameVisible(), state.distanceToCameraSq, partialTick);
 			state.skin = PlayerSkin.insecure(
 				new ClientAsset.DownloadedTexture(fake.skinTexture, ""),
 				null, null,
@@ -71,9 +74,10 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 				state.y -= 0.5;
 			}
 		}
-		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING) {
+		if (entity.getPhysicalState() == FakePlayerEntity.PhysicalState.LAYING || entity.isBedSleeping()) {
 			state.pose = Pose.SLEEPING;
-			state.bedOrientation = entity.getDirection();
+			net.minecraft.core.Direction bed = entity.getBedOrientation();
+			state.bedOrientation = bed != null ? bed : entity.getDirection();
 			state.walkAnimationSpeed = 0;
 		}
 		if (!entity.isCustomNameVisible()) {

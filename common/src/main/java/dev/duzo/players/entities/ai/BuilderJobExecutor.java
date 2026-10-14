@@ -7,6 +7,7 @@ import dev.duzo.players.api.requests.RequesterKind;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.builder.BlockBreaker;
 import dev.duzo.players.entities.ai.builder.BuildPlan;
 import dev.duzo.players.entities.ai.builder.BuilderParams;
@@ -15,6 +16,8 @@ import dev.duzo.players.entities.ai.builder.PlacePass;
 import dev.duzo.players.entities.ai.builder.SchematicStore;
 import dev.duzo.players.entities.ai.claims.WorkClaims;
 import dev.duzo.players.entities.ai.requests.SenderAlerts;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -78,9 +81,12 @@ public class BuilderJobExecutor implements JobExecutor {
 	private @Nullable BoundingBox claim;
 	private int cursor;
 	private boolean finishing;
+	// the build is over but the completion line was rate limited, so complete() runs again next tick
+	private boolean completing;
 	private boolean stocked;
 	private boolean depositTried;
 	private boolean announced;
+	private boolean announcedUnsupported;
 	private int pathFail;
 	private long nextActionTick;
 	private long nextRenew;
@@ -113,6 +119,10 @@ public class BuilderJobExecutor implements JobExecutor {
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
+		if (completing) {
+			complete(level, entity);
+			return;
+		}
 		if (phase == Phase.DONE) return;
 		long now = level.getGameTime();
 		if (phase != Phase.DEPOSIT && phase != Phase.STOCK) JobHelpers.closeContainer(level, entity);
@@ -131,9 +141,15 @@ public class BuilderJobExecutor implements JobExecutor {
 				entity.getName().getString(), phase, stripeIdx, claim, blocked.keySet());
 		switch (phase) {
 			case INIT -> init(level, entity);
-			case CLAIM -> claim(level, entity);
+			case CLAIM -> {
+				announce(entity);
+				claim(level, entity);
+			}
 			case STOCK -> stock(level, entity);
-			case WORK -> work(level, entity);
+			case WORK -> {
+				announce(entity);
+				work(level, entity);
+			}
 			case DEPOSIT -> deposit(level, entity);
 			case BLOCKED -> tickBlocked(level, entity);
 			case DONE -> {}
@@ -161,6 +177,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		if (phase == Phase.DONE) {
 			phase = Phase.INIT;
 			alertedDone = false;
+			completing = false;
 		}
 	}
 
@@ -203,6 +220,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		// every phase but DONE restarts from INIT: the plan is rebuilt and the world rescanned
 		int saved = tag.getIntOr("Phase", 0);
 		phase = saved == Phase.DONE.ordinal() ? Phase.DONE : Phase.INIT;
+		completing = false;
 		stripeIdx = tag.getIntOr("Stripe", -1);
 		int[] box = tag.getIntArray("Claim").orElse(null);
 		claim = box != null && box.length == 6 ? new BoundingBox(box[0], box[1], box[2], box[3], box[4], box[5]) : null;
@@ -219,6 +237,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		alertKey = tag.getStringOr("AlertKey", "");
 		alertedBlocked = tag.getBooleanOr("AlertedBlocked", false);
 		alertedDone = tag.getBooleanOr("AlertedDone", false);
+		completing = phase == Phase.DONE && !alertedDone;
 		requested.clear();
 		ListTag req = tag.getList("Requested").orElseGet(ListTag::new);
 		for (int i = 0; i < req.size(); i++) {
@@ -249,14 +268,8 @@ public class BuilderJobExecutor implements JobExecutor {
 			block(level, entity, "setup", "builder: " + p.schematic() + " has nothing to place", Map.of());
 			return;
 		}
-		if (!announced) {
-			announced = true;
-			entity.sendChat("builder: building " + p.schematic() + ", " + plan.cellCount() + " blocks");
-			if (!plan.unsupported.isEmpty()) {
-				int n = plan.unsupported.values().stream().mapToInt(Integer::intValue).sum();
-				entity.sendChat("builder: cannot place " + n + " blocks of this schematic (fluids, unbreakable or itemless blocks)");
-			}
-		}
+		announce(entity);
+		if (blocked.isEmpty()) entity.clearProblem();
 		dry.clear();
 		pathFail = 0;
 		if (claim != null && stripeIdx >= 0 && stripeIdx < plan.stripes.size()
@@ -269,6 +282,20 @@ public class BuilderJobExecutor implements JobExecutor {
 		stripeIdx = -1;
 		phase = Phase.CLAIM;
 		nextCheck = 0;
+	}
+
+	/** A flag is only set once its line is settled, so a rate-limited line is retried on a later tick. */
+	private void announce(FakePlayerEntity entity) {
+		if (plan == null) return;
+		// the problem line goes first, and only one line is tried per tick
+		if (!announcedUnsupported && !plan.unsupported.isEmpty()) {
+			int n = plan.unsupported.values().stream().mapToInt(Integer::intValue).sum();
+			announcedUnsupported = FakeSpeech.settle(entity, Verbosity.NORMAL, "unsupported", "builder: cannot place " + n + " blocks of this schematic (fluids, unbreakable or itemless blocks)");
+			return;
+		}
+		if (!announced) {
+			announced = FakeSpeech.settle(entity, Verbosity.CHATTY, "started", "builder: building " + plan.key.schematic() + ", " + plan.cellCount() + " blocks");
+		}
 	}
 
 	private void claim(ServerLevel level, FakePlayerEntity entity) {
@@ -302,6 +329,7 @@ public class BuilderJobExecutor implements JobExecutor {
 			block(level, entity, alertKey.isEmpty() ? "stuck" : alertKey,
 					blockedMsg.isEmpty() ? "builder: nothing more can be placed" : blockedMsg, blocked);
 		} else {
+			entity.markIdle(); // every open stripe is held by another builder: waiting is not being stuck
 			nextCheck = now + CLAIM_RETRY_TICKS;
 		}
 	}
@@ -416,6 +444,7 @@ public class BuilderJobExecutor implements JobExecutor {
 				case PLACED -> {
 					cursor++;
 					passProgress = true;
+					entity.markProgress();
 					settle(level, entity);
 					return;
 				}
@@ -566,6 +595,7 @@ public class BuilderJobExecutor implements JobExecutor {
 				return Step.WAIT;
 			case BROKEN:
 				passProgress = true;
+				entity.markProgress();
 				nextActionTick = now + Math.max(1, PlayersConfig.get().builderPlaceTicks);
 				return Step.WAIT;
 			case FULL:
@@ -735,9 +765,13 @@ public class BuilderJobExecutor implements JobExecutor {
 		JobHelpers.closeContainer(level, entity);
 		entity.setDisplayItem(ItemStack.EMPTY);
 		if (!alertedDone) {
-			alertedDone = true;
-			entity.sendChat("builder: build complete");
+			alertedDone = FakeSpeech.settle(entity, Verbosity.NORMAL, "complete", "builder: build complete");
+			if (!alertedDone) {
+				completing = true;
+				return;
+			}
 		}
+		completing = false;
 		entity.mutateAIState(s -> s.setRunning(false));
 	}
 
@@ -750,11 +784,13 @@ public class BuilderJobExecutor implements JobExecutor {
 			blocked = new LinkedHashMap<>();
 			SenderAlerts.clear(entity, KIND_BLOCKED);
 		}
+		entity.clearProblem();
 		cancelRequests(level, entity);
 	}
 
 	private void block(ServerLevel level, FakePlayerEntity entity, String key, String message, Map<Item, Integer> shortfall) {
 		dropClaim(level, entity);
+		entity.reportProblem(FakeProblem.BLOCKED);
 		phase = Phase.BLOCKED;
 		nextCheck = level.getGameTime() + RECHECK_TICKS;
 		blocked = new LinkedHashMap<>(shortfall);

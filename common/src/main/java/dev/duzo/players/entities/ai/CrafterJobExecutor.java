@@ -3,6 +3,7 @@ package dev.duzo.players.entities.ai;
 import dev.duzo.players.api.requests.FakePlayerRequests;
 import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.requests.Commission;
 import dev.duzo.players.entities.ai.requests.CraftPlan;
 import dev.duzo.players.entities.ai.requests.PoolIndex;
@@ -10,6 +11,8 @@ import dev.duzo.players.entities.ai.requests.RecipeGraph;
 import dev.duzo.players.entities.ai.requests.RequestRouting;
 import dev.duzo.players.entities.ai.requests.SenderAlerts;
 import dev.duzo.players.entities.ai.requests.StockReserve;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -91,17 +94,29 @@ public class CrafterJobExecutor implements JobExecutor {
 		BlockPos source = state.sourceChest();
 		BlockPos deposit = state.depositChest();
 		BlockPos table = state.waypoint();
-		if (source == null || deposit == null || table == null) return; // needs source, table and deposit
+		if (source == null || deposit == null || table == null) { // needs source, table and deposit
+			entity.markIdle();
+			return;
+		}
 
 		CompoundTag recipe = state.jobParams().getCompoundOrEmpty("Recipe");
-		if (recipe.isEmpty()) return; // nothing taught yet
+		if (recipe.isEmpty()) { // nothing taught yet
+			entity.markIdle();
+			return;
+		}
 
 		List<Item> placeOrder = readPlaceOrder(recipe);
-		if (placeOrder.isEmpty()) return;
+		if (placeOrder.isEmpty()) {
+			entity.markIdle();
+			return;
+		}
 		Map<Item, Integer> need = new LinkedHashMap<>();
 		for (Item it : placeOrder) need.merge(it, 1, Integer::sum);
 		ItemStack out = readOut(recipe, entity);
-		if (out.isEmpty()) return;
+		if (out.isEmpty()) {
+			entity.markIdle();
+			return;
+		}
 
 		if (level.getGameTime() < waitUntil) return; // reported an unreachable marker, waiting before retrying
 
@@ -128,12 +143,19 @@ public class CrafterJobExecutor implements JobExecutor {
 				if (moved == 0) {
 					if (hasFullSet(inv, need)) phase = Phase.TO_TABLE;
 					else if (hasOutputs(entity, inv, need)) phase = Phase.TO_DEPOSIT;
-					else entity.getNavigation().stop(); // source dry, nothing to craft or bank: idle and poll
+					else { // source dry, nothing to craft or bank: idle and poll
+						entity.markIdle();
+						entity.getNavigation().stop();
+					}
 				}
 			}
 			case TO_TABLE -> {
 				if (walk(level, entity, table, "the crafting table")) {
-					if (!craftingTableNear(level, table)) { entity.getNavigation().stop(); return; } // no table here: idle
+					if (!craftingTableNear(level, table)) { // no table here: idle
+						entity.markIdle();
+						entity.getNavigation().stop();
+						return;
+					}
 					craftIndex = 0;
 					craftTimer = PLACE_TICKS;
 					phase = Phase.CRAFT;
@@ -154,6 +176,7 @@ public class CrafterJobExecutor implements JobExecutor {
 				}
 				// Whole grid placed: assemble one result, then craft another set or go deposit.
 				consumeSet(inv, need);
+				entity.markProgress();
 				ItemStack rem = inv.addItem(out.copy());
 				if (!rem.isEmpty()) entity.spawnAtLocation(level, rem);
 				craftIndex = 0;
@@ -173,7 +196,11 @@ public class CrafterJobExecutor implements JobExecutor {
 				if (!JobHelpers.atTarget(entity, deposit)) { JobHelpers.closeContainer(level, entity); phase = Phase.TO_DEPOSIT; return; }
 				if (!JobHelpers.pollContainer(level, entity, deposit)) return; // open + pause ~1s before depositing
 				int moved = dumpOutputs(inv, dst, need, StockReserve.of(entity));
-				if (moved == 0) phase = Phase.TO_SOURCE;
+				if (moved > 0) entity.markProgress();
+				if (moved == 0) {
+					entity.markIdle();
+					phase = Phase.TO_SOURCE;
+				}
 			}
 		}
 	}
@@ -286,6 +313,7 @@ public class CrafterJobExecutor implements JobExecutor {
 			case RETURN -> {
 				if (!walk(level, entity, qm.blockPosition(), "the storeroom")) return;
 				bank(level, entity, qm, commission);
+				entity.markProgress();
 				// cleared last, so an interrupted return leaves the commission in hand along with
 				// the goods, rather than a freed crafter holding a storeroom's worth of stock
 				if (!Commission.clear(entity)) {
@@ -336,6 +364,7 @@ public class CrafterJobExecutor implements JobExecutor {
 		craftIndex = 0;
 		craftTimer = PLACE_TICKS;
 		runsDone++;
+		entity.markProgress();
 		if (runsDone < step.times()) return;
 
 		entity.setDisplayItem(ItemStack.EMPTY);
@@ -540,15 +569,15 @@ public class CrafterJobExecutor implements JobExecutor {
 		JobHelpers.WalkResult result = JobHelpers.walkTo(entity, target, SPEED);
 		if (result == JobHelpers.WalkResult.ARRIVED) {
 			pathFails = 0;
-			lastBlocker = "";
+			resumed(entity);
 			return true;
 		}
 		if (result == JobHelpers.WalkResult.UNREACHABLE && ++pathFails >= MAX_PATH_FAIL) {
 			pathFails = 0;
 			entity.getNavigation().stop();
 			String message = "crafter: cannot reach " + what;
-			if (!message.equals(lastBlocker)) entity.sendChat(message + " - waiting 15s before retry");
-			lastBlocker = message;
+			entity.reportProblem(FakeProblem.BLOCKED);
+			if (!message.equals(lastBlocker) && FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry")) lastBlocker = message;
 			waitUntil = level.getGameTime() + RETRY_WAIT_TICKS;
 		}
 		return false;
@@ -685,5 +714,12 @@ public class CrafterJobExecutor implements JobExecutor {
 		if (!name.isEmpty()) {
 			try { phase = Phase.valueOf(name); } catch (IllegalArgumentException ignored) {}
 		}
+	}
+
+	/** Work is moving again: forget the blocker, and its speech latch so a recurrence is announced. */
+	private void resumed(FakePlayerEntity entity) {
+		FakeSpeech.clearBlocked(entity, lastBlocker);
+		lastBlocker = "";
+		entity.clearProblem();
 	}
 }
