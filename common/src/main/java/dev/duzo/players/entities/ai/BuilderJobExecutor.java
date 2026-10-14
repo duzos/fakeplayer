@@ -81,6 +81,8 @@ public class BuilderJobExecutor implements JobExecutor {
 	private @Nullable BoundingBox claim;
 	private int cursor;
 	private boolean finishing;
+	// the build is over but the completion line was rate limited, so complete() runs again next tick
+	private boolean completing;
 	private boolean stocked;
 	private boolean depositTried;
 	private boolean announced;
@@ -117,6 +119,10 @@ public class BuilderJobExecutor implements JobExecutor {
 
 	@Override
 	public void tick(ServerLevel level, FakePlayerEntity entity) {
+		if (completing) {
+			complete(level, entity);
+			return;
+		}
 		if (phase == Phase.DONE) return;
 		long now = level.getGameTime();
 		if (phase != Phase.DEPOSIT && phase != Phase.STOCK) JobHelpers.closeContainer(level, entity);
@@ -135,9 +141,15 @@ public class BuilderJobExecutor implements JobExecutor {
 				entity.getName().getString(), phase, stripeIdx, claim, blocked.keySet());
 		switch (phase) {
 			case INIT -> init(level, entity);
-			case CLAIM -> claim(level, entity);
+			case CLAIM -> {
+				announce(entity);
+				claim(level, entity);
+			}
 			case STOCK -> stock(level, entity);
-			case WORK -> work(level, entity);
+			case WORK -> {
+				announce(entity);
+				work(level, entity);
+			}
 			case DEPOSIT -> deposit(level, entity);
 			case BLOCKED -> tickBlocked(level, entity);
 			case DONE -> {}
@@ -165,6 +177,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		if (phase == Phase.DONE) {
 			phase = Phase.INIT;
 			alertedDone = false;
+			completing = false;
 		}
 	}
 
@@ -207,6 +220,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		// every phase but DONE restarts from INIT: the plan is rebuilt and the world rescanned
 		int saved = tag.getIntOr("Phase", 0);
 		phase = saved == Phase.DONE.ordinal() ? Phase.DONE : Phase.INIT;
+		completing = false;
 		stripeIdx = tag.getIntOr("Stripe", -1);
 		int[] box = tag.getIntArray("Claim").orElse(null);
 		claim = box != null && box.length == 6 ? new BoundingBox(box[0], box[1], box[2], box[3], box[4], box[5]) : null;
@@ -223,6 +237,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		alertKey = tag.getStringOr("AlertKey", "");
 		alertedBlocked = tag.getBooleanOr("AlertedBlocked", false);
 		alertedDone = tag.getBooleanOr("AlertedDone", false);
+		completing = phase == Phase.DONE && !alertedDone;
 		requested.clear();
 		ListTag req = tag.getList("Requested").orElseGet(ListTag::new);
 		for (int i = 0; i < req.size(); i++) {
@@ -253,14 +268,7 @@ public class BuilderJobExecutor implements JobExecutor {
 			block(level, entity, "setup", "builder: " + p.schematic() + " has nothing to place", Map.of());
 			return;
 		}
-		// a flag is only set once the line is settled, so a rate-limited line is retried on a later tick
-		if (!announced) {
-			announced = FakeSpeech.settle(entity, Verbosity.CHATTY, "started", "builder: building " + p.schematic() + ", " + plan.cellCount() + " blocks");
-		}
-		if (!announcedUnsupported && !plan.unsupported.isEmpty()) {
-			int n = plan.unsupported.values().stream().mapToInt(Integer::intValue).sum();
-			announcedUnsupported = FakeSpeech.settle(entity, Verbosity.NORMAL, "unsupported", "builder: cannot place " + n + " blocks of this schematic (fluids, unbreakable or itemless blocks)");
-		}
+		announce(entity);
 		dry.clear();
 		pathFail = 0;
 		if (claim != null && stripeIdx >= 0 && stripeIdx < plan.stripes.size()
@@ -273,6 +281,20 @@ public class BuilderJobExecutor implements JobExecutor {
 		stripeIdx = -1;
 		phase = Phase.CLAIM;
 		nextCheck = 0;
+	}
+
+	/** A flag is only set once its line is settled, so a rate-limited line is retried on a later tick. */
+	private void announce(FakePlayerEntity entity) {
+		if (plan == null) return;
+		// the problem line goes first, and only one line is tried per tick
+		if (!announcedUnsupported && !plan.unsupported.isEmpty()) {
+			int n = plan.unsupported.values().stream().mapToInt(Integer::intValue).sum();
+			announcedUnsupported = FakeSpeech.settle(entity, Verbosity.NORMAL, "unsupported", "builder: cannot place " + n + " blocks of this schematic (fluids, unbreakable or itemless blocks)");
+			return;
+		}
+		if (!announced) {
+			announced = FakeSpeech.settle(entity, Verbosity.CHATTY, "started", "builder: building " + plan.key.schematic() + ", " + plan.cellCount() + " blocks");
+		}
 	}
 
 	private void claim(ServerLevel level, FakePlayerEntity entity) {
@@ -740,7 +762,12 @@ public class BuilderJobExecutor implements JobExecutor {
 		entity.setDisplayItem(ItemStack.EMPTY);
 		if (!alertedDone) {
 			alertedDone = FakeSpeech.settle(entity, Verbosity.NORMAL, "complete", "builder: build complete");
+			if (!alertedDone) {
+				completing = true;
+				return;
+			}
 		}
+		completing = false;
 		entity.mutateAIState(s -> s.setRunning(false));
 	}
 
