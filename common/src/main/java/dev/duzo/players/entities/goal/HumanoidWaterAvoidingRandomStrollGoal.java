@@ -15,7 +15,7 @@ public class HumanoidWaterAvoidingRandomStrollGoal extends WaterAvoidingRandomSt
 	@Override
 	public boolean canUse() {
 		FakePlayerEntity fp = (FakePlayerEntity) this.mob;
-		if (fp.isSitting() || fp.isMovementManagedByJob()) {
+		if (fp.isSitting() || fp.isRiding() || fp.isMovementManagedByJob()) {
 			return false;
 		}
 
@@ -25,7 +25,7 @@ public class HumanoidWaterAvoidingRandomStrollGoal extends WaterAvoidingRandomSt
 	@Override
 	public boolean canContinueToUse() {
 		FakePlayerEntity fp = (FakePlayerEntity) this.mob;
-		if (fp.isSitting() || fp.isMovementManagedByJob()) {
+		if (fp.isSitting() || fp.isRiding() || fp.isMovementManagedByJob()) {
 			return false;
 		}
 

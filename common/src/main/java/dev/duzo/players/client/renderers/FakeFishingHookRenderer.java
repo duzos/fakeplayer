@@ -100,7 +100,7 @@ public class FakeFishingHookRenderer extends EntityRenderer<FakeFishingHook, Fak
 		double x = Mth.lerp(partial, owner.xo, owner.getX()) - cos * lateral - sin * 0.8;
 		double y = Mth.lerp(partial, owner.yo, owner.getY()) + owner.getEyeHeight() - 0.45; // vanilla eyeHeight-0.45
 		double z = Mth.lerp(partial, owner.zo, owner.getZ()) - sin * lateral + cos * 0.8;
-		if (owner instanceof dev.duzo.players.entities.FakePlayerEntity fp && fp.isSitting()) y -= 0.3; // seated: drop a little (raised per feedback)
+		if (owner instanceof dev.duzo.players.entities.FakePlayerEntity fp && fp.isSitting() && !fp.isPassenger()) y -= 0.3; // seated: drop a little (raised per feedback)
 		return new Vec3(x, y, z);
 	}
 
