@@ -30,3 +30,10 @@ mandatory = false
 versionRange = "[0,)"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "tide"
+mandatory = false
+versionRange = "[0,)"
+ordering = "NONE"
+side = "BOTH"
