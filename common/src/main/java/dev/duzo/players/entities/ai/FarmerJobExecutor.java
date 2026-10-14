@@ -159,11 +159,11 @@ public class FarmerJobExecutor implements JobExecutor {
 		}
 
 		// water grid first so freshly tilled farmland is hydrated and never reverts to dirt
-		if (harvest != null) { begin(Action.HARVEST, harvest); return; }
-		if (water != null) { begin(Action.WATER, water); return; }
-		if (till != null) { begin(Action.TILL, till); return; }
-		if (plant != null) { begin(Action.PLANT, plant); return; }
-		if (bonemeal != null) { begin(Action.BONEMEAL, bonemeal); return; }
+		if (harvest != null) { begin(entity, Action.HARVEST, harvest); return; }
+		if (water != null) { begin(entity, Action.WATER, water); return; }
+		if (till != null) { begin(entity, Action.TILL, till); return; }
+		if (plant != null) { begin(entity, Action.PLANT, plant); return; }
+		if (bonemeal != null) { begin(entity, Action.BONEMEAL, bonemeal); return; }
 
 		if (!atChest(entity)) {
 			phase = Phase.RETURNING;
@@ -173,12 +173,12 @@ public class FarmerJobExecutor implements JobExecutor {
 		waitAtChest(level, entity, IDLE_WAIT_TICKS);
 	}
 
-	private void begin(Action a, BlockPos pos) {
+	private void begin(FakePlayerEntity entity, Action a, BlockPos pos) {
 		action = a;
 		target = pos;
 		actionStand = null;
 		pathFailCount = 0;
-		lastBlocker = ""; // making progress again - let the next problem re-announce
+		resumed(entity); // making progress again - let the next problem re-announce
 		phase = Phase.WORKING;
 	}
 
@@ -564,8 +564,7 @@ public class FarmerJobExecutor implements JobExecutor {
 		entity.setPhysicalState(FakePlayerEntity.PhysicalState.SITTING);
 		phase = Phase.WAITING_AT_CHEST;
 		if (!message.equals(lastBlocker)) { // tell the owner once per distinct problem, not every retry
-			FakeSpeech.say(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry");
-			lastBlocker = message;
+			if (FakeSpeech.settle(entity, Verbosity.NORMAL, "blocked:" + message, message + " - waiting 15s before retry")) lastBlocker = message;
 		}
 	}
 
@@ -646,5 +645,11 @@ public class FarmerJobExecutor implements JobExecutor {
 		action = null;
 		// resume cleanly: re-scan rather than trust a stale target/action
 		if (phase == Phase.WORKING || phase == Phase.COLLECTING_DROPS) phase = Phase.SCANNING;
+	}
+
+	/** Work is moving again: forget the blocker, and its speech latch so a recurrence is announced. */
+	private void resumed(FakePlayerEntity entity) {
+		FakeSpeech.clearBlocked(entity, lastBlocker);
+		lastBlocker = "";
 	}
 }

@@ -86,9 +86,9 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	// client-visual-only "what the job is placing" item, drawn in the main hand by the renderer;
 	// never affects the real MAINHAND equipment slot and does not need to survive a reload
 	private static final EntityDataAccessor<ItemStack> DISPLAY_ITEM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.ITEM_STACK);
-	// drives the client-side crossbow charging pose; combat state only, never persisted
 	/** {@code "<gameTime>|<text>"} of the last public line. Not persisted: a bubble is for the moment it was said. */
 	private static final EntityDataAccessor<String> SPEECH = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
+	// drives the client-side crossbow charging pose; combat state only, never persisted
 	private static final EntityDataAccessor<Boolean> CHARGING_CROSSBOW = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
 	private SkinData dataCache;
 	private AIState aiCache;
@@ -573,6 +573,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	}
 
 	private static final int SPEECH_BUFFER = 8;
+	/** Synced to every tracker, so a long line is cut rather than sent whole. */
+	private static final int SPEECH_MAX_CHARS = 256;
 	// a line this old when it arrives is the initial sync of a fake that spoke long ago, not news
 	private static final long SPEECH_STALE_TICKS = 100L;
 
@@ -604,6 +606,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	/** Server side: show a line above this fake. Callers go through FakeSpeech, which gates and rate limits. */
 	public void speak(String text) {
 		if (this.level().isClientSide()) return;
+		if (text.length() > SPEECH_MAX_CHARS) text = text.substring(0, SPEECH_MAX_CHARS);
 		this.entityData.set(SPEECH, this.level().getGameTime() + "|" + text);
 	}
 
