@@ -3,6 +3,7 @@ package dev.duzo.players.entities.possession;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
 /**
@@ -11,6 +12,7 @@ import java.util.function.Predicate;
  */
 public final class PossessionGuard {
 	private static Predicate<Player> clientCheck = player -> false;
+	private static final ThreadLocal<Boolean> BYPASS = ThreadLocal.withInitial(() -> false);
 
 	private PossessionGuard() {}
 
@@ -18,8 +20,19 @@ public final class PossessionGuard {
 		clientCheck = check;
 	}
 
+	/** Runs a protection query on the possessor's behalf with the guard stood down, so only other mods can veto it. */
+	public static boolean queryBypassed(BooleanSupplier query) {
+		BYPASS.set(true);
+		try {
+			return query.getAsBoolean();
+		} finally {
+			BYPASS.set(false);
+		}
+	}
+
 	/** True when a block, item or entity interaction by this player must be refused outright. */
 	public static boolean blocks(Player player) {
+		if (BYPASS.get()) return false;
 		if (player instanceof ServerPlayer sp) return PossessionManager.isPossessing(sp);
 		return player.level().isClientSide() && clientCheck.test(player);
 	}

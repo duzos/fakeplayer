@@ -100,8 +100,10 @@ public final class PossessionClient {
 		boolean attackHeld = canAct && options.keyAttack.isDown();
 		boolean useHeld = canAct && options.keyUse.isDown();
 
-		// vanilla keeps attacking and using while a key is held, so the held state is hidden from it. a toggle key is cleared
-		// outright and not restored, which only means toggled-on never sticks while possessing
+		// vanilla keeps attacking and using while a key is held, so the held state is hidden from it. in toggle mode setDown(false)
+		// is a no-op, so the toggles are reset outright and never restored: toggled-on cannot stay on while possessing
+		boolean toggled = options.toggleAttack().get() || options.toggleUse().get();
+		if (toggled) KeyMapping.resetToggleKeys();
 		attackWasDown = !options.toggleAttack().get() && options.keyAttack.isDown();
 		useWasDown = !options.toggleUse().get() && options.keyUse.isDown();
 		options.keyAttack.setDown(false);
@@ -144,6 +146,8 @@ public final class PossessionClient {
 
 	/** End of the client tick: gives back the held attack and use keys that were hidden from vanilla. */
 	public static void endTick(Minecraft client) {
+		// the outline key would draw every entity glowing for a spectator, even for one frame
+		if (fakeId != -1) client.options.keySpectatorOutlines.setDown(false);
 		if (!attackWasDown && !useWasDown) return;
 		// a screen opened during the tick already released every key, and restoring one now would stick it
 		if (client.screen == null) {
