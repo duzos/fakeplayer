@@ -19,6 +19,7 @@ import dev.duzo.players.entities.speech.FakeSpeech;
 import dev.duzo.players.entities.speech.Verbosity;
 import dev.duzo.players.entities.ai.requests.StockKeeper;
 import dev.duzo.players.entities.ai.RangedWeapon;
+import dev.duzo.players.entities.goal.FakeMeleeAttackGoal;
 import dev.duzo.players.entities.goal.FakeRangedAttackGoal;
 import dev.duzo.players.entities.goal.FollowOwnerGoal;
 import dev.duzo.players.entities.goal.IdleLookAtPlayerGoal;
@@ -51,6 +52,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity.RemovalReason;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
@@ -145,8 +147,69 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			if (chunkAnchored && this.isAlive()) ChunkAnchors.update(server, this);
 			this.updateFollowOverridePause();
 			this.reconcileBed(server);
+			this.tickRiding();
 			this.tickJobExecutor(server);
 		}
+	}
+
+	// ---- riding ----
+
+	private static final int ACCIDENTAL_SEAT_GRACE = 20;
+	private static final int UNSEATED_GRACE = 20;
+	/** Seated on purpose (marker or Create seat): the job waits for it instead of the fake getting off. Saved. */
+	private boolean orderedSeat;
+	private int accidentalSeatTicks;
+	private int unseatedTicks;
+	private long leftVehicleTick = Long.MIN_VALUE;
+
+	/** Seated in a boat, minecart, seat or anything else that carries passengers. */
+	public boolean isRiding() {
+		return this.isPassenger();
+	}
+
+	public boolean isOrderedSeat() {
+		return this.orderedSeat;
+	}
+
+	public void setOrderedSeat(boolean ordered) {
+		this.orderedSeat = ordered;
+	}
+
+	private void tickRiding() {
+		if (!this.isPassenger()) {
+			accidentalSeatTicks = 0;
+			// a seat that re-seats its riders (assembling a train) leaves a gap, so the order is only forgotten after a while
+			if (orderedSeat && ++unseatedTicks > UNSEATED_GRACE) {
+				orderedSeat = false;
+				Constants.traceEvent("seat order lapsed {}", this.getUUID());
+			}
+			return;
+		}
+		unseatedTicks = 0;
+		if (this.getPhysicalState() == PhysicalState.LAYING) this.setPhysicalState(PhysicalState.STANDING);
+		if (orderedSeat || !this.isMovementManagedByJob()) {
+			accidentalSeatTicks = 0;
+			return;
+		}
+		if (++accidentalSeatTicks > ACCIDENTAL_SEAT_GRACE) {
+			Constants.traceEvent("seat accidental dismount {} from {}", this.getUUID(), this.getVehicle());
+			accidentalSeatTicks = 0;
+			this.stopRiding();
+		}
+	}
+
+	@Override
+	public void removeVehicle() {
+		Entity vehicle = this.getVehicle();
+		if (vehicle != null && (this.getRemovalReason() == RemovalReason.DISCARDED || vehicle.getRemovalReason() == RemovalReason.DISCARDED)) {
+			this.leftVehicleTick = this.level().getGameTime();
+		}
+		super.removeVehicle();
+	}
+
+	// setRemoved lets go of the vehicle before onRemoval runs, so "was riding" has to be remembered from removeVehicle
+	private boolean discardedAsPassenger(RemovalReason reason) {
+		return reason == RemovalReason.DISCARDED && this.level().getGameTime() - this.leftVehicleTick <= 1L;
 	}
 
 	// ---- bed ----
@@ -255,14 +318,14 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			resetProblem();
 		}
 		if (jobExecutor == null) return;
-		boolean active = state.running() && !jobPaused;
+		boolean active = state.running() && !jobPaused && !(orderedSeat && this.isPassenger());
 		if (active != jobActivePrev) {
 			if (active) jobExecutor.onResume(this);
 			else jobExecutor.onPause(this);
 			jobActivePrev = active;
 			resetProblem();
 		}
-		if (active) {
+		if (active && !this.isRiding()) {
 			// before the job runs, and outside the executor, so a job keeps stock by declaring the
 			// row rather than by calling this itself. It never blocks: it raises and returns.
 			if (jobKeepsStock && --stockCountdown <= 0) {
@@ -526,7 +589,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.goalSelector.addGoal(6, new IdleLookAtPlayerGoal(this, 6.0F));
 		this.goalSelector.addGoal(5, new OpenDoorGoal(this, true));
 		this.targetSelector.addGoal(1, new FakeHurtByTargetGoal(this));
-		this.goalSelector.addGoal(3, new MeleeAttackGoal(this, 1.5D, true));
+		this.goalSelector.addGoal(3, new FakeMeleeAttackGoal(this, 1.5D, true));
 		this.goalSelector.addGoal(2, new MoveTowardsItemsGoal(this, 1.0D, true));
 		// above the item-pickup goal on purpose: goals only yield the movement flag to a strictly better
 		// priority, so at 2 a fake already walking to a drop could never break off to shoot
@@ -554,6 +617,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.flushJobState();
 		nbt.put("AIState", this.entityData.get(AI_STATE));
 		if (chunkAnchored) nbt.putBoolean("ChunkAnchor", true);
+		if (orderedSeat) nbt.putBoolean("OrderedSeat", true);
 		if (bedClaim != null) {
 			nbt.put("BedClaim", NbtUtils.writeBlockPos(bedClaim));
 			nbt.putString("BedClaimDim", bedClaimDim);
@@ -583,20 +647,22 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	@Override
 	public void onRemoval(RemovalReason reason) {
 		if (this.level() instanceof ServerLevel server) {
+			// a seat leaving loaded chunks (a Create train) discards its riders, but they are only away, not gone
+			boolean unload = reason == RemovalReason.UNLOADED_TO_CHUNK || this.discardedAsPassenger(reason);
 			// an unload keeps the claim, which is saved and reconciled on the next load; anything else frees the bed
-			if (reason != RemovalReason.UNLOADED_TO_CHUNK) this.releaseBedClaim();
-			if (reason == RemovalReason.UNLOADED_TO_CHUNK) {
+			if (!unload) this.releaseBedClaim();
+			if (unload) {
 				// chunks stay forced so the fake loads again after a restart
 				ChunkAnchors.unloaded(this);
 			} else {
 				ChunkAnchors.release(server, this);
 			}
 			// bounded cache: a rebuilt index costs one rescan, so only drop it when the fake is gone or left the level
-			if (reason.shouldDestroy() || reason == RemovalReason.CHANGED_DIMENSION) {
+			if (!unload && (reason.shouldDestroy() || reason == RemovalReason.CHANGED_DIMENSION)) {
 				dev.duzo.players.entities.ai.requests.PoolIndex.forget(server, this.getUUID());
 			}
 			// server thread only, and only when the fake is really gone
-			if (reason.shouldDestroy()) {
+			if (!unload && reason.shouldDestroy()) {
 				dev.duzo.players.entities.ai.requests.SenderAlerts.forget(this.getUUID());
 				dev.duzo.players.entities.ai.claims.WorkClaims.releaseAll(this.getUUID());
 			}
@@ -643,6 +709,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		}
 		this.bedReconciled = false;
 		this.chunkAnchored = nbt.getBoolean("ChunkAnchor");
+		this.orderedSeat = nbt.getBoolean("OrderedSeat");
 		this.forcedChunks.clear();
 		// a list recorded in another dimension (copied across by a dimension change) is not ours to unforce here
 		if (nbt.getString("ForcedDim").equals(this.level().dimension().location().toString())) {
