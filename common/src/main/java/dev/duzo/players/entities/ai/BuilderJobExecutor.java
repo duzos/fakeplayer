@@ -15,6 +15,8 @@ import dev.duzo.players.entities.ai.builder.PlacePass;
 import dev.duzo.players.entities.ai.builder.SchematicStore;
 import dev.duzo.players.entities.ai.claims.WorkClaims;
 import dev.duzo.players.entities.ai.requests.SenderAlerts;
+import dev.duzo.players.entities.speech.FakeSpeech;
+import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -251,10 +253,10 @@ public class BuilderJobExecutor implements JobExecutor {
 		}
 		if (!announced) {
 			announced = true;
-			entity.sendChat("builder: building " + p.schematic() + ", " + plan.cellCount() + " blocks");
+			FakeSpeech.say(entity, Verbosity.CHATTY, "started", "builder: building " + p.schematic() + ", " + plan.cellCount() + " blocks");
 			if (!plan.unsupported.isEmpty()) {
 				int n = plan.unsupported.values().stream().mapToInt(Integer::intValue).sum();
-				entity.sendChat("builder: cannot place " + n + " blocks of this schematic (fluids, unbreakable or itemless blocks)");
+				FakeSpeech.say(entity, Verbosity.NORMAL, "unsupported", "builder: cannot place " + n + " blocks of this schematic (fluids, unbreakable or itemless blocks)");
 			}
 		}
 		dry.clear();
@@ -736,7 +738,7 @@ public class BuilderJobExecutor implements JobExecutor {
 		entity.setDisplayItem(ItemStack.EMPTY);
 		if (!alertedDone) {
 			alertedDone = true;
-			entity.sendChat("builder: build complete");
+			FakeSpeech.say(entity, Verbosity.NORMAL, "complete", "builder: build complete");
 		}
 		entity.mutateAIState(s -> s.setRunning(false));
 	}
