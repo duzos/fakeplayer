@@ -129,11 +129,6 @@ final class PossessionActions {
 			stopBreak(s);
 			return;
 		}
-		if (!pos.equals(s.breakPos) && !Services.PLATFORM.canBreak(level, player, pos)) {
-			reject(player, "break vetoed at " + pos.toShortString());
-			stopBreak(s);
-			return;
-		}
 		if (!pos.equals(s.breakPos)) s.breaker.reset(level, s.fake);
 		s.breakPos = pos.immutable();
 		s.fullNotified = false;
@@ -152,7 +147,11 @@ final class PossessionActions {
 			stopBreak(s);
 			return;
 		}
-		BlockBreaker.Result result = s.breaker.tick(level, s.fake, pos);
+		BlockBreaker.Result result = s.breaker.tick(level, s.fake, pos, at -> {
+			boolean ok = Services.PLATFORM.canBreak(level, player, at);
+			if (!ok) reject(player, "break vetoed at " + at.toShortString());
+			return ok;
+		});
 		switch (result) {
 			case PROGRESS -> {}
 			case BROKEN -> {
@@ -195,15 +194,21 @@ final class PossessionActions {
 			reject(player, "cannot use " + pos.toShortString());
 			return;
 		}
-		s.lastUseTick = now;
 		Direction direction = Direction.from3DDataValue(face);
 		Vec3 hit = new Vec3(pos.getX() + clamp01(hx), pos.getY() + clamp01(hy), pos.getZ() + clamp01(hz));
 		BlockHitResult hitResult = new BlockHitResult(hit, direction, pos, false);
 		BlockState state = level.getBlockState(pos);
+		boolean toggle = isToggle(state);
+		if ((toggle || !fake.getMainHandItem().isEmpty()) && !Services.PLATFORM.canUse(level, player, hitResult)) {
+			reject(player, "use vetoed at " + pos.toShortString());
+			return;
+		}
+		s.lastUseTick = now;
+		boolean usedItem = false;
 
 		InteractionResult result = InteractionResult.PASS;
 		try {
-			if (isToggle(state)) {
+			if (toggle) {
 				result = state.useWithoutItem(level, player, hitResult);
 			}
 			ItemStack held = fake.getMainHandItem();
@@ -218,6 +223,7 @@ final class PossessionActions {
 					}
 					result = block.place(context);
 				} else {
+					usedItem = true;
 					result = held.useOn(new UseOnContext(level, null, InteractionHand.MAIN_HAND, held, hitResult));
 				}
 			}
@@ -227,9 +233,9 @@ final class PossessionActions {
 		}
 		if (result.consumesAction()) {
 			fake.swing(InteractionHand.MAIN_HAND);
-			// the context has no player, so the item skipped its own wear
+			// the context has no player, so the item skipped its own wear. a door or lever toggle wears nothing
 			ItemStack worn = fake.getMainHandItem();
-			if (!(worn.getItem() instanceof BlockItem) && worn.isDamageableItem()) worn.hurtAndBreak(1, fake, EquipmentSlot.MAINHAND);
+			if (usedItem && worn.isDamageableItem()) worn.hurtAndBreak(1, fake, EquipmentSlot.MAINHAND);
 		}
 		Constants.traceEvent("possession use {} at {} face={} -> {}", fake.getUUID(), pos.toShortString(), direction, result);
 	}
