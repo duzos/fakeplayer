@@ -7,6 +7,7 @@ import dev.duzo.players.api.requests.RequesterKind;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.FakeProblem;
 import dev.duzo.players.entities.ai.builder.BlockBreaker;
 import dev.duzo.players.entities.ai.builder.BuildPlan;
 import dev.duzo.players.entities.ai.builder.BuilderParams;
@@ -269,6 +270,7 @@ public class BuilderJobExecutor implements JobExecutor {
 			return;
 		}
 		announce(entity);
+		if (blocked.isEmpty()) entity.clearProblem();
 		dry.clear();
 		pathFail = 0;
 		if (claim != null && stripeIdx >= 0 && stripeIdx < plan.stripes.size()
@@ -780,11 +782,13 @@ public class BuilderJobExecutor implements JobExecutor {
 			blocked = new LinkedHashMap<>();
 			SenderAlerts.clear(entity, KIND_BLOCKED);
 		}
+		entity.clearProblem();
 		cancelRequests(level, entity);
 	}
 
 	private void block(ServerLevel level, FakePlayerEntity entity, String key, String message, Map<Item, Integer> shortfall) {
 		dropClaim(level, entity);
+		entity.reportProblem(FakeProblem.BLOCKED);
 		phase = Phase.BLOCKED;
 		nextCheck = level.getGameTime() + RECHECK_TICKS;
 		blocked = new LinkedHashMap<>(shortfall);
