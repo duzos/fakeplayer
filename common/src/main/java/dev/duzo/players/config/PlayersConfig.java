@@ -64,6 +64,21 @@ public class PlayersConfig {
 	 * with nobody online). A /forceload on a chunk an anchored fake already forced is released when the fake
 	 * moves away. */
 	public boolean chunkAnchors = true;
+	/** How much fakes say: "off" (only lines a player asked for), "quiet" (plus problems they need to act on) or
+	 * "chatty" (plus progress chatter). Each kind of line is spoken at most once per 30 seconds per fake, and a
+	 * fake never speaks more than once per 2 seconds. */
+	public String speechVerbosity = "quiet";
+	/** True shows a fake's public lines as a speech bubble above its head and keeps them out of chat. False sends
+	 * them to chat as a vanilla {@code <name> message} line, as older versions did. Alerts to one owner stay in chat. */
+	public boolean speechBubbles = true;
+	/** Client side: how far away, in blocks, a speech bubble is still drawn. */
+	public double bubbleRange = 24.0;
+	/** Client side: most fakes that show a bubble at once; the nearest win. */
+	public int bubbleMaxSpeakers = 4;
+	/** Client side: most recent lines one bubble stacks. */
+	public int bubbleMaxLines = 3;
+	/** Client side: seconds a line stays up. */
+	public double bubbleSeconds = 6.0;
 
 	public static PlayersConfig get() {
 		if (INSTANCE == null) {
@@ -72,6 +87,7 @@ public class PlayersConfig {
 		return INSTANCE;
 	}
 
+	private static final java.util.Set<String> SPEECH_VERBOSITY_VALUES = java.util.Set.of("off", "quiet", "chatty");
 	private static final java.util.Set<String> MINER_SPOIL_VALUES = java.util.Set.of("ground", "chest", "void");
 
 	public static void load() {
@@ -104,6 +120,15 @@ public class PlayersConfig {
 					INSTANCE.minerSpoil, MINER_SPOIL_VALUES);
 			INSTANCE.minerSpoil = "ground";
 		}
+		if (INSTANCE.speechVerbosity == null || !SPEECH_VERBOSITY_VALUES.contains(INSTANCE.speechVerbosity)) {
+			Constants.LOG.warn("players.json: speechVerbosity '{}' is not one of {}, falling back to 'quiet'",
+					INSTANCE.speechVerbosity, SPEECH_VERBOSITY_VALUES);
+			INSTANCE.speechVerbosity = "quiet";
+		}
+		INSTANCE.bubbleRange = Math.max(4.0, Math.min(128.0, INSTANCE.bubbleRange));
+		INSTANCE.bubbleMaxSpeakers = Math.max(1, Math.min(16, INSTANCE.bubbleMaxSpeakers));
+		INSTANCE.bubbleMaxLines = Math.max(1, Math.min(8, INSTANCE.bubbleMaxLines));
+		INSTANCE.bubbleSeconds = Math.max(1.0, Math.min(60.0, INSTANCE.bubbleSeconds));
 		// 2.2.0 shipped requestRadius=64, which is smaller than a lot of real bases and made
 		// requests fail silently. Move anyone still on that untouched default up once, then record
 		// that it has been done so a deliberate 64 is never overwritten again.
