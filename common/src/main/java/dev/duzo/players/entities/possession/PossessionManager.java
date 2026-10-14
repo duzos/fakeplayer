@@ -37,6 +37,8 @@ public final class PossessionManager {
 	private static final int ACK_TIMEOUT_TICKS = 300;
 	/** The camera packet is ignored by a client that does not know the entity yet, so it is resent until the client answers. */
 	private static final int CAMERA_RESEND_TICKS = 10;
+	/** How long after a hit, dealt or taken, a player counts as still fighting. */
+	private static final int COMBAT_TICKS = 100;
 
 	public static final int FLAG_FORWARD = 1;
 	public static final int FLAG_BACK = 2;
@@ -96,6 +98,11 @@ public final class PossessionManager {
 			deny(player, "Right-click one of your fakes with this first");
 			return;
 		}
+		String unsafe = unsafeToLeave(player);
+		if (unsafe != null) {
+			deny(player, unsafe);
+			return;
+		}
 		FakePlayerEntity fake = find(server, id);
 		if (fake == null || !fake.isAlive()) {
 			deny(player, "That fake is not loaded, or is gone");
@@ -115,6 +122,19 @@ public final class PossessionManager {
 			return;
 		}
 		start(server, player, link, fake);
+	}
+
+	/** A spectator cannot be hurt, so nobody gets to use this as an escape from a fight, a fall, a fire or lava. */
+	@Nullable
+	private static String unsafeToLeave(ServerPlayer player) {
+		int age = player.tickCount;
+		boolean hurtRecently = player.hurtTime > 0 || player.getLastDamageSource() != null
+				|| (player.getLastHurtByMobTimestamp() > 0 && age - player.getLastHurtByMobTimestamp() < COMBAT_TICKS)
+				|| (player.getLastHurtMobTimestamp() > 0 && age - player.getLastHurtMobTimestamp() < COMBAT_TICKS);
+		if (hurtRecently) return "You cannot take control while in a fight";
+		if (player.isInLava() || player.isOnFire()) return "You cannot take control while on fire";
+		if (!player.onGround() || player.fallDistance > 3.0) return "You cannot take control while falling";
+		return null;
 	}
 
 	private static void deny(ServerPlayer player, String message) {
