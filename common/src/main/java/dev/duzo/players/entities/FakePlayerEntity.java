@@ -81,6 +81,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	// never affects the real MAINHAND equipment slot and does not need to survive a reload
 	private static final EntityDataAccessor<ItemStack> DISPLAY_ITEM = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.ITEM_STACK);
 	// drives the client-side crossbow charging pose; combat state only, never persisted
+	/** {@code "<gameTime>|<text>"} of the last public line. Not persisted: a bubble is for the moment it was said. */
+	private static final EntityDataAccessor<String> SPEECH = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.STRING);
 	private static final EntityDataAccessor<Boolean> CHARGING_CROSSBOW = SynchedEntityData.defineId(FakePlayerEntity.class, EntityDataSerializers.BOOLEAN);
 	private SkinData dataCache;
 	private AIState aiCache;
@@ -565,7 +567,44 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			this.nameCache = null;
 		} else if (AI_STATE.equals(data)) {
 			this.aiCache = null;
+		} else if (SPEECH.equals(data) && this.level().isClientSide()) {
+			this.bufferSpeech(this.entityData.get(SPEECH));
 		}
+	}
+
+	private static final int SPEECH_BUFFER = 8;
+	// a line this old when it arrives is the initial sync of a fake that spoke long ago, not news
+	private static final long SPEECH_STALE_TICKS = 100L;
+
+	private final java.util.ArrayDeque<SpeechLine> speechLines = new java.util.ArrayDeque<>();
+
+	/** A line as the client saw it arrive, for the bubble renderer. Plain data: no client classes here. */
+	public record SpeechLine(long tick, String text) {}
+
+	/** Client side only. Oldest first. The renderer owns expiry. */
+	public java.util.Deque<SpeechLine> speechLines() {
+		return this.speechLines;
+	}
+
+	private void bufferSpeech(String raw) {
+		int bar = raw.indexOf('|');
+		if (bar < 0) return;
+		long now = this.level().getGameTime();
+		try {
+			if (now - Long.parseLong(raw.substring(0, bar)) > SPEECH_STALE_TICKS) return;
+		} catch (NumberFormatException e) {
+			return;
+		}
+		String text = raw.substring(bar + 1);
+		if (text.isEmpty()) return;
+		this.speechLines.addLast(new SpeechLine(now, text));
+		while (this.speechLines.size() > SPEECH_BUFFER) this.speechLines.removeFirst();
+	}
+
+	/** Server side: show a line above this fake. Callers go through FakeSpeech, which gates and rate limits. */
+	public void speak(String text) {
+		if (this.level().isClientSide()) return;
+		this.entityData.set(SPEECH, this.level().getGameTime() + "|" + text);
 	}
 
 	@Override
@@ -577,6 +616,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		this.entityData.define(SLIM, false);
 		this.entityData.define(AI_STATE, new AIState().toNbt());
 		this.entityData.define(DISPLAY_ITEM, ItemStack.EMPTY);
+		this.entityData.define(SPEECH, "");
 		this.entityData.define(CHARGING_CROSSBOW, false);
 	}
 
