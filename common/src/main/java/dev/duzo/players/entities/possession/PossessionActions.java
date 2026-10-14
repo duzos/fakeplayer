@@ -224,7 +224,7 @@ final class PossessionActions {
 					FakePlaceContext context = new FakePlaceContext(level, fake, InteractionHand.MAIN_HAND, held, hitResult);
 					BlockPlaceContext placing = block.updatePlacementContext(context);
 					BlockState placed = placing == null ? null : block.getBlock().getStateForPlacement(placing);
-					BlockPos placePos = context.getClickedPos();
+					BlockPos placePos = placing == null ? context.getClickedPos() : placing.getClickedPos();
 					if (placed == null || !mayEdit(player, s, level, placePos)
 							|| !Services.PLATFORM.canPlace(level, player, placePos, placed)) {
 						reject(player, "place vetoed at " + placePos.toShortString());
