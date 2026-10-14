@@ -367,12 +367,17 @@ public final class PossessionManager {
 
 	/**
 	 * The return point if it is still fit to stand on, else the nearest spot within {@link #SAFE_RADIUS} that is, else where
-	 * vanilla would respawn the player. A return dimension that no longer exists means the overworld spawn. The world may
+	 * vanilla would respawn the player, which is also where a return dimension that no longer exists sends them. The world may
 	 * have changed a lot since the possession began.
 	 */
 	private static Spot safeSpot(MinecraftServer server, ServerPlayer player, @Nullable ServerLevel level, PossessionReturn ret) {
-		if (level == null) return worldSpawn(server.overworld());
+		if (level == null) return respawnSpot(player);
 		BlockPos origin = BlockPos.containing(ret.x(), ret.y(), ret.z());
+		GameType mode = GameType.byId(ret.gameMode());
+		// someone who can fly may have been standing on nothing
+		if ((mode.isCreative() || mode == GameType.SPECTATOR) && standable(level, origin, false)) {
+			return new Spot(level, ret.x(), ret.y(), ret.z());
+		}
 		if (standable(level, origin, false)) {
 			BlockPos ground = groundBelow(level, origin);
 			if (ground != null) return ground.equals(origin) ? new Spot(level, ret.x(), ret.y(), ret.z()) : spotAt(level, ground);
@@ -387,6 +392,11 @@ public final class PossessionManager {
 			}
 		}
 		if (best != null) return spotAt(level, best);
+		return respawnSpot(player);
+	}
+
+	/** Where vanilla would respawn the player: their bed or anchor if it still works, else the world spawn. */
+	private static Spot respawnSpot(ServerPlayer player) {
 		TeleportTransition respawn = player.findRespawnPositionAndUseSpawnBlock(false, TeleportTransition.DO_NOTHING);
 		Vec3 at = respawn.position();
 		return new Spot(respawn.newLevel(), at.x, at.y, at.z);
@@ -394,12 +404,6 @@ public final class PossessionManager {
 
 	private static Spot spotAt(ServerLevel level, BlockPos feet) {
 		return new Spot(level, feet.getX() + 0.5, feet.getY(), feet.getZ() + 0.5);
-	}
-
-	private static Spot worldSpawn(ServerLevel level) {
-		BlockPos spawn = level.getRespawnData().pos();
-		BlockPos ground = standable(level, spawn, false) ? groundBelow(level, spawn) : null;
-		return spotAt(level, ground != null ? ground : spawn);
 	}
 
 	/** The feet position at or a few blocks under {@code feet} that has room and something solid beneath, or null. */
