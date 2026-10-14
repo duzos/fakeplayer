@@ -74,7 +74,10 @@ public class FishermanJobExecutor implements JobExecutor {
 		AIState s = entity.getAIState();
 		BlockPos spot = s.waypoint();
 		BlockPos deposit = s.depositChest();
-		if (spot == null) return; // no spot set: idle (GUI shows "Waypoint unset")
+		if (spot == null) { // no spot set: idle (GUI shows "Waypoint unset")
+			entity.reportProblem(FakeProblem.BLOCKED);
+			return;
+		}
 
 		JobHelpers.vacuum(level, entity, VACUUM_RADIUS); // catch flying back from the bobber lands here
 		ensureRod(entity); // a fisherman always holds his rod
@@ -207,6 +210,7 @@ public class FishermanJobExecutor implements JobExecutor {
 				clearHook();
 				damageRod(entity, reeled);
 				caught++;
+				entity.markProgress();
 				boolean rodBroken = rod(entity).isEmpty();
 				if ((caught >= DEPOSIT_EVERY || rodBroken) && deposit != null) {
 					caught = 0;

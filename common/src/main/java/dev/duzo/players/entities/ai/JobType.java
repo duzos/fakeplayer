@@ -20,14 +20,16 @@ public final class JobType {
 	private final boolean selectable;
 	private final List<JobRow> rows;
 	private final Supplier<JobExecutor> executor;
+	private final int progressGraceSeconds;
 
 	private JobType(ResourceLocation id, Component displayName, boolean selectable, List<JobRow> rows,
-			Supplier<JobExecutor> executor) {
+			Supplier<JobExecutor> executor, int progressGraceSeconds) {
 		this.id = Objects.requireNonNull(id, "id");
 		this.displayName = Objects.requireNonNull(displayName, "displayName");
 		this.selectable = selectable;
 		this.rows = List.copyOf(rows);
 		this.executor = Objects.requireNonNull(executor, "executor");
+		this.progressGraceSeconds = Math.max(0, progressGraceSeconds);
 	}
 
 	public ResourceLocation id() { return id; }
@@ -36,6 +38,12 @@ public final class JobType {
 
 	/** False for the marker pseudo-jobs, which exist but are not offered by the cycle button. */
 	public boolean selectable() { return selectable; }
+
+	/**
+	 * Seconds a running job may go without reporting progress before the fake is flagged as stuck, or 0 to
+	 * never flag it. Only jobs that call {@code FakePlayerEntity.markProgress()} can use this.
+	 */
+	public int progressGraceSeconds() { return progressGraceSeconds; }
 
 	public JobExecutor createExecutor() { return executor.get(); }
 
@@ -49,6 +57,7 @@ public final class JobType {
 		private boolean selectable = true;
 		private List<JobRow> rows = List.of();
 		private Supplier<JobExecutor> executor = NoopJobExecutor::new;
+		private int progressGraceSeconds;
 
 		private Builder(ResourceLocation id) {
 			this.id = id;
@@ -79,9 +88,15 @@ public final class JobType {
 			return this;
 		}
 
+		/** Opt in to stuck detection. 0, the default, never flags the job. */
+		public Builder progressGraceSeconds(int seconds) {
+			this.progressGraceSeconds = seconds;
+			return this;
+		}
+
 		public JobType build() {
 			if (displayName == null) throw new IllegalStateException("job " + id + " has no display name");
-			return new JobType(id, displayName, selectable, rows, executor);
+			return new JobType(id, displayName, selectable, rows, executor, progressGraceSeconds);
 		}
 	}
 }
