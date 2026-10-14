@@ -1,5 +1,6 @@
 package dev.duzo.players.client;
 
+import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.client.renderers.FakeFishingHookRenderer;
 import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
 import dev.duzo.players.client.renderers.SessionItemRenderer;
@@ -12,6 +13,8 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.gui.screens.MenuScreens;
 
@@ -29,6 +32,7 @@ public class PlayersFabricClient implements ClientModInitializer {
 		ClientTickEvents.START_CLIENT_TICK.register(PlayersCommonClient::tickStart);
 		ClientTickEvents.END_CLIENT_TICK.register(PlayersCommonClient::tick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> PlayersCommonClient.onClientStopping());
+		HudElementRegistry.attachElementAfter(VanillaHudElements.CROSSHAIR, PlayersCommon.id("possession"), PossessionHud::render);
 		// The fishing bobber/line are drawn by FakeFishingHookRenderer via the entity submit-node
 		// pipeline; only the region/waypoint/chest gizmo overlay needs this world-render hook.
 		LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> SessionItemRenderer.render(ctx.poseStack()));
