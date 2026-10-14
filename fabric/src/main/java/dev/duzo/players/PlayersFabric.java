@@ -1,5 +1,6 @@
 package dev.duzo.players;
 
+import dev.duzo.players.compat.TaczFabricCompat;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.SessionItemSweeper;
 import net.fabricmc.api.ModInitializer;
@@ -13,6 +14,7 @@ public class PlayersFabric implements ModInitializer {
     @Override
     public void onInitialize() {
         PlayersCommon.init();
+        TaczFabricCompat.init();
 
         ServerTickEvents.END_SERVER_TICK.register(SessionItemSweeper::tick);
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
