@@ -21,4 +21,6 @@ public final class PossessionManager {
 	public static void onDisconnect(ServerPlayer player) {}
 
 	public static void onJoin(ServerPlayer player) {}
+
+	public static void rebind(dev.duzo.players.entities.FakePlayerEntity fake, java.util.UUID possessor) {}
 }

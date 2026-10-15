@@ -39,6 +39,9 @@ import dev.duzo.players.platform.Services;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.core.UUIDUtil;
+import dev.duzo.players.entities.possession.PossessionLedger;
+import dev.duzo.players.entities.possession.PossessionReconciler;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.OutgoingChatMessage;
@@ -85,6 +88,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob {
@@ -147,6 +151,10 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	@Override
 	public void tick() {
+		if (!this.reconciled && this.level() instanceof ServerLevel server) {
+			PossessionReconciler.reconcile(this, server);
+			if (!this.reconciled || this.isRemoved()) return;
+		}
 		super.tick();
 		this.updateSwingTime();
 		if (this.level() instanceof ServerLevel server) {
@@ -231,15 +239,143 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	// ---- possession ----
 
+	/** Bumped on every possession transition. A copy older than the ledger's is a stale one and is discarded. */
+	private long possessionEpoch;
+	/** The player whose body this fake's items and health are in, or null. Non-null is what makes this a vacant shell. */
+	@Nullable
+	private UUID possessedBy;
+	/** False until the first server tick has compared this copy with the ledger; nothing may touch the fake before that. */
+	private boolean reconciled;
+	/** Set on a copy being thrown away as stale, so its removal does not release things the live fake still owns. */
+	private boolean stale;
+	private int reconcileCooldown;
+
 	/** The shell of a fake whose items and body are with a possessing player. Synced so renderers can hide it. */
 	public boolean isVacant() {
 		return this.entityData.get(VACANT);
+	}
+
+	public long possessionEpoch() {
+		return this.possessionEpoch;
+	}
+
+	@Nullable
+	public UUID possessedBy() {
+		return this.possessedBy;
+	}
+
+	public boolean isReconciled() {
+		return this.reconciled;
+	}
+
+	/** A server-side copy that has not been checked against the ledger yet. Clients never reconcile, so never count as unchecked. */
+	public boolean isUnreconciled() {
+		return !this.reconciled && !this.level().isClientSide();
+	}
+
+	public void markReconciled() {
+		this.reconciled = true;
+	}
+
+	/** True while a failed ledger write should not be retried yet, so the retry does not log every tick. */
+	public boolean reconcileOnCooldown() {
+		if (this.reconcileCooldown > 0) {
+			this.reconcileCooldown--;
+			return true;
+		}
+		return false;
+	}
+
+	public void delayReconcile() {
+		this.reconcileCooldown = 100;
+	}
+
+	/** Server side. Turns this into the empty shell of a possession. Items must already have been taken out. */
+	public void setVacant(UUID possessor, long epoch) {
+		this.possessedBy = possessor;
+		this.possessionEpoch = epoch;
+		this.entityData.set(VACANT, true);
+		this.setJobPaused(true);
+		this.stopRiding();
+		this.getNavigation().stop();
+		this.setTarget(null);
+		this.setJumping(false);
+		this.setZza(0.0F);
+		this.setXxa(0.0F);
+		this.setDeltaMovement(Vec3.ZERO);
+		this.wakeForPossession();
+	}
+
+	/** Server side. Gives the fake back to itself; the state is applied after this, since a vacant inventory refuses items. */
+	public void clearVacant(long epoch) {
+		this.possessedBy = null;
+		this.possessionEpoch = epoch;
+		this.entityData.set(VACANT, false);
+		this.setJobPaused(false);
+	}
+
+	/** Server side. Sets the epoch of a fake that is not vacant. */
+	public void setPossessionEpoch(long epoch) {
+		this.possessionEpoch = epoch;
+	}
+
+	/** Throws this copy away without touching what the live fake of the same UUID owns. */
+	public void discardStale() {
+		this.stale = true;
+		this.discard();
 	}
 
 	/** A vacant shell cannot be asleep or lying down, as the body that comes back to it has to be able to stand. */
 	private void wakeForPossession() {
 		this.wakeFromBed();
 		if (this.getPhysicalState() != PhysicalState.STANDING) this.setPhysicalState(PhysicalState.STANDING);
+	}
+
+	@Override
+	public boolean isInvulnerableTo(ServerLevel level, DamageSource source) {
+		return this.isVacant() || super.isInvulnerableTo(level, source);
+	}
+
+	@Override
+	public boolean isAttackable() {
+		return !this.isVacant() && super.isAttackable();
+	}
+
+	@Override
+	public boolean isPickable() {
+		return !this.isVacant() && super.isPickable();
+	}
+
+	@Override
+	public boolean isPushable() {
+		return !this.isVacant() && super.isPushable();
+	}
+
+	@Override
+	public boolean canBeCollidedWith(@Nullable Entity entity) {
+		return !this.isVacant() && super.canBeCollidedWith(entity);
+	}
+
+	@Override
+	public boolean canBeSeenAsEnemy() {
+		return !this.isVacant() && super.canBeSeenAsEnemy();
+	}
+
+	@Override
+	public boolean isNoGravity() {
+		return this.isVacant() || super.isNoGravity();
+	}
+
+	@Override
+	public InteractionResult interact(Player player, InteractionHand hand) {
+		if (this.isVacant() || this.isUnreconciled()) return InteractionResult.PASS;
+		return super.interact(player, hand);
+	}
+
+	@Override
+	public void setItemSlot(EquipmentSlot slot, ItemStack stack) {
+		if (this.isVacant() && !stack.isEmpty()) return;
+		super.setItemSlot(slot, stack);
 	}
 
 	// ---- bed ----
@@ -269,6 +405,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	@Override
 	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+		if (this.isVacant()) return false;
 		boolean asleep = this.isBedSleeping();
 		if (asleep) this.wokenByDamage = true;
 		boolean hurt = super.hurtServer(level, source, amount);
@@ -453,6 +590,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	@Override
 	protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+		if (this.isVacant() || this.isUnreconciled()) return InteractionResult.PASS;
 		if (hand != InteractionHand.MAIN_HAND) {
 			return super.mobInteract(player, hand);
 		}
@@ -663,6 +801,11 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			output.putString("ForcedDim", this.level().dimension().identifier().toString());
 		}
 		this.inventory.storeAsItemList(output.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC));
+		if (this.possessionEpoch != 0L) output.putLong("PossessionEpoch", this.possessionEpoch);
+		if (this.possessedBy != null) output.store("PossessedBy", UUIDUtil.CODEC, this.possessedBy);
+		if (!this.isVacant() && this.level() instanceof ServerLevel server && server.getServer() != null) {
+			PossessionLedger.of(server.getServer()).markSeenSaved(this.getUUID(), this.possessionEpoch);
+		}
 	}
 
 	/**
@@ -682,6 +825,10 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	 */
 	@Override
 	public void onRemoval(RemovalReason reason) {
+		if (this.stale) {
+			super.onRemoval(reason);
+			return;
+		}
 		if (this.level() instanceof ServerLevel server) {
 			// a seat leaving loaded chunks (a Create train) discards its riders, but they are only away, not gone
 			boolean unload = reason == RemovalReason.UNLOADED_TO_CHUNK || this.discardedAsPassenger(reason);
@@ -770,6 +917,10 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		String aiSnbt = input.getStringOr("AIState", "");
 		if (!aiSnbt.isEmpty()) this.entityData.set(AI_STATE, aiSnbt);
 		input.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC).ifPresent(this.inventory::fromItemList);
+		this.possessionEpoch = input.getLongOr("PossessionEpoch", 0L);
+		this.possessedBy = input.read("PossessedBy", UUIDUtil.CODEC).orElse(null);
+		this.entityData.set(VACANT, this.possessedBy != null);
+		this.reconciled = false;
 	}
 
 	public FakePlayerInventory getInventory() {
@@ -946,7 +1097,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	@Override
 	public boolean canPickUpLoot() {
-		return true;
+		return !this.isVacant();
 	}
 
 	// Let the fake pick up loot into empty slots (armor it lacks, an empty hand) but never swap out gear
@@ -959,7 +1110,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	@Override
 	public boolean removeWhenFarAway(double distanceToClosestPlayer) {
-		return !PlayersConfig.get().persistFakePlayers;
+		return !this.isVacant() && !PlayersConfig.get().persistFakePlayers;
 	}
 
 	@Override
@@ -1004,6 +1155,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	@Override
 	public boolean isNoAi() {
+		if (this.isVacant()) return true;
 		return super.isNoAi() || this.getPhysicalState() == PhysicalState.LAYING;
 	}
 
