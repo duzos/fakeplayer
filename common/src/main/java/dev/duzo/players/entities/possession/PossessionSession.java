@@ -1,6 +1,7 @@
 package dev.duzo.players.entities.possession;
 
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.network.s2c.PossessionDisguiseS2C;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -18,6 +19,8 @@ final class PossessionSession {
 	final long epoch;
 	final long startTick;
 	final String fakeName;
+	/** What every client is told while this lasts, kept so a player who joins mid-possession can be told too. */
+	final PossessionDisguiseS2C disguise;
 
 	private WeakReference<FakePlayerEntity> fake = new WeakReference<>(null);
 
@@ -27,7 +30,7 @@ final class PossessionSession {
 	float bodyYaw;
 	float bodyPitch;
 
-	PossessionSession(UUID player, UUID fakeId, UUID bodyId, long epoch, long startTick, String fakeName,
+	PossessionSession(UUID player, UUID fakeId, UUID bodyId, long epoch, long startTick, String fakeName, PossessionDisguiseS2C disguise,
 	                  String bodyDimension, Vec3 bodyPos, float bodyYaw, float bodyPitch) {
 		this.player = player;
 		this.fakeId = fakeId;
@@ -35,6 +38,7 @@ final class PossessionSession {
 		this.epoch = epoch;
 		this.startTick = startTick;
 		this.fakeName = fakeName;
+		this.disguise = disguise;
 		this.bodyDimension = bodyDimension;
 		this.bodyPos = bodyPos;
 		this.bodyYaw = bodyYaw;

@@ -1,5 +1,6 @@
 package dev.duzo.players.entities.possession;
 
+import commonnetwork.api.Network;
 import dev.duzo.players.Constants;
 import dev.duzo.players.config.PlayersConfig;
 import dev.duzo.players.core.AIMarkerItem;
@@ -8,6 +9,7 @@ import dev.duzo.players.core.PossessionLinkItem;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.mixin.PlayerInvoker;
 import dev.duzo.players.mixin.PlayerListAccessor;
+import dev.duzo.players.network.s2c.PossessionDisguiseS2C;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -257,7 +259,7 @@ public final class PossessionManager {
 
 		PossessionStashHolder.setStash(player, stash);
 		PossessionSession session = new PossessionSession(player.getUUID(), fake.getUUID(), body.getUUID(), epoch, server.getTickCount(),
-				fakeName, bodyRef.dimension(), new Vec3(bodyRef.x(), bodyRef.y(), bodyRef.z()), bodyRef.yaw(), bodyRef.pitch());
+				fakeName, disguiseOf(player, fake, fakeName), bodyRef.dimension(), new Vec3(bodyRef.x(), bodyRef.y(), bodyRef.z()), bodyRef.yaw(), bodyRef.pitch());
 		session.bindFake(fake);
 		SESSIONS.put(player.getUUID(), session);
 		AttributeInstance maxHealth = player.getAttribute(Attributes.MAX_HEALTH);
@@ -278,7 +280,7 @@ public final class PossessionManager {
 			player.setDeltaMovement(Vec3.ZERO);
 			player.teleportTo(fakeLevel, fake.getX(), fake.getY(), fake.getZ(), Set.of(), fake.getYRot(), fake.getXRot(), true);
 			showBody(body, player);
-			syncDisguise(server, player, fake, true);
+			syncDisguise(server, player, session);
 			save(server, player);
 			player.displayClientMessage(Component.translatable("message.players.possession.start", fakeName,
 					Component.keybind("key.players.release_possession")), true);
@@ -479,7 +481,7 @@ public final class PossessionManager {
 			ServerLevel back = levelOf(server, bodyDim);
 			if (back != null) player.teleportTo(back, bodyPos.x, bodyPos.y, bodyPos.z, Set.of(), bodyYaw, bodyPitch, true);
 		}
-		syncDisguise(server, player, null, false);
+		syncDisguise(server, player, null);
 		if (reason != Reason.LOGOUT) save(server, player);
 		if (reason != Reason.LOGOUT && reason != Reason.SERVER_STOP) {
 			COOLDOWN_UNTIL.put(player.getUUID(), (long) server.getTickCount() + PlayersConfig.get().possessionCooldownSeconds * 20L);
@@ -729,7 +731,7 @@ public final class PossessionManager {
 		ServerLevel back = levelOf(server, stash.body().dimension());
 		PossessionStashHolder.setStash(player, null);
 		if (back != null) player.teleportTo(back, stash.body().x(), stash.body().y(), stash.body().z(), Set.of(), stash.body().yaw(), stash.body().pitch(), true);
-		syncDisguise(server, player, null, false);
+		syncDisguise(server, player, null);
 		save(server, player);
 		tell(player, stash.fake().name(), null);
 		Constants.traceEvent("possession repair done {} fake={}", player.getUUID(), fakeId);
@@ -753,12 +755,25 @@ public final class PossessionManager {
 		if (line != null) player.displayClientMessage(line.copy().withStyle(ChatFormatting.YELLOW), reason == null || reason == Reason.DEATH);
 	}
 
-	/** Refreshes the tab list name, and in time the disguise, for everyone. */
-	private static void syncDisguise(MinecraftServer server, ServerPlayer player, @Nullable FakePlayerEntity fake, boolean on) {
-		server.getPlayerList().broadcastAll(new ClientboundPlayerInfoUpdatePacket(
-				EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME), List.of(player)));
-		Constants.traceEvent("possession disguise sync {} on={}", player.getUUID(), on);
+	private static PossessionDisguiseS2C disguiseOf(ServerPlayer player, FakePlayerEntity fake, String fakeName) {
+		FakePlayerEntity.SkinData skin = fake.getSkinData();
+		return new PossessionDisguiseS2C(player.getUUID(), true, skin.name(), skin.key(), skin.url(), fake.isSlim(), fakeName);
 	}
 
-	private static void syncDisguisesTo(MinecraftServer server, ServerPlayer joiner) {}
+	/**
+	 * Tells every client to draw the player as the fake (or as themselves again when {@code session} is null) and refreshes
+	 * their tab list entry, whose name comes from the player mixin and whose head from the same disguise.
+	 */
+	private static void syncDisguise(MinecraftServer server, ServerPlayer player, @Nullable PossessionSession session) {
+		PossessionDisguiseS2C packet = session != null ? session.disguise : PossessionDisguiseS2C.off(player.getUUID());
+		for (ServerPlayer other : server.getPlayerList().getPlayers()) Network.getNetworkHandler().sendToClient(packet, other);
+		server.getPlayerList().broadcastAll(new ClientboundPlayerInfoUpdatePacket(
+				EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME), List.of(player)));
+		Constants.traceEvent("possession disguise sync {} on={}", player.getUUID(), session != null);
+	}
+
+	/** A player who joins mid-possession missed the start, so they are told about every disguise that is live now. */
+	private static void syncDisguisesTo(MinecraftServer server, ServerPlayer joiner) {
+		for (PossessionSession s : SESSIONS.values()) Network.getNetworkHandler().sendToClient(s.disguise, joiner);
+	}
 }
