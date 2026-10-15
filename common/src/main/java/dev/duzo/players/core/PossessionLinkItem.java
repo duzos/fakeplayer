@@ -23,8 +23,8 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * Right-click one of your fakes to bind it, then use it in the air to take control of that fake from anywhere it is loaded.
- * Costs one durability when the possession ends.
+ * Right-click one of your fakes to bind it, then use it in the air to swap bodies with that fake: you take its inventory and
+ * move to where it stands, and it waits as an empty shell. Costs one durability each time.
  */
 public class PossessionLinkItem extends Item {
 	public static final int DURABILITY = 64;
@@ -79,6 +79,6 @@ public class PossessionLinkItem extends Item {
 			tooltip.accept(Component.translatable("item.players.possession_link.tooltip.bound", name).withStyle(ChatFormatting.AQUA));
 			tooltip.accept(Component.translatable("item.players.possession_link.tooltip.use").withStyle(ChatFormatting.GRAY));
 		}
-		tooltip.accept(Component.translatable("item.players.possession_link.tooltip.sneak").withStyle(ChatFormatting.GRAY));
+		tooltip.accept(Component.translatable("item.players.possession_link.tooltip.release", Component.keybind("key.players.release_possession")).withStyle(ChatFormatting.GRAY));
 	}
 }

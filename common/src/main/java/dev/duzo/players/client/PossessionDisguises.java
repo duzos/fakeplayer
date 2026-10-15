@@ -49,7 +49,7 @@ public final class PossessionDisguises {
 
 	@Nullable
 	public static PlayerSkin skinFor(UUID player) {
-		if (realSkinWanted) return null;
+		if (realSkinWanted || DISGUISES.isEmpty()) return null;
 		Disguise disguise = DISGUISES.get(player);
 		return disguise == null ? null : disguise.skin;
 	}

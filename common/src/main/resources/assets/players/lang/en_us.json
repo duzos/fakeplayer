@@ -29,5 +29,5 @@
   "item.players.possession_link.tooltip.unbound": "Right-click your fake to link",
   "item.players.possession_link.tooltip.bound": "Linked to %s",
   "item.players.possession_link.tooltip.use": "Use in the air to take control",
-  "item.players.possession_link.tooltip.sneak": "Sneak to let go. Costs durability"
+  "item.players.possession_link.tooltip.release": "Press %s or /players release to return. Costs durability"
 }
