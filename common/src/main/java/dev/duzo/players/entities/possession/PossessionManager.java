@@ -659,9 +659,14 @@ public final class PossessionManager {
 		Constants.traceEvent("possession stop-all done");
 	}
 
-	/** After the world saved: pending hand-overs whose fake has now been written to disk are forgotten. */
-	public static void onWorldSaved(MinecraftServer server) {
-		PossessionLedger.of(server).onWorldSaved();
+	/** After every dimension saved: pending hand-overs whose fake has now been written to disk are forgotten. */
+	public static void onAllSaved(MinecraftServer server) {
+		PossessionLedger.of(server).onAllSaved();
+	}
+
+	/** After one dimension saved, for loaders that report each level on its own. */
+	public static void onLevelSaved(MinecraftServer server, ServerLevel level) {
+		PossessionLedger.of(server).onLevelSaved(dimensionOf(level));
 	}
 
 	/** The server is gone for good; forget everything that was tied to it. */

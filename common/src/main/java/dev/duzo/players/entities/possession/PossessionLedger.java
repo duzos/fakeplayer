@@ -37,8 +37,9 @@ public final class PossessionLedger {
 		/** The state handed back to the fake on release, serialised. Null once a saved copy of the fake holds it. */
 		@Nullable
 		public final CompoundTag pending;
-		/** Not persisted: the current-epoch copy of the fake was serialised, so the next world save may drop {@link #pending}. */
-		boolean pendingSeenSaved;
+		/** Not persisted: the dimension in which the current-epoch copy of the fake was serialised, so that dimension's next save may drop {@link #pending}. */
+		@Nullable
+		String pendingSeenIn;
 		/** Not persisted: a stale copy already took {@link #pending} this session, so any other stale copy is a duplicate. */
 		boolean pendingAdopted;
 
@@ -107,17 +108,26 @@ public final class PossessionLedger {
 	}
 
 	/** The current-epoch copy of a fake was serialised, so a pending state it holds is now in its chunk's save. */
-	public void markSeenSaved(UUID fake, long epoch) {
+	public void markSeenSaved(UUID fake, long epoch, String dimension) {
 		Entry entry = entries.get(fake);
-		if (entry != null && entry.pending != null && !entry.active && entry.epoch == epoch) entry.pendingSeenSaved = true;
+		if (entry != null && entry.pending != null && !entry.active && entry.epoch == epoch) entry.pendingSeenIn = dimension;
 	}
 
-	/** After a world save: forgets every pending state whose fake has been saved since, and rewrites the file if any went. */
-	public void onWorldSaved() {
+	/** After one dimension saved: forgets the pending state of every fake serialised in it, and rewrites the file if any went. */
+	public void onLevelSaved(String dimension) {
+		dropSeen(dimension);
+	}
+
+	/** After every dimension saved. */
+	public void onAllSaved() {
+		dropSeen(null);
+	}
+
+	private void dropSeen(@Nullable String dimension) {
 		boolean changed = false;
 		for (Map.Entry<UUID, Entry> e : new HashMap<>(entries).entrySet()) {
 			Entry old = e.getValue();
-			if (!old.pendingSeenSaved) continue;
+			if (old.pendingSeenIn == null || (dimension != null && !dimension.equals(old.pendingSeenIn))) continue;
 			entries.put(e.getKey(), new Entry(old.epoch, old.possessor, old.active, null));
 			Constants.traceEvent("ledger pending dropped fake={} epoch={}", e.getKey(), old.epoch);
 			changed = true;

@@ -804,7 +804,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		if (this.possessionEpoch != 0L) output.putLong("PossessionEpoch", this.possessionEpoch);
 		if (this.possessedBy != null) output.store("PossessedBy", UUIDUtil.CODEC, this.possessedBy);
 		if (!this.isVacant() && this.level() instanceof ServerLevel server && server.getServer() != null) {
-			PossessionLedger.of(server.getServer()).markSeenSaved(this.getUUID(), this.possessionEpoch);
+			PossessionLedger.of(server.getServer()).markSeenSaved(this.getUUID(), this.possessionEpoch, this.level().dimension().identifier().toString());
 		}
 	}
 
