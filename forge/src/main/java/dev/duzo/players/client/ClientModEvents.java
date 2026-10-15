@@ -1,7 +1,6 @@
 package dev.duzo.players.client;
 
 import dev.duzo.players.Constants;
-import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.client.renderers.FakeFishingHookRenderer;
 import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
 import dev.duzo.players.client.screen.FakeCrafterScreen;
@@ -12,10 +11,8 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 
 @EventBusSubscriber(modid = Constants.MOD_ID, value = Dist.CLIENT)
@@ -31,11 +28,6 @@ public class ClientModEvents {
 	public static void onEntityRenderersRegistry(EntityRenderersEvent.RegisterRenderers event) {
 		event.registerEntityRenderer(FPEntities.FAKE_PLAYER.get(), FakePlayerRendererWrapper::new);
 		event.registerEntityRenderer(FPEntities.FISHING_HOOK.get(), FakeFishingHookRenderer::new);
-	}
-
-	@SubscribeEvent
-	public static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
-		event.registerAbove(VanillaGuiLayers.CROSSHAIR, PlayersCommon.id("possession"), PossessionHud::render);
 	}
 
 	@SubscribeEvent
