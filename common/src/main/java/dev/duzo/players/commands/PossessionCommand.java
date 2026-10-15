@@ -59,12 +59,7 @@ public class PossessionCommand {
 	}
 
 	private static int selfTest(CommandSourceStack source) {
-		ServerPlayer player = source.getPlayer();
-		if (player == null) {
-			source.sendFailure(Component.literal("Run this as a player"));
-			return 0;
-		}
-		List<String> failures = PossessionSelfTest.run(player);
+		List<String> failures = PossessionSelfTest.run(source.getServer(), source.getPlayer());
 		if (failures.isEmpty()) {
 			source.sendSuccess(() -> Component.literal("Possession self test passed"), false);
 			return 1;
