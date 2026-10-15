@@ -33,5 +33,9 @@ public final class PossessionManager {
 		return null;
 	}
 
+	public static void onBodyHurt(PossessionBodyEntity body, net.minecraft.server.level.ServerLevel level, net.minecraft.world.damagesource.DamageSource source, float amount) {}
+
+	public static void checkBody(PossessionBodyEntity body, net.minecraft.server.level.ServerLevel level) {}
+
 	public static void rebind(dev.duzo.players.entities.FakePlayerEntity fake, java.util.UUID possessor) {}
 }
