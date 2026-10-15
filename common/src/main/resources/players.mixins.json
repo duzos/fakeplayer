@@ -11,7 +11,9 @@
     ],
     "client": [
         "AvatarRendererBubbleMixin",
-        "FishingRodCastMixin"
+        "AvatarRendererNameMixin",
+        "FishingRodCastMixin",
+        "PlayerInfoSkinMixin"
     ],
     "server": [
     ],
