@@ -96,9 +96,24 @@ public record PlayerStash(int version, Own own, Body body, Ref fake) {
 		return out;
 	}
 
-	/** Moves everything the player owns into a stash and leaves their inventory and effects empty. Food and game mode are read, not changed. */
+	/**
+	 * Moves everything the player owns into a stash and leaves their inventory and effects empty. Food and game mode are read,
+	 * not changed. Everything that could throw is read first, and the stacks move last, so a failure never strands items.
+	 */
 	public static PlayerStash capture(ServerPlayer player, Body body, Ref fake) {
 		Inventory inv = player.getInventory();
+		TagValueOutput foodOut = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, player.registryAccess());
+		player.getFoodData().addAdditionalSaveData(foodOut);
+		CompoundTag food = foodOut.buildResult();
+		Optional<ServerPlayer.RespawnConfig> respawn = Optional.ofNullable(player.getRespawnConfig());
+		int gameMode = player.gameMode.getGameModeForPlayer().getId();
+		List<MobEffectInstance> effects = FakeState.vitalEffects(player);
+		float health = player.getHealth();
+		float absorption = player.getAbsorptionAmount();
+		int fire = player.getRemainingFireTicks();
+		int air = player.getAirSupply();
+		int selected = inv.getSelectedSlot();
+
 		NonNullList<ItemStack> slots = inv.getNonEquipmentItems();
 		List<ItemStack> items = new ArrayList<>(PLAYER_SLOTS);
 		for (int i = 0; i < PLAYER_SLOTS; i++) {
@@ -110,12 +125,7 @@ public record PlayerStash(int version, Own own, Body body, Ref fake) {
 			equipment.put(slot, player.getItemBySlot(slot));
 			player.setItemSlot(slot, ItemStack.EMPTY);
 		}
-		TagValueOutput foodOut = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, player.registryAccess());
-		player.getFoodData().addAdditionalSaveData(foodOut);
-		Own own = new Own(items, inv.getSelectedSlot(), equipment, player.getHealth(), player.getAbsorptionAmount(), foodOut.buildResult(),
-				FakeState.vitalEffects(player), player.getRemainingFireTicks(), player.getAirSupply(),
-				player.gameMode.getGameModeForPlayer().getId(), Optional.ofNullable(player.getRespawnConfig()));
-		return new PlayerStash(VERSION, own, body, fake);
+		return new PlayerStash(VERSION, new Own(items, selected, equipment, health, absorption, food, effects, fire, air, gameMode, respawn), body, fake);
 	}
 
 	/**

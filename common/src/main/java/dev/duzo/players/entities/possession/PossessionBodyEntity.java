@@ -92,7 +92,8 @@ public class PossessionBodyEntity extends LivingEntity {
 	/** Server side. Sets what is drawn in a slot to a copy of the stack; the stack passed in is not kept. */
 	public void showItem(EquipmentSlot slot, ItemStack shown) {
 		EntityDataAccessor<ItemStack> accessor = SHOWN.get(slot);
-		if (accessor != null) this.entityData.set(accessor, shown.isEmpty() ? ItemStack.EMPTY : shown.copy());
+		if (accessor == null || ItemStack.matches(this.entityData.get(accessor), shown)) return;
+		this.entityData.set(accessor, shown.isEmpty() ? ItemStack.EMPTY : shown.copy());
 	}
 
 	/** Only the client has anything to show; the server-side body carries nothing. */
