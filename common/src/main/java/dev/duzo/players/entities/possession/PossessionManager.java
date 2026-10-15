@@ -22,5 +22,16 @@ public final class PossessionManager {
 
 	public static void onJoin(ServerPlayer player) {}
 
+	public static boolean onPlayerDeath(ServerPlayer player, net.minecraft.world.damagesource.DamageSource source) {
+		return false;
+	}
+
+	public static void beforeGameMode(ServerPlayer player, net.minecraft.world.level.GameType mode) {}
+
+	@org.jspecify.annotations.Nullable
+	public static Component tabName(ServerPlayer player) {
+		return null;
+	}
+
 	public static void rebind(dev.duzo.players.entities.FakePlayerEntity fake, java.util.UUID possessor) {}
 }
