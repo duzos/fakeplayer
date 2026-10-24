@@ -42,6 +42,7 @@ public final class PossessionSelfTest {
 		ledgerRoundTrip(registries, failures);
 		ledgerFailures(registries, failures);
 		entityReload(server, failures);
+		vacancyFlags(server, failures);
 		if (player != null) { slotMapping(player, failures); stashVitals(player, failures); }
 		return failures;
 	}
@@ -186,6 +187,30 @@ public final class PossessionSelfTest {
 					Files.deleteIfExists(directory.resolve("ledger.dat.tmp"));
 					Files.deleteIfExists(directory);
 				} catch (IOException e) { failures.add("ledger check cleanup: " + e.getMessage()); }
+			}
+		}
+	}
+
+	private static void vacancyFlags(MinecraftServer server, List<String> failures) {
+		for (boolean noAi : new boolean[] {false, true}) for (boolean noGravity : new boolean[] {false, true}) {
+			var fake = new dev.duzo.players.entities.FakePlayerEntity(server.overworld());
+			fake.setNoAi(noAi);
+			fake.setNoGravity(noGravity);
+			fake.setVacant(UUID.randomUUID(), 1);
+			// Start snapshot, unloaded vacant shell, release reconstruction, then ordinary reload.
+			for (int step = 0; step < 3; step++) {
+				var out = net.minecraft.world.level.storage.TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, server.registryAccess());
+				fake.save(out);
+				var loaded = net.minecraft.world.entity.EntityType.loadEntityRecursive(out.buildResult(), server.overworld(),
+						net.minecraft.world.entity.EntitySpawnReason.LOAD, entity -> entity);
+				if (!(loaded instanceof dev.duzo.players.entities.FakePlayerEntity restored)) {
+					failures.add("vacancy flag snapshot could not reload"); return;
+				}
+				fake = restored;
+				if (step == 1) fake.clearVacant(2);
+				if (step >= 1 && (fake.isNoAi() != noAi || fake.isNoGravity() != noGravity)) {
+					failures.add("vacancy changed configured AI/gravity after release/reload: " + noAi + "/" + noGravity);
+				}
 			}
 		}
 	}

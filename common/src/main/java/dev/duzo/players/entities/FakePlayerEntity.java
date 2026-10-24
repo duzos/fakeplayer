@@ -813,6 +813,9 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		if (this.possessionEpoch != 0L) output.putLong("PossessionEpoch", this.possessionEpoch);
 		if (this.possessionDeathPending) output.putBoolean("PossessionDeathPending", true);
 		if (this.possessedBy != null) output.store("PossessedBy", UUIDUtil.CODEC, this.possessedBy);
+		// Persist configured flags, not the temporary vacancy/pose overrides seen by vanilla.
+		output.putBoolean("NoAI", super.isNoAi());
+		output.putBoolean("NoGravity", super.isNoGravity());
 	}
 
 	/**
