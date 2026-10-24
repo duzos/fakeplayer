@@ -9,6 +9,9 @@ public interface PossessionStashHolder {
 
 	void players$setStash(@Nullable PlayerStash stash);
 
+	String players$getSaveToken();
+	void players$setSaveToken(String token);
+
 	static @Nullable PlayerStash stashOf(net.minecraft.server.level.ServerPlayer player) {
 		return ((PossessionStashHolder) player).players$getStash();
 	}

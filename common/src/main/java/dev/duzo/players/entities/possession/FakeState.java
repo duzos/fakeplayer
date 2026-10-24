@@ -30,7 +30,7 @@ import java.util.Optional;
  * hand is hotbar 1. A player's 36 non-equipment slots map as 0 to the main hand, 1-8 to storage 27-34 and 9-35 to storage 0-26.
  */
 public record FakeState(List<ItemStack> storage, Map<EquipmentSlot, ItemStack> equipment, float health, float absorption,
-                        List<MobEffectInstance> effects, int fireTicks, int air) {
+						List<MobEffectInstance> effects, int fireTicks, int air) {
 	/** Armour, offhand and main hand; the main hand is hotbar slot 0 of a player, so a player's stash never lists it twice. */
 	public static final List<EquipmentSlot> SLOTS = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND,
 			EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET);
@@ -63,6 +63,8 @@ public record FakeState(List<ItemStack> storage, Map<EquipmentSlot, ItemStack> e
 
 	/** Moves the fake's inventory, equipment and vitals out of it. */
 	public static FakeState takeFrom(FakePlayerEntity fake) {
+		float health = fake.getHealth(), absorption = fake.getAbsorptionAmount();
+		int fire = fake.getRemainingFireTicks(), air = fake.getAirSupply();
 		FakePlayerInventory inv = fake.getInventory();
 		List<ItemStack> storage = new ArrayList<>(FakePlayerInventory.SIZE);
 		for (int i = 0; i < FakePlayerInventory.SIZE; i++) {
@@ -74,12 +76,13 @@ public record FakeState(List<ItemStack> storage, Map<EquipmentSlot, ItemStack> e
 			equipment.put(slot, fake.getItemBySlot(slot));
 			fake.setItemSlot(slot, ItemStack.EMPTY);
 		}
-		return new FakeState(storage, equipment, fake.getHealth(), fake.getAbsorptionAmount(), vitalEffects(fake),
-				fake.getRemainingFireTicks(), fake.getAirSupply());
+		return new FakeState(storage, equipment, health, absorption, vitalEffects(fake), fire, air);
 	}
 
 	/** Moves a player's whole inventory out of them. The held item becomes the main hand, so the fake holds what the player held. */
 	public static FakeState takeFrom(ServerPlayer player) {
+		float health = player.getHealth(), absorption = player.getAbsorptionAmount();
+		int fire = player.getRemainingFireTicks(), air = player.getAirSupply();
 		Inventory inv = player.getInventory();
 		NonNullList<ItemStack> items = inv.getNonEquipmentItems();
 		int selected = inv.getSelectedSlot();
@@ -107,7 +110,23 @@ public record FakeState(List<ItemStack> storage, Map<EquipmentSlot, ItemStack> e
 			equipment.put(slot, player.getItemBySlot(slot));
 			player.setItemSlot(slot, ItemStack.EMPTY);
 		}
-		return new FakeState(storage, equipment, player.getHealth(), player.getAbsorptionAmount(), vitalEffects(player),
+		return new FakeState(storage, equipment, health, absorption, vitalEffects(player), fire, air);
+	}
+
+
+	public static FakeState copyFrom(ServerPlayer player) {
+		Inventory inv = player.getInventory();
+		List<ItemStack> items = new ArrayList<>();
+		for (ItemStack item : inv.getNonEquipmentItems()) items.add(item.copy());
+		java.util.Collections.swap(items, 0, inv.getSelectedSlot());
+		List<ItemStack> storage = new ArrayList<>();
+		for (int i = 0; i < GRID; i++) storage.add(items.get(9 + i));
+		for (int i = 1; i <= HOTBAR_REST; i++) storage.add(items.get(i));
+		Map<EquipmentSlot, ItemStack> equipment = new EnumMap<>(EquipmentSlot.class);
+		equipment.put(EquipmentSlot.MAINHAND, items.get(0));
+		for (EquipmentSlot slot : SLOTS) if (slot != EquipmentSlot.MAINHAND) equipment.put(slot, player.getItemBySlot(slot).copy());
+		List<MobEffectInstance> effects = player.getActiveEffects().stream().map(MobEffectInstance::new).toList();
+		return new FakeState(storage, equipment, player.getHealth(), player.getAbsorptionAmount(), effects,
 				player.getRemainingFireTicks(), player.getAirSupply());
 	}
 

@@ -17,7 +17,6 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.minecraft.server.level.ServerLevel;
@@ -71,11 +70,6 @@ public class ForgeModEvents {
 	@SubscribeEvent
 	public static void onServerStopped(ServerStoppedEvent e) {
 		PossessionManager.onServerStopped();
-	}
-
-	@SubscribeEvent
-	public static void onLevelSave(LevelEvent.Save e) {
-		if (e.getLevel() instanceof ServerLevel level) PossessionManager.onLevelSaved(level.getServer(), level);
 	}
 
 	@SubscribeEvent

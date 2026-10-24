@@ -21,6 +21,7 @@ public final class PossessionReconciler {
 	public static void reconcile(FakePlayerEntity fake, ServerLevel level) {
 		if (fake.reconcileOnCooldown() || level.getServer() == null) return;
 		PossessionLedger ledger = PossessionLedger.of(level.getServer());
+		if (!ledger.available()) { fake.delayReconcile(); return; }
 		UUID id = fake.getUUID();
 		PossessionLedger.Entry entry = ledger.get(id);
 		long epoch = fake.possessionEpoch();
@@ -28,6 +29,10 @@ public final class PossessionReconciler {
 		if (entry == null) {
 			if (fake.isVacant()) Constants.traceEvent("reconcile {} vacant shell with no ledger entry, leaving it vacant", id);
 			fake.markReconciled();
+			return;
+		}
+		if (epoch > entry.epoch && entry.sequence != 0) {
+			fake.delayReconcile();
 			return;
 		}
 		if (epoch > entry.epoch) {
@@ -44,7 +49,18 @@ public final class PossessionReconciler {
 			reconcileActive(fake, ledger, entry, epoch);
 			return;
 		}
+		if (entry.hasOutput() && entry.shell != null) {
+			if (epoch != entry.epoch || fake.isVacant() || !entry.dimension.equals(level.dimension().identifier().toString())
+					|| !PossessionManager.claimOutput(id, fake)) {
+				discard(fake, entry, epoch, "not the canonical release output");
+				return;
+			}
+			entry.markPendingAdopted();
+			fake.markReconciled();
+			return;
+		}
 		if (epoch == entry.epoch) {
+			if (!fake.isVacant() && entry.pending != null) entry.markPendingAdopted();
 			if (fake.isVacant()) Constants.traceEvent("reconcile {} vacant at the ledger's inactive epoch {}, leaving it vacant", id, epoch);
 			else Constants.traceEvent("reconcile {} current at epoch {}", id, epoch);
 			fake.markReconciled();
@@ -69,6 +85,7 @@ public final class PossessionReconciler {
 			fake.markReconciled();
 			return;
 		}
+		if (entry.sequence != 0) { fake.delayReconcile(); return; }
 		Constants.traceEvent("reconcile {} not vacant at the ledger's active epoch {}, marking the possession over", id, epoch);
 		if (!ledger.put(id, new PossessionLedger.Entry(epoch, entry.possessor, false, null))) {
 			fake.delayReconcile();

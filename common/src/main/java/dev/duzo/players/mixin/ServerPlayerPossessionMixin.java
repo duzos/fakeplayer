@@ -26,6 +26,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class ServerPlayerPossessionMixin implements PossessionStashHolder {
 	@Unique
 	private PlayerStash players$stash;
+	@Unique private String players$saveToken = "";
+
+	@Override public String players$getSaveToken() { return players$saveToken; }
+	@Override public void players$setSaveToken(String token) { players$saveToken = token; }
 
 	@Override
 	public @Nullable PlayerStash players$getStash() {
@@ -40,15 +44,18 @@ public abstract class ServerPlayerPossessionMixin implements PossessionStashHold
 	@Inject(method = "addAdditionalSaveData(Lnet/minecraft/world/level/storage/ValueOutput;)V", at = @At("TAIL"))
 	private void players$writeStash(ValueOutput output, CallbackInfo ci) {
 		if (this.players$stash != null) output.store(PlayerStash.KEY, PlayerStash.CODEC, this.players$stash);
+		output.putString("players:possession_token", players$saveToken);
 	}
 
 	@Inject(method = "readAdditionalSaveData(Lnet/minecraft/world/level/storage/ValueInput;)V", at = @At("TAIL"))
 	private void players$readStash(ValueInput input, CallbackInfo ci) {
 		this.players$stash = input.read(PlayerStash.KEY, PlayerStash.CODEC).orElse(null);
+		this.players$saveToken = input.getStringOr("players:possession_token", "");
 	}
 
 	@Inject(method = "restoreFrom(Lnet/minecraft/server/level/ServerPlayer;Z)V", at = @At("TAIL"))
 	private void players$copyStash(ServerPlayer old, boolean alive, CallbackInfo ci) {
+		this.players$saveToken = ((PossessionStashHolder) old).players$getSaveToken();
 		PlayerStash stash = PossessionStashHolder.stashOf(old);
 		if (stash == null) return;
 		Constants.LOG.error("A possession stash survived into a respawn for {}; keeping it so login repair can still return the items", old.getUUID());
@@ -61,9 +68,9 @@ public abstract class ServerPlayerPossessionMixin implements PossessionStashHold
 		if (PossessionManager.onPlayerDeath((ServerPlayer) (Object) this, source)) ci.cancel();
 	}
 
-	@Inject(method = "setGameMode(Lnet/minecraft/world/level/GameType;)Z", at = @At("HEAD"))
+	@Inject(method = "setGameMode(Lnet/minecraft/world/level/GameType;)Z", at = @At("HEAD"), cancellable = true)
 	private void players$releaseBeforeGameMode(GameType mode, CallbackInfoReturnable<Boolean> cir) {
-		PossessionManager.beforeGameMode((ServerPlayer) (Object) this, mode);
+		if (!PossessionManager.beforeGameMode((ServerPlayer) (Object) this, mode)) cir.setReturnValue(false);
 	}
 
 	@Inject(method = "getTabListDisplayName()Lnet/minecraft/network/chat/Component;", at = @At("HEAD"), cancellable = true)

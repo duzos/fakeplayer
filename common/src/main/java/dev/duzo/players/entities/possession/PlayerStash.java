@@ -107,11 +107,11 @@ public record PlayerStash(int version, Own own, Body body, Ref fake) {
 		CompoundTag food = foodOut.buildResult();
 		Optional<ServerPlayer.RespawnConfig> respawn = Optional.ofNullable(player.getRespawnConfig());
 		int gameMode = player.gameMode.getGameModeForPlayer().getId();
-		List<MobEffectInstance> effects = FakeState.vitalEffects(player);
 		float health = player.getHealth();
 		float absorption = player.getAbsorptionAmount();
 		int fire = player.getRemainingFireTicks();
 		int air = player.getAirSupply();
+		List<MobEffectInstance> effects = FakeState.vitalEffects(player);
 		int selected = inv.getSelectedSlot();
 
 		NonNullList<ItemStack> slots = inv.getNonEquipmentItems();

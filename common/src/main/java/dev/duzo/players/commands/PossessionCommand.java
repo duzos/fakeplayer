@@ -33,8 +33,7 @@ public class PossessionCommand {
 			source.sendFailure(Component.literal("You are not possessing a fake"));
 			return 0;
 		}
-		PossessionManager.release(player, PossessionManager.Reason.RELEASED, null);
-		return 1;
+		return PossessionManager.release(player, PossessionManager.Reason.RELEASED, null) ? 1 : 0;
 	}
 
 	private static int releaseTargets(CommandSourceStack source, com.mojang.brigadier.context.CommandContext<CommandSourceStack> ctx) {
@@ -42,8 +41,7 @@ public class PossessionCommand {
 		try {
 			for (ServerPlayer target : EntityArgument.getPlayers(ctx, "targets")) {
 				if (!PossessionManager.isPossessing(target)) continue;
-				PossessionManager.release(target, PossessionManager.Reason.RELEASED, null);
-				released++;
+				if (PossessionManager.release(target, PossessionManager.Reason.RELEASED, null)) released++;
 			}
 		} catch (CommandSyntaxException e) {
 			source.sendFailure(Component.literal("Invalid target"));

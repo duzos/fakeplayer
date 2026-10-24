@@ -60,7 +60,7 @@ public final class RequestRouting {
 		if (owner == null) return List.of();
 		AABB box = around.getBoundingBox().inflate(PlayersConfig.get().requestRadius);
 		return level.getEntitiesOfClass(FakePlayerEntity.class, box, fake -> fake.isAlive()
-				&& !fake.isVacant()
+				&& !fake.isVacant() && !fake.isUnreconciled()
 				&& fake != around
 				&& FPJobs.is(fake.getAIState().jobId(), job)
 				&& fake.getAIState().running()
@@ -119,7 +119,7 @@ public final class RequestRouting {
 			List<UUID> found = new ArrayList<>();
 			for (ServerLevel each : server.getAllLevels()) {
 				for (Entity entity : each.getAllEntities()) {
-					if (!(entity instanceof FakePlayerEntity fake) || fake.isVacant()) continue;
+					if (!(entity instanceof FakePlayerEntity fake) || fake.isVacant() || fake.isUnreconciled()) continue;
 					if (!FPJobs.is(fake.getAIState().jobId(), FPJobs.QUARTERMASTER)) continue;
 					if (!owner.equals(fake.getAIState().ownerUUID())) continue;
 					found.add(fake.getUUID());
@@ -134,7 +134,7 @@ public final class RequestRouting {
 		List<FakePlayerEntity> live = new ArrayList<>(lastScan.size());
 		for (UUID id : lastScan) {
 			for (ServerLevel each : server.getAllLevels()) {
-				if (each.getEntity(id) instanceof FakePlayerEntity fake && fake.isAlive() && !fake.isRemoved() && !fake.isVacant()) {
+				if (each.getEntity(id) instanceof FakePlayerEntity fake && fake.isAlive() && !fake.isRemoved() && !fake.isVacant() && !fake.isUnreconciled()) {
 					live.add(fake);
 					break;
 				}
@@ -228,7 +228,7 @@ public final class RequestRouting {
 			return now - request.assignedAt() > ORPHAN_TICKS ? AssignmentFault.ORPHANED : null;
 		}
 		// a runner whose items are with a possessing player is waiting, not re-jobbed, and cannot be judged until it is back
-		if (runner.isVacant()) return null;
+		if (runner.isVacant() || runner.isUnreconciled()) return null;
 		// running() is AIState too, and a stopped runner never ticks, so it can neither finish the
 		// delivery nor release its own Haul. Without this the request and the cargo strand forever.
 		// running() covers stopped, which strands the dispatch because a stopped runner never ticks

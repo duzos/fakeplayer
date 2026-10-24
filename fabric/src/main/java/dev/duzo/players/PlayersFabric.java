@@ -40,6 +40,5 @@ public class PlayersFabric implements ModInitializer {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> PossessionManager.onJoin(handler.player));
         ServerLifecycleEvents.SERVER_STOPPING.register(PossessionManager::onServerStopping);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> PossessionManager.onServerStopped());
-        ServerLifecycleEvents.AFTER_SAVE.register((server, flush, force) -> PossessionManager.onAllSaved(server));
     }
 }

@@ -14,6 +14,11 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.DoubleTag;
+import net.minecraft.nbt.FloatTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundContainerClosePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
@@ -23,9 +28,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.Containers;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -37,7 +42,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -65,6 +69,9 @@ public final class PossessionManager {
 	private static final Map<UUID, Long> COOLDOWN_UNTIL = new HashMap<>();
 	private static final Set<UUID> RELEASING = new HashSet<>();
 	private static final List<PendingTeleport> PENDING_TELEPORTS = new ArrayList<>();
+	private static final Map<UUID, FakePlayerEntity> OUTPUTS = new HashMap<>();
+	private static final Map<UUID, Integer> CHECKPOINT_RETRY = new HashMap<>();
+	private static final Map<UUID, DamageSource> DEATH_SOURCES = new HashMap<>();
 	/** True while this class changes a player's game mode itself, so the game mode mixin does not treat it as an outside change. */
 	private static boolean ownGameModeChange;
 
@@ -103,6 +110,10 @@ public final class PossessionManager {
 		MinecraftServer server = player.level().getServer();
 		if (server == null) return;
 		PlayersConfig config = PlayersConfig.get();
+		PossessionLedger journal = PossessionLedger.of(server);
+		if (!journal.available()) { deny(player, "Possession storage is unavailable"); return; }
+		var last = journal.latestFor(player.getUUID());
+		if (last != null && last.getValue().hasOutput()) { deny(player, "Your previous possession is still being saved"); return; }
 		if (!config.possession) {
 			deny(player, "Possession is disabled on this server");
 			return;
@@ -131,7 +142,7 @@ public final class PossessionManager {
 			return;
 		}
 		FakePlayerEntity fake = find(server, id);
-		if (fake == null || !fake.isAlive() || !fake.isReconciled()) {
+		if (fake == null || !fake.isAlive() || !fake.isReconciled() || fake.isUnreconciled()) {
 			deny(player, "That fake is not loaded, or is gone");
 			return;
 		}
@@ -242,7 +253,9 @@ public final class PossessionManager {
 					player.getYRot(), player.getXRot(), body.getUUID());
 			PlayerStash.Ref fakeRef = new PlayerStash.Ref(fake.getUUID(), dimensionOf(fakeLevel), epoch, shell, fakeName);
 			stash = PlayerStash.capture(player, bodyRef, fakeRef);
-			committed = ledger.put(fake.getUUID(), new PossessionLedger.Entry(epoch, player.getUUID(), true, null));
+			committed = ledger.put(fake.getUUID(), new PossessionLedger.Entry(epoch, player.getUUID(), true,
+					fakeState.toTag(server.registryAccess()), encodeStash(server, stash), shell, dimensionOf(fakeLevel),
+					false, ledger.nextSequence(), UUID.randomUUID().toString()));
 		} catch (Throwable t) {
 			Constants.LOG.error("Possession start failed before the ledger was written", t);
 			Constants.traceEvent("possession start threw before commit {}: {}", player.getUUID(), t.toString());
@@ -255,9 +268,11 @@ public final class PossessionManager {
 			failStart(player, link, oldDamage, oldCount, "the ledger could not be written");
 			return;
 		}
+		PossessionFaults.boundary("after-start-prepare");
 		PlayerStash.Body bodyRef = stash.body();
 
 		PossessionStashHolder.setStash(player, stash);
+		((PossessionStashHolder) player).players$setSaveToken(ledger.get(fake.getUUID()).playerToken);
 		PossessionSession session = new PossessionSession(player.getUUID(), fake.getUUID(), body.getUUID(), epoch, server.getTickCount(),
 				fakeName, disguiseOf(player, fake, fakeName), bodyRef.dimension(), new Vec3(bodyRef.x(), bodyRef.y(), bodyRef.z()), bodyRef.yaw(), bodyRef.pitch());
 		session.bindFake(fake);
@@ -281,7 +296,9 @@ public final class PossessionManager {
 			player.teleportTo(fakeLevel, fake.getX(), fake.getY(), fake.getZ(), Set.of(), fake.getYRot(), fake.getXRot(), true);
 			showBody(body, player);
 			syncDisguise(server, player, session);
-			save(server, player);
+			PossessionFaults.boundary("before-start-player-save");
+			if (!save(server, player)) { quarantine(player); return; }
+			PossessionFaults.boundary("after-start-player-save");
 			player.displayClientMessage(Component.translatable("message.players.possession.start", fakeName,
 					Component.keybind("key.players.release_possession")), true);
 			Constants.traceEvent("possession started {} fake={} mode={}", player.getUUID(), fake.getUUID(), mode);
@@ -336,9 +353,25 @@ public final class PossessionManager {
 		}
 	}
 
-	private static void save(MinecraftServer server, ServerPlayer player) {
-		((PlayerListAccessor) server.getPlayerList()).players$save(player);
-		Constants.traceEvent("possession player saved {}", player.getUUID());
+	private static boolean save(MinecraftServer server, ServerPlayer player) {
+		if (!PossessionFaults.enabled("fail-player-save")) ((PlayerListAccessor) server.getPlayerList()).players$save(player);
+		boolean saved = PossessionPersistence.playerSaved(server, player.getUUID(),
+				((PossessionStashHolder) player).players$getSaveToken(), PossessionStashHolder.stashOf(player) != null);
+		Constants.traceEvent("possession player save verified {} result={}", player.getUUID(), saved);
+		if (!saved) PossessionFaults.boundary("after-failed-player-save");
+		return saved;
+	}
+
+	private static void quarantine(ServerPlayer player) {
+		player.connection.disconnect(Component.literal("Possession could not be saved safely. Please reconnect after the server storage is repaired."));
+	}
+
+	private static CompoundTag encodeStash(MinecraftServer server, PlayerStash stash) {
+		return (CompoundTag) PlayerStash.CODEC.encodeStart(RegistryOps.create(NbtOps.INSTANCE, server.registryAccess()), stash).getOrThrow();
+	}
+
+	private static PlayerStash decodeStash(MinecraftServer server, CompoundTag tag) {
+		return PlayerStash.CODEC.parse(RegistryOps.create(NbtOps.INSTANCE, server.registryAccess()), tag).getOrThrow();
 	}
 
 	private static void removeHealthModifier(ServerPlayer player) {
@@ -353,10 +386,16 @@ public final class PossessionManager {
 			for (PendingTeleport t : new ArrayList<>(PENDING_TELEPORTS)) {
 				ServerPlayer player = server.getPlayerList().getPlayer(t.player);
 				ServerLevel level = levelOf(server, t.dimension);
-				if (player != null && level != null) player.teleportTo(level, t.pos.x, t.pos.y, t.pos.z, Set.of(), t.yaw, t.pitch, true);
+				if (player != null && level != null) {
+					player.teleportTo(level, t.pos.x, t.pos.y, t.pos.z, Set.of(), t.yaw, t.pitch, true);
+					PossessionFaults.boundary("before-release-player-save");
+					if (!save(server, player)) quarantine(player);
+					PossessionFaults.boundary("after-release-player-save");
+				}
 			}
 			PENDING_TELEPORTS.clear();
 		}
+		finishOutputs(server);
 		if (SESSIONS.isEmpty()) return;
 		for (PossessionSession session : new ArrayList<>(SESSIONS.values())) {
 			ServerPlayer player = server.getPlayerList().getPlayer(session.player);
@@ -416,20 +455,23 @@ public final class PossessionManager {
 	// ---- release ----
 
 	/** Ends the player's possession, if any. */
-	public static void release(ServerPlayer player, Reason reason, @Nullable DamageSource deathSource) {
+	public static boolean release(ServerPlayer player, Reason reason, @Nullable DamageSource deathSource) {
 		MinecraftServer server = player.level().getServer();
 		PlayerStash stash = PossessionStashHolder.stashOf(player);
 		PossessionSession session = SESSIONS.get(player.getUUID());
 		if (server == null || stash == null) {
 			if (session != null) SESSIONS.remove(player.getUUID());
-			return;
+			return false;
 		}
-		if (!RELEASING.add(player.getUUID())) return;
+		if (!RELEASING.add(player.getUUID())) return false;
 		try {
 			doRelease(server, player, stash, session, reason, deathSource);
+			return !SESSIONS.containsKey(player.getUUID()) && PossessionStashHolder.stashOf(player) == null;
 		} catch (Throwable t) {
 			Constants.LOG.error("Releasing the possession of {} failed", player.getUUID(), t);
 			Constants.traceEvent("possession release threw {}: {}", player.getUUID(), t.toString());
+			quarantine(player);
+			return false;
 		} finally {
 			RELEASING.remove(player.getUUID());
 		}
@@ -438,6 +480,13 @@ public final class PossessionManager {
 	private static void doRelease(MinecraftServer server, ServerPlayer player, PlayerStash stash, @Nullable PossessionSession session,
 	                              Reason reason, @Nullable DamageSource deathSource) {
 		UUID fakeId = stash.fake().uuid();
+		PossessionLedger.Entry previous = PossessionLedger.of(server).get(fakeId);
+		if (previous != null && !previous.active) {
+			// A prepared release owns the output even when a later step threw.
+			repair(server, player, previous.stash == null ? stash : decodeStash(server, previous.stash));
+			SESSIONS.remove(player.getUUID());
+			return;
+		}
 		Constants.traceEvent("possession release {} fake={} reason={}", player.getUUID(), fakeId, reason.label);
 		AIMarkerItem.clearAllFor(player);
 		closeAndFlush(player);
@@ -445,8 +494,26 @@ public final class PossessionManager {
 		Vec3 pos = player.position();
 		float yaw = player.getYRot();
 		float pitch = player.getXRot();
+		PossessionBodyEntity currentBody = findBody(server, stash.body().uuid());
+		if (currentBody != null) {
+			stash = new PlayerStash(stash.version(), stash.own(), new PlayerStash.Body(dimensionOf(currentBody.level()),
+					currentBody.getX(), currentBody.getY(), currentBody.getZ(), currentBody.getYRot(), currentBody.getXRot(), currentBody.getUUID()), stash.fake());
+		} else if (session != null) {
+			stash = new PlayerStash(stash.version(), stash.own(), new PlayerStash.Body(session.bodyDimension,
+					session.bodyPos.x, session.bodyPos.y, session.bodyPos.z, session.bodyYaw, session.bodyPitch, session.bodyId), stash.fake());
+		}
 
-		FakeState state = FakeState.takeFrom(player);
+		FakeState state = FakeState.copyFrom(player);
+		PossessionLedger ledger = PossessionLedger.of(server);
+		PossessionLedger.Entry prepared = prepareOutput(server, ledger, player, stash, level, pos, yaw, pitch, state, reason == Reason.DEATH);
+		if (prepared == null) {
+			deny(player, "Possession could not be saved; you are still controlling the fake");
+			if (reason == Reason.DEATH || reason == Reason.LOGOUT || reason == Reason.SERVER_STOP) quarantine(player);
+			return;
+		}
+		PossessionFaults.boundary("after-release-prepare");
+		if (reason == Reason.DEATH && deathSource != null) DEATH_SOURCES.put(fakeId, deathSource);
+		FakeState.takeFrom(player);
 		removeHealthModifier(player);
 		stash.restoreTo(player);
 		setGameModeOwn(player, stash.gameMode());
@@ -455,8 +522,8 @@ public final class PossessionManager {
 		syncHeldSlot(player);
 		Constants.traceEvent("possession release {} own state restored, {} stacks go to the fake", player.getUUID(), countStacks(state));
 
-		PossessionLedger ledger = PossessionLedger.of(server);
-		FakePlayerEntity fake = placeInFake(server, ledger, player.getUUID(), stash, level, pos, yaw, pitch, state);
+		if (PossessionFaults.enabled("throw-after-own-restore")) throw new IllegalStateException("injected after own restore");
+		placeInFake(server, stash.fake().uuid(), prepared);
 
 		PossessionBodyEntity body = findBody(server, stash.body().uuid());
 		String bodyDim = session != null ? session.bodyDimension : stash.body().dimension();
@@ -471,18 +538,22 @@ public final class PossessionManager {
 		}
 
 		PossessionStashHolder.setStash(player, null);
+		((PossessionStashHolder) player).players$setSaveToken(prepared.playerToken);
 		SESSIONS.remove(player.getUUID());
 		if (body != null) body.discard();
 
 		if (reason == Reason.DEATH) {
 			PENDING_TELEPORTS.add(new PendingTeleport(player.getUUID(), bodyDim, bodyPos, bodyYaw, bodyPitch));
-			if (fake != null) killFake(fake, ledger, player.getUUID(), deathSource);
 		} else {
 			ServerLevel back = levelOf(server, bodyDim);
 			if (back != null) player.teleportTo(back, bodyPos.x, bodyPos.y, bodyPos.z, Set.of(), bodyYaw, bodyPitch, true);
 		}
 		syncDisguise(server, player, null);
-		if (reason != Reason.LOGOUT) save(server, player);
+		if (reason != Reason.DEATH) {
+			PossessionFaults.boundary("before-release-player-save");
+			if (!save(server, player)) quarantine(player);
+			PossessionFaults.boundary("after-release-player-save");
+		}
 		if (reason != Reason.LOGOUT && reason != Reason.SERVER_STOP) {
 			COOLDOWN_UNTIL.put(player.getUUID(), (long) server.getTickCount() + PlayersConfig.get().possessionCooldownSeconds * 20L);
 		}
@@ -490,86 +561,127 @@ public final class PossessionManager {
 		Constants.traceEvent("possession released {} fake={} reason={}", player.getUUID(), fakeId, reason.label);
 	}
 
-	/**
-	 * Puts the state into the fake, bringing the fake to {@code pos} first, and records the hand-over in the ledger. If there is
-	 * no fake to give it to, the stacks are dropped where the player stands, so they are never lost.
-	 */
-	@Nullable
-	private static FakePlayerEntity placeInFake(MinecraftServer server, PossessionLedger ledger, UUID possessor, PlayerStash stash,
-	                                            ServerLevel level, Vec3 pos, float yaw, float pitch, FakeState state) {
-		UUID fakeId = stash.fake().uuid();
-		FakePlayerEntity shell = find(server, fakeId);
+	private static PossessionLedger.Entry prepareOutput(MinecraftServer server, PossessionLedger ledger, ServerPlayer player,
+			PlayerStash stash, ServerLevel level, Vec3 pos, float yaw, float pitch, FakeState state, boolean death) {
+		if (!ledger.available()) return null;
+		UUID id = stash.fake().uuid();
+		PossessionLedger.Entry previous = ledger.get(id);
+		long epoch = Math.max(stash.fake().epoch(), previous == null ? 0 : previous.epoch) + 1;
 		try {
-			if (shell != null) {
-				Entity moved = shell.teleport(new TeleportTransition(level, pos, Vec3.ZERO, yaw, pitch, TeleportTransition.DO_NOTHING));
-				if (moved instanceof FakePlayerEntity f) shell = f;
-			} else {
-				shell = respawnShell(level, stash, pos, yaw, pitch);
-				Constants.traceEvent("possession shell not loaded for {}, respawned from its snapshot: {}", fakeId, shell != null);
-			}
-		} catch (Throwable t) {
-			Constants.LOG.error("Moving the shell of fake {} failed", fakeId, t);
-			Constants.traceEvent("possession shell move threw {}: {}", fakeId, t.toString());
-		}
-		PossessionLedger.Entry current = ledger.get(fakeId);
-		long next = Math.max(stash.fake().epoch(), Math.max(current == null ? 0L : current.epoch, shell == null ? 0L : shell.possessionEpoch())) + 1;
-		CompoundTag pending = null;
-		try {
-			pending = state.toTag(server.registryAccess());
+			FakePlayerEntity live = find(server, id);
+			CompoundTag shell = live == null ? stash.fake().shellSnapshot().copy() : snapshot(live);
+			ListTag position = new ListTag();
+			position.add(DoubleTag.valueOf(pos.x)); position.add(DoubleTag.valueOf(pos.y)); position.add(DoubleTag.valueOf(pos.z));
+			ListTag rotation = new ListTag(); rotation.add(FloatTag.valueOf(yaw)); rotation.add(FloatTag.valueOf(pitch));
+			shell.put("Pos", position); shell.put("Rotation", rotation);
+			shell.remove("PossessedBy"); shell.putLong("PossessionEpoch", epoch);
+			shell.putBoolean("PossessionDeathPending", death);
+			PossessionLedger.Entry entry = new PossessionLedger.Entry(epoch, player.getUUID(), false, state.toTag(server.registryAccess()),
+					encodeStash(server, stash), shell, dimensionOf(level), death, ledger.nextSequence(), UUID.randomUUID().toString());
+			PossessionFaults.boundary("before-release-prepare");
+			return ledger.put(id, entry) ? entry : null;
 		} catch (RuntimeException e) {
-			Constants.LOG.error("Could not serialise the state handed back to fake {}", fakeId, e);
-		}
-		if (shell == null) {
-			dropAll(level, pos, state);
-			ledger.put(fakeId, new PossessionLedger.Entry(next, possessor, false, null));
-			Constants.traceEvent("possession fake {} is gone, its stacks were dropped at the player", fakeId);
+			Constants.LOG.error("Could not prepare possession release", e);
 			return null;
 		}
-		FakeState leftovers = FakeState.takeFrom(shell);
-		if (leftovers.hasItems()) {
-			dropAll(level, shell.position(), leftovers);
-			Constants.LOG.error("The shell of fake {} held items while vacant; they were dropped beside it", fakeId);
-			Constants.traceEvent("possession shell {} held items, dropped them", fakeId);
-		}
-		shell.clearVacant(next);
-		state.applyTo(shell);
-		PossessionLedger.Entry entry = new PossessionLedger.Entry(next, possessor, false, pending);
-		entry.markPendingAdopted();
-		ledger.put(fakeId, entry);
-		Constants.traceEvent("possession fake {} has its state back at epoch {}", fakeId, next);
-		return shell;
 	}
 
 	@Nullable
-	private static FakePlayerEntity respawnShell(ServerLevel level, PlayerStash stash, Vec3 pos, float yaw, float pitch) {
-		Entity entity = EntityType.loadEntityRecursive(stash.fake().shellSnapshot(), level, EntitySpawnReason.LOAD, e -> {
-			e.snapTo(pos.x, pos.y, pos.z, yaw, pitch);
-			return e;
-		});
-		if (!(entity instanceof FakePlayerEntity fake)) return null;
-		fake.setUUID(stash.fake().uuid());
-		return level.tryAddFreshEntityWithPassengers(fake) ? fake : null;
-	}
-
-	/**
-	 * The fake dies with everything the possession handed back, which scatters at its feet. The ledger then forgets the pending
-	 * state, so a stale copy of the fake on disk is discarded and cannot bring the items back.
-	 */
-	private static void killFake(FakePlayerEntity fake, PossessionLedger ledger, UUID possessor, @Nullable DamageSource source) {
-		if (!(fake.level() instanceof ServerLevel level)) return;
-		DamageSource cause = source != null ? source : level.damageSources().generic();
-		Constants.traceEvent("possession death path: fake {} dies at {}", fake.getUUID(), fake.position());
-		fake.setHealth(0.0F);
-		fake.die(cause);
-		long epoch = fake.possessionEpoch() + 1;
-		fake.setPossessionEpoch(epoch);
-		ledger.put(fake.getUUID(), new PossessionLedger.Entry(epoch, possessor, false, null));
-	}
-
-	private static void dropAll(ServerLevel level, Vec3 at, FakeState state) {
-		for (ItemStack stack : state.allStacks()) {
-			if (!stack.isEmpty()) Containers.dropItemStack(level, at.x, at.y, at.z, stack);
+	private static FakePlayerEntity placeInFake(MinecraftServer server, UUID id, PossessionLedger.Entry entry) {
+		ServerLevel level = levelOf(server, entry.dimension);
+		if (level == null || entry.shell == null || entry.pending == null) return null;
+		ListTag position = entry.shell.getListOrEmpty("Pos");
+		Vec3 pos = new Vec3(position.getDoubleOr(0, 0), position.getDoubleOr(1, 0), position.getDoubleOr(2, 0));
+		// Resolve the destination before creating anything: its entity load may contain the committed copy.
+		level.getChunkSource().addTicketWithRadius(TicketType.PORTAL, new ChunkPos(BlockPos.containing(pos)), 2);
+		level.getChunk(BlockPos.containing(pos));
+		if (!level.areEntitiesLoaded(ChunkPos.asLong(BlockPos.containing(pos)))) return null;
+		FakePlayerEntity existing = find(server, id);
+		if (existing != null && existing.possessionEpoch() == entry.epoch && !existing.isVacant()) {
+			if (existing.level() != level || !existing.chunkPosition().equals(new ChunkPos(BlockPos.containing(pos)))) {
+				existing.discardStale();
+				existing = null;
+			} else {
+				return claimOutput(id, existing) ? existing : null;
+			}
 		}
+		if (existing != null) existing.discardStale();
+		Entity loaded = EntityType.loadEntityRecursive(entry.shell.copy(), level, EntitySpawnReason.LOAD, entity -> entity);
+		if (!(loaded instanceof FakePlayerEntity fake)) throw new IllegalStateException("invalid possession shell");
+		FakeState state = FakeState.fromTag(server.registryAccess(), entry.pending).orElseThrow();
+		fake.clearVacant(entry.epoch);
+		state.applyTo(fake);
+		fake.setPossessionDeathPending(entry.death);
+		if (entry.death) fake.setHealth(Math.max(1, fake.getHealth()));
+		fake.markReconciled();
+		if (!level.tryAddFreshEntityWithPassengers(fake)) return null;
+		claimOutput(id, fake);
+		Constants.traceEvent("possession output materialized fake={} epoch={} death={}", id, entry.epoch, entry.death);
+		return fake;
+	}
+
+	static boolean claimOutput(UUID id, FakePlayerEntity fake) {
+		if (!(fake.level() instanceof ServerLevel level)) return false;
+		PossessionLedger.Entry entry = PossessionLedger.of(level.getServer()).get(id);
+		if (entry != null && entry.shell != null) {
+			ListTag pos = entry.shell.getListOrEmpty("Pos");
+			ChunkPos destination = new ChunkPos(BlockPos.containing(pos.getDoubleOr(0, 0), pos.getDoubleOr(1, 0), pos.getDoubleOr(2, 0)));
+			if (!entry.dimension.equals(dimensionOf(level)) || !destination.equals(fake.chunkPosition())) return false;
+		}
+		FakePlayerEntity old = OUTPUTS.get(id);
+		if (old != null && old != fake && !old.isRemoved()) return false;
+		OUTPUTS.put(id, fake);
+		if (entry != null) entry.markPendingAdopted();
+		return true;
+	}
+
+	public static boolean outputPending(MinecraftServer server, UUID fake) {
+		PossessionLedger ledger = PossessionLedger.of(server);
+		if (!ledger.available()) return true;
+		PossessionLedger.Entry entry = ledger.get(fake);
+		return entry != null && entry.hasOutput();
+	}
+
+	private static void finishOutputs(MinecraftServer server) {
+		PossessionLedger ledger = PossessionLedger.of(server);
+		if (!ledger.available()) return;
+		for (Map.Entry<UUID, PossessionLedger.Entry> item : ledger.entries().entrySet()) {
+			UUID id = item.getKey();
+			PossessionLedger.Entry entry = item.getValue();
+			if (!entry.hasOutput() || entry.shell == null) continue;
+			if (server.getTickCount() < CHECKPOINT_RETRY.getOrDefault(id, 0)) continue;
+			CHECKPOINT_RETRY.put(id, server.getTickCount() + 20);
+			try {
+				FakePlayerEntity fake = placeInFake(server, id, entry);
+				if (fake == null) continue;
+				// Both halves must be durable before gameplay can mutate this output.
+				if (!PossessionPersistence.playerSaved(server, entry.possessor, entry.playerToken, false)) continue;
+				ServerLevel level = (ServerLevel) fake.level();
+				PossessionFaults.boundary("before-output-checkpoint");
+				level.save(null, true, false);
+				var persisted = PossessionPersistence.entitySaved(level, fake.chunkPosition(), id);
+				if (persisted.isEmpty() || persisted.get().getLongOr("PossessionEpoch", -1) != entry.epoch
+						|| persisted.get().getBooleanOr("PossessionDeathPending", false) != entry.death) continue;
+				PossessionFaults.boundary("after-output-readback");
+				if (!PossessionFaults.enabled("fail-output-retire") && ledger.put(id, entry.checkpointed())) {
+					OUTPUTS.remove(id);
+					CHECKPOINT_RETRY.remove(id);
+					Constants.traceEvent("possession output checkpointed fake={} epoch={} death={}", id, entry.epoch, entry.death);
+					PossessionFaults.boundary("after-output-checkpoint");
+				}
+			} catch (RuntimeException e) {
+				Constants.LOG.error("Possession output {} remains pending", id, e);
+			}
+		}
+	}
+
+	public static void completeDeath(FakePlayerEntity fake, ServerLevel level) {
+		PossessionFaults.boundary("before-terminal-death");
+		fake.setPossessionDeathPending(false);
+		fake.setHealth(0);
+		DamageSource source = DEATH_SOURCES.remove(fake.getUUID());
+		fake.die(source == null ? level.damageSources().generic() : source);
+		PossessionFaults.boundary("after-terminal-death");
 	}
 
 	private static int countStacks(FakeState state) {
@@ -588,9 +700,9 @@ public final class PossessionManager {
 	}
 
 	/** A game mode change that did not come from here ends the possession first, and is then applied as asked. */
-	public static void beforeGameMode(ServerPlayer player, GameType mode) {
-		if (ownGameModeChange || !SESSIONS.containsKey(player.getUUID())) return;
-		release(player, Reason.GAME_MODE, null);
+	public static boolean beforeGameMode(ServerPlayer player, GameType mode) {
+		if (ownGameModeChange || !SESSIONS.containsKey(player.getUUID())) return true;
+		return release(player, Reason.GAME_MODE, null);
 	}
 
 	@Nullable
@@ -661,22 +773,15 @@ public final class PossessionManager {
 		Constants.traceEvent("possession stop-all done");
 	}
 
-	/** After every dimension saved: pending hand-overs whose fake has now been written to disk are forgotten. */
-	public static void onAllSaved(MinecraftServer server) {
-		PossessionLedger.of(server).onAllSaved();
-	}
-
-	/** After one dimension saved, for loaders that report each level on its own. */
-	public static void onLevelSaved(MinecraftServer server, ServerLevel level) {
-		PossessionLedger.of(server).onLevelSaved(dimensionOf(level));
-	}
-
 	/** The server is gone for good; forget everything that was tied to it. */
 	public static void onServerStopped() {
 		SESSIONS.clear();
 		COOLDOWN_UNTIL.clear();
 		PENDING_TELEPORTS.clear();
 		RELEASING.clear();
+		OUTPUTS.clear();
+		CHECKPOINT_RETRY.clear();
+		DEATH_SOURCES.clear();
 		PossessionLedger.forget();
 	}
 
@@ -686,55 +791,74 @@ public final class PossessionManager {
 	public static void onJoin(ServerPlayer player) {
 		MinecraftServer server = player.level().getServer();
 		if (server == null || SESSIONS.containsKey(player.getUUID())) return;
+		PossessionLedger ledger = PossessionLedger.of(server);
+		if (!ledger.available()) { quarantine(player); return; }
 		PlayerStash stash = PossessionStashHolder.stashOf(player);
-		syncDisguisesTo(server, player);
-		if (stash == null) return;
-		if (!RELEASING.add(player.getUUID())) return;
+		var latest = ledger.latestFor(player.getUUID());
 		try {
+			if (stash == null && latest != null && latest.getValue().stash != null) {
+				PossessionLedger.Entry entry = latest.getValue();
+				String savedToken = ((PossessionStashHolder) player).players$getSaveToken();
+				if (!entry.playerToken.equals(savedToken)) {
+					stash = decodeStash(server, entry.stash);
+					if (entry.active) {
+						// No matching committed player marker: the prepared start owns the initial fake snapshot.
+						ServerLevel destination = levelOf(server, entry.dimension);
+						if (destination == null || entry.shell == null || entry.pending == null) throw new IllegalStateException("incomplete start recovery");
+						FakeState initial = FakeState.fromTag(server.registryAccess(), entry.pending).orElseThrow();
+						ListTag pos = entry.shell.getListOrEmpty("Pos");
+						ListTag rotation = entry.shell.getListOrEmpty("Rotation");
+						FakeState.takeFrom(player);
+						initial.applyTo(player);
+						player.teleportTo(destination, pos.getDoubleOr(0, 0), pos.getDoubleOr(1, 0), pos.getDoubleOr(2, 0), Set.of(),
+								rotation.getFloatOr(0, 0), rotation.getFloatOr(1, 0), true);
+					}
+					PossessionStashHolder.setStash(player, stash);
+				} else if (entry.active) {
+					throw new IllegalStateException("committed possession marker has no stash");
+				}
+			}
+			syncDisguisesTo(server, player);
+			if (stash == null) return;
+			if (!RELEASING.add(player.getUUID())) return;
 			repair(server, player, stash);
-		} catch (Throwable t) {
-			Constants.LOG.error("Possession repair for {} failed", player.getUUID(), t);
-			Constants.traceEvent("possession repair threw {}: {}", player.getUUID(), t.toString());
+		} catch (RuntimeException e) {
+			Constants.LOG.error("Possession recovery for {} is quarantined", player.getUUID(), e);
+			quarantine(player);
 		} finally {
 			RELEASING.remove(player.getUUID());
 		}
 	}
 
 	private static void repair(MinecraftServer server, ServerPlayer player, PlayerStash stash) {
-		UUID fakeId = stash.fake().uuid();
-		Constants.traceEvent("possession repair begin {} fake={} stash epoch={}", player.getUUID(), fakeId, stash.fake().epoch());
-		ServerLevel level = player.level();
-		Vec3 pos = player.position();
-		float yaw = player.getYRot();
-		float pitch = player.getXRot();
-
-		FakeState state = FakeState.takeFrom(player);
+		PossessionLedger ledger = PossessionLedger.of(server);
+		UUID id = stash.fake().uuid();
+		PossessionLedger.Entry entry = ledger.get(id);
+		boolean over = entry != null && (!entry.active || entry.epoch > stash.fake().epoch());
+		if (!over) {
+			FakeState state = FakeState.copyFrom(player);
+			entry = prepareOutput(server, ledger, player, stash, player.level(), player.position(), player.getYRot(), player.getXRot(), state, state.health() <= 0);
+			if (entry == null) throw new IllegalStateException("could not journal possession recovery");
+			PossessionFaults.boundary("after-repair-prepare");
+		}
+		FakeState.takeFrom(player);
 		removeHealthModifier(player);
 		stash.restoreTo(player);
 		setGameModeOwn(player, stash.gameMode());
 		player.resetFallDistance();
 		player.setDeltaMovement(Vec3.ZERO);
 		syncHeldSlot(player);
-
-		PossessionLedger ledger = PossessionLedger.of(server);
-		PossessionLedger.Entry entry = ledger.get(fakeId);
-		boolean over = entry != null && (!entry.active || entry.epoch > stash.fake().epoch());
-		if (over) {
-			Constants.traceEvent("possession repair {} fake={} ledger epoch {} active={} is past the stash, discarding the player's copy of {} stacks",
-					player.getUUID(), fakeId, entry.epoch, entry.active, countStacks(state));
-		} else {
-			placeInFake(server, ledger, player.getUUID(), stash, level, pos, yaw, pitch, state);
-		}
-
 		PossessionBodyEntity body = findBody(server, stash.body().uuid());
 		if (body != null) body.discard();
 		ServerLevel back = levelOf(server, stash.body().dimension());
 		PossessionStashHolder.setStash(player, null);
+		((PossessionStashHolder) player).players$setSaveToken(entry.playerToken);
 		if (back != null) player.teleportTo(back, stash.body().x(), stash.body().y(), stash.body().z(), Set.of(), stash.body().yaw(), stash.body().pitch(), true);
 		syncDisguise(server, player, null);
-		save(server, player);
+		if (!save(server, player)) { quarantine(player); return; }
+		if (entry.hasOutput()) placeInFake(server, id, entry);
 		tell(player, stash.fake().name(), null);
-		Constants.traceEvent("possession repair done {} fake={}", player.getUUID(), fakeId);
+		Constants.traceEvent("possession repair done {} fake={}", player.getUUID(), id);
 	}
 
 	// ---- messages and sync ----

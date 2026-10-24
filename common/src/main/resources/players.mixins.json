@@ -7,7 +7,10 @@
     "mixins": [
         "PlayerInvoker",
         "PlayerListAccessor",
-        "ServerPlayerPossessionMixin"
+        "ServerPlayerPossessionMixin",
+        "ServerLevelEntityStorageAccessor",
+        "EntityManagerStorageAccessor",
+        "EntityStorageAccessor"
     ],
     "client": [
         "AvatarRendererBubbleMixin",
@@ -15,10 +18,8 @@
         "FishingRodCastMixin",
         "PlayerInfoSkinMixin"
     ],
-    "server": [
-    ],
+    "server": [],
     "injectors": {
         "defaultRequire": 1
     }
 }
-

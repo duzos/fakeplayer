@@ -40,7 +40,9 @@ public final class PossessionSelfTest {
 		stateRoundTrip(registries, failures);
 		stashRoundTrip(registries, failures);
 		ledgerRoundTrip(registries, failures);
-		if (player != null) slotMapping(player, failures);
+		ledgerFailures(registries, failures);
+		entityReload(server, failures);
+		if (player != null) { slotMapping(player, failures); stashVitals(player, failures); }
 		return failures;
 	}
 
@@ -114,7 +116,7 @@ public final class PossessionSelfTest {
 			UUID fake = UUID.randomUUID();
 			UUID possessor = UUID.randomUUID();
 			CompoundTag pending = sampleState().toTag(registries);
-			if (!ledger.put(fake, new PossessionLedger.Entry(9L, possessor, false, pending))) {
+			if (!ledger.put(fake, new PossessionLedger.Entry(9L, possessor, false, pending, new CompoundTag(), new CompoundTag(), "minecraft:overworld", false, 1, "round-trip"))) {
 				failures.add("ledger write failed");
 				return;
 			}
@@ -132,6 +134,98 @@ public final class PossessionSelfTest {
 				} catch (IOException ignored) {
 				}
 			}
+		}
+	}
+
+	private static void ledgerFailures(HolderLookup.Provider registries, List<String> failures) {
+		Path directory = null;
+		try {
+			directory = Files.createTempDirectory("players_possession_checks");
+			Path file = directory.resolve("ledger.dat");
+			UUID fake = UUID.randomUUID(), owner = UUID.randomUUID();
+			PossessionLedger ledger = PossessionLedger.at(file);
+			CompoundTag stash = new CompoundTag(); stash.putString("probe", "own inventory");
+			CompoundTag shell = new CompoundTag(); shell.putString("probe", "canonical shell");
+			PossessionLedger.Entry prepared = new PossessionLedger.Entry(3, owner, true, sampleState().toTag(registries),
+					stash, shell, "minecraft:overworld", false, ledger.nextSequence(), "prepare-token");
+			if (!ledger.put(fake, prepared)) { failures.add("prepared start did not write"); return; }
+			PossessionLedger reload = PossessionLedger.at(file);
+			PossessionLedger.Entry back = reload.get(fake);
+			if (!reload.available() || back == null || back.stash == null || back.pending == null || back.shell == null
+					|| !back.playerToken.equals("prepare-token") || reload.latestFor(owner) == null) {
+				failures.add("prepared start lost its recovery payload");
+			}
+			UUID second = UUID.randomUUID(), other = UUID.randomUUID();
+			ledger.put(fake, prepared.checkpointed());
+			ledger.put(second, new PossessionLedger.Entry(4, owner, false, prepared.pending, stash, shell,
+					"minecraft:overworld", false, ledger.nextSequence(), "second-token").checkpointed());
+			ledger.put(second, new PossessionLedger.Entry(5, other, true, prepared.pending, stash, shell,
+					"minecraft:overworld", false, ledger.nextSequence(), "other-token"));
+			var historical = PossessionLedger.at(file).latestFor(owner);
+			if (historical == null || historical.getValue().stash != null || historical.getValue().pending != null) {
+				failures.add("completed older possession can replay stale own inventory after another owner replaces the latest fake record");
+			}
+			ledger.put(fake, prepared);
+			Files.delete(file);
+			Files.createDirectory(file);
+			if (ledger.put(fake, prepared.checkpointed()) || ledger.get(fake) != prepared) {
+				failures.add("failed ledger replacement changed the live authority");
+			}
+			Files.delete(file);
+			Files.writeString(file, "not compressed nbt");
+			PossessionLedger corrupt = PossessionLedger.at(file);
+			if (corrupt.available() || corrupt.put(fake, prepared) || !Files.readString(file).equals("not compressed nbt")) {
+				failures.add("unreadable ledger was not quarantined intact");
+			}
+		} catch (IOException e) {
+			failures.add("ledger failure checks: " + e.getMessage());
+		} finally {
+			if (directory != null) {
+				try {
+					Files.deleteIfExists(directory.resolve("ledger.dat"));
+					Files.deleteIfExists(directory.resolve("ledger.dat.tmp"));
+					Files.deleteIfExists(directory);
+				} catch (IOException e) { failures.add("ledger check cleanup: " + e.getMessage()); }
+			}
+		}
+	}
+
+	private static void entityReload(MinecraftServer server, List<String> failures) {
+		for (boolean terminal : new boolean[] {false, true}) {
+			var fake = new dev.duzo.players.entities.FakePlayerEntity(server.overworld());
+			fake.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 5));
+			fake.getInventory().setItem(34, new ItemStack(Items.BREAD, 3));
+			fake.clearVacant(12);
+			fake.setPossessionDeathPending(terminal);
+			var out = net.minecraft.world.level.storage.TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, server.registryAccess());
+			fake.save(out);
+			var loaded = net.minecraft.world.entity.EntityType.loadEntityRecursive(out.buildResult(), server.overworld(),
+					net.minecraft.world.entity.EntitySpawnReason.LOAD, entity -> entity);
+			if (!(loaded instanceof dev.duzo.players.entities.FakePlayerEntity restored)
+					|| restored.getInventory().countItem(Items.DIAMOND) != 5 || restored.getInventory().countItem(Items.BREAD) != 3
+					|| restored.possessionEpoch() != 12) failures.add("entity storage lost items during unreconciled reload; terminal=" + terminal);
+		}
+	}
+
+	private static void stashVitals(ServerPlayer player, List<String> failures) {
+		PlayerStash.Body body = new PlayerStash.Body("minecraft:overworld", 0, 0, 0, 0, 0, UUID.randomUUID());
+		PlayerStash.Ref fake = new PlayerStash.Ref(UUID.randomUUID(), "minecraft:overworld", 1, new CompoundTag(), "check");
+		PlayerStash original = PlayerStash.capture(player, body, fake);
+		try {
+			player.addEffect(new MobEffectInstance(MobEffects.HEALTH_BOOST, 200, 1));
+			player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 200, 1));
+			player.setHealth(player.getMaxHealth());
+			player.setAbsorptionAmount(8);
+			float health = player.getHealth(), absorption = player.getAbsorptionAmount();
+			PlayerStash captured = PlayerStash.capture(player, body, fake);
+			captured.restoreTo(player);
+			if (player.getHealth() != health || player.getAbsorptionAmount() != absorption
+					|| player.getEffect(MobEffects.HEALTH_BOOST) == null || player.getEffect(MobEffects.ABSORPTION) == null) {
+				failures.add("stash changed boosted health or absorption");
+			}
+		} finally {
+			FakeState.takeFrom(player);
+			original.restoreTo(player);
 		}
 	}
 

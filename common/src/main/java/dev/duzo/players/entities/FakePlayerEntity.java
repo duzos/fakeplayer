@@ -40,8 +40,8 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.UUIDUtil;
-import dev.duzo.players.entities.possession.PossessionLedger;
 import dev.duzo.players.entities.possession.PossessionReconciler;
+import dev.duzo.players.entities.possession.PossessionManager;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.OutgoingChatMessage;
@@ -155,6 +155,10 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			PossessionReconciler.reconcile(this, server);
 			if (!this.reconciled || this.isRemoved()) return;
 		}
+		if (this.level() instanceof ServerLevel server) {
+			if (PossessionManager.outputPending(server.getServer(), this.getUUID())) return;
+			if (this.possessionDeathPending) PossessionManager.completeDeath(this, server);
+		}
 		super.tick();
 		this.updateSwingTime();
 		if (this.level() instanceof ServerLevel server) {
@@ -246,6 +250,9 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	private UUID possessedBy;
 	/** False until the first server tick has compared this copy with the ledger; nothing may touch the fake before that. */
 	private boolean reconciled;
+	private boolean possessionDeathPending;
+
+	public void setPossessionDeathPending(boolean pending) { this.possessionDeathPending = pending; }
 	/** Set on a copy being thrown away as stale, so its removal does not release things the live fake still owns. */
 	private boolean stale;
 	private int reconcileCooldown;
@@ -270,7 +277,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	/** A server-side copy that has not been checked against the ledger yet. Clients never reconcile, so never count as unchecked. */
 	public boolean isUnreconciled() {
-		return !this.reconciled && !this.level().isClientSide();
+		return !this.level().isClientSide() && (!this.reconciled || this.possessionDeathPending || (this.level() instanceof ServerLevel server
+				&& PossessionManager.outputPending(server.getServer(), this.getUUID())));
 	}
 
 	public void markReconciled() {
@@ -333,32 +341,32 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	@Override
 	public boolean isInvulnerableTo(ServerLevel level, DamageSource source) {
-		return this.isVacant() || super.isInvulnerableTo(level, source);
+		return this.isVacant() || this.isUnreconciled() || super.isInvulnerableTo(level, source);
 	}
 
 	@Override
 	public boolean isAttackable() {
-		return !this.isVacant() && super.isAttackable();
+		return !this.isVacant() && !this.isUnreconciled() && super.isAttackable();
 	}
 
 	@Override
 	public boolean isPickable() {
-		return !this.isVacant() && super.isPickable();
+		return !this.isVacant() && !this.isUnreconciled() && super.isPickable();
 	}
 
 	@Override
 	public boolean isPushable() {
-		return !this.isVacant() && super.isPushable();
+		return !this.isVacant() && !this.isUnreconciled() && super.isPushable();
 	}
 
 	@Override
 	public boolean canBeCollidedWith(@Nullable Entity entity) {
-		return !this.isVacant() && super.canBeCollidedWith(entity);
+		return !this.isVacant() && !this.isUnreconciled() && super.canBeCollidedWith(entity);
 	}
 
 	@Override
 	public boolean canBeSeenAsEnemy() {
-		return !this.isVacant() && super.canBeSeenAsEnemy();
+		return !this.isVacant() && !this.isUnreconciled() && super.canBeSeenAsEnemy();
 	}
 
 	@Override
@@ -405,7 +413,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 
 	@Override
 	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-		if (this.isVacant()) return false;
+		if (this.isVacant() || this.isUnreconciled()) return false;
 		boolean asleep = this.isBedSleeping();
 		if (asleep) this.wokenByDamage = true;
 		boolean hurt = super.hurtServer(level, source, amount);
@@ -614,6 +622,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 			return InteractionRegistry.INSTANCE.get(player.getItemInHand(hand).getItem()).run((ServerPlayer) player, this);
 		}
 
+		if (player.getItemInHand(hand).getItem() instanceof dev.duzo.players.core.PossessionLinkItem) return InteractionResult.SUCCESS;
 		return super.mobInteract(player, hand);
 	}
 
@@ -802,10 +811,8 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		}
 		this.inventory.storeAsItemList(output.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC));
 		if (this.possessionEpoch != 0L) output.putLong("PossessionEpoch", this.possessionEpoch);
+		if (this.possessionDeathPending) output.putBoolean("PossessionDeathPending", true);
 		if (this.possessedBy != null) output.store("PossessedBy", UUIDUtil.CODEC, this.possessedBy);
-		if (!this.isVacant() && this.level() instanceof ServerLevel server && server.getServer() != null) {
-			PossessionLedger.of(server.getServer()).markSeenSaved(this.getUUID(), this.possessionEpoch, this.level().dimension().identifier().toString());
-		}
 	}
 
 	/**
@@ -918,6 +925,7 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 		if (!aiSnbt.isEmpty()) this.entityData.set(AI_STATE, aiSnbt);
 		input.list("Inventory", net.minecraft.world.item.ItemStack.OPTIONAL_CODEC).ifPresent(this.inventory::fromItemList);
 		this.possessionEpoch = input.getLongOr("PossessionEpoch", 0L);
+		this.possessionDeathPending = input.getBooleanOr("PossessionDeathPending", false);
 		this.possessedBy = input.read("PossessedBy", UUIDUtil.CODEC).orElse(null);
 		this.entityData.set(VACANT, this.possessedBy != null);
 		this.reconciled = false;
