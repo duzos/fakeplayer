@@ -43,7 +43,7 @@ public final class PossessionSelfTest {
 		ledgerFailures(registries, failures);
 		entityReload(server, failures);
 		vacancyFlags(server, failures);
-		if (player != null) { slotMapping(player, failures); stashVitals(player, failures); }
+		if (player != null) { slotMapping(player, failures); stashVitals(player, failures); initialRecovery(server, player, failures); }
 		return failures;
 	}
 
@@ -188,6 +188,53 @@ public final class PossessionSelfTest {
 					Files.deleteIfExists(directory);
 				} catch (IOException e) { failures.add("ledger check cleanup: " + e.getMessage()); }
 			}
+		}
+	}
+
+	private static void initialRecovery(MinecraftServer server, ServerPlayer player, List<String> failures) {
+		Path directory = null;
+		CompoundTag before = FakeState.copyFrom(player).toTag(server.registryAccess());
+		var position = player.position();
+		var oldStash = PossessionStashHolder.stashOf(player);
+		String token = ((PossessionStashHolder) player).players$getSaveToken();
+		try {
+			directory = Files.createTempDirectory("players_initial_recovery");
+			Path file = directory.resolve("ledger.dat");
+			PossessionLedger ledger = PossessionLedger.at(file);
+			UUID fake = UUID.randomUUID();
+			FakeState sample = sampleState();
+			float initialHealth = player.getMaxHealth() + 5;
+			FakeState initial = new FakeState(sample.storage(), sample.equipment(), initialHealth, 8, sample.effects(), 40, 250);
+			CompoundTag shell = new CompoundTag();
+			var pos = new net.minecraft.nbt.ListTag();
+			pos.add(net.minecraft.nbt.DoubleTag.valueOf(12)); pos.add(net.minecraft.nbt.DoubleTag.valueOf(64)); pos.add(net.minecraft.nbt.DoubleTag.valueOf(34));
+			shell.put("Pos", pos);
+			PlayerStash.Own own = new PlayerStash.Own(java.util.Collections.nCopies(36, ItemStack.EMPTY), 0, Map.of(), 20, 0,
+					new CompoundTag(), List.of(), 0, 300, 0, Optional.empty());
+			PlayerStash stash = new PlayerStash(PlayerStash.VERSION, own,
+					new PlayerStash.Body("minecraft:overworld", 0, 64, 0, 0, 0, UUID.randomUUID()),
+					new PlayerStash.Ref(fake, "minecraft:overworld", 1, shell, "test"));
+			PossessionLedger.Entry active = new PossessionLedger.Entry(1, player.getUUID(), true, initial.toTag(server.registryAccess()),
+					new CompoundTag(), shell, "minecraft:overworld", false, 1, "initial-token");
+			ledger.put(fake, active);
+			PossessionLedger.Entry prepared = PossessionManager.prepareInitialOutput(server, ledger, player, stash, active);
+			var decoded = prepared == null || prepared.pending == null ? Optional.<FakeState>empty() : FakeState.fromTag(server.registryAccess(), prepared.pending);
+			if (decoded.isEmpty() || decoded.get().health() != initialHealth || decoded.get().absorption() != 8
+					|| !same(decoded.get().storage(), initial.storage())) failures.add("initial recovery clamped fake vitals or changed items through player state");
+			ledger.put(fake, active);
+			Files.delete(file); Files.createDirectory(file);
+			if (PossessionManager.prepareInitialOutput(server, ledger, player, stash, active) != null || ledger.get(fake) != active) {
+				failures.add("failed initial recovery changed journal authority");
+			}
+		} catch (IOException e) { failures.add("initial recovery check: " + e.getMessage()); }
+		finally {
+			if (!before.equals(FakeState.copyFrom(player).toTag(server.registryAccess())) || !position.equals(player.position())
+					|| oldStash != PossessionStashHolder.stashOf(player) || !token.equals(((PossessionStashHolder) player).players$getSaveToken())) {
+				failures.add("initial recovery preparation mutated the original player");
+			}
+			if (directory != null) try {
+				Files.deleteIfExists(directory.resolve("ledger.dat")); Files.deleteIfExists(directory.resolve("ledger.dat.tmp")); Files.deleteIfExists(directory);
+			} catch (IOException e) { failures.add("initial recovery cleanup: " + e.getMessage()); }
 		}
 	}
 

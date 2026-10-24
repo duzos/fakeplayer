@@ -806,16 +806,11 @@ public final class PossessionManager {
 				if (!entry.playerToken.equals(savedToken)) {
 					stash = decodeStash(server, entry.stash);
 					if (entry.active) {
-						// No matching committed player marker: the prepared start owns the initial fake snapshot.
-						ServerLevel destination = levelOf(server, entry.dimension);
-						if (destination == null || entry.shell == null || entry.pending == null) throw new IllegalStateException("incomplete start recovery");
-						FakeState initial = FakeState.fromTag(server.registryAccess(), entry.pending).orElseThrow();
-						ListTag pos = entry.shell.getListOrEmpty("Pos");
-						ListTag rotation = entry.shell.getListOrEmpty("Rotation");
-						FakeState.takeFrom(player);
-						initial.applyTo(player);
-						player.teleportTo(destination, pos.getDoubleOr(0, 0), pos.getDoubleOr(1, 0), pos.getDoubleOr(2, 0), Set.of(),
-								rotation.getFloatOr(0, 0), rotation.getFloatOr(1, 0), true);
+						// Keep initial vitals out of the ordinary player's lower attribute limits.
+						if (prepareInitialOutput(server, ledger, player, stash, entry) == null) {
+							throw new IllegalStateException("could not journal uncommitted start recovery");
+						}
+						PossessionFaults.boundary("after-repair-prepare");
 					}
 					PossessionStashHolder.setStash(player, stash);
 				} else if (entry.active) {
@@ -832,6 +827,19 @@ public final class PossessionManager {
 		} finally {
 			RELEASING.remove(player.getUUID());
 		}
+	}
+
+	/** Prepare an uncommitted start without routing its vitals or items through the player's attributes. */
+	static PossessionLedger.Entry prepareInitialOutput(MinecraftServer server, PossessionLedger ledger,
+			ServerPlayer player, PlayerStash stash, PossessionLedger.Entry entry) {
+		ServerLevel destination = levelOf(server, entry.dimension);
+		if (destination == null || entry.shell == null || entry.pending == null) throw new IllegalStateException("incomplete start recovery");
+		FakeState initial = FakeState.fromTag(server.registryAccess(), entry.pending).orElseThrow();
+		ListTag pos = entry.shell.getListOrEmpty("Pos");
+		ListTag rotation = entry.shell.getListOrEmpty("Rotation");
+		return prepareOutput(server, ledger, player, stash, destination,
+				new Vec3(pos.getDoubleOr(0, 0), pos.getDoubleOr(1, 0), pos.getDoubleOr(2, 0)),
+				rotation.getFloatOr(0, 0), rotation.getFloatOr(1, 0), initial, initial.health() <= 0);
 	}
 
 	private static void repair(MinecraftServer server, ServerPlayer player, PlayerStash stash) {
