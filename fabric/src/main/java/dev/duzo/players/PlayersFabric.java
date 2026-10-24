@@ -31,10 +31,6 @@ public class PlayersFabric implements ModInitializer {
             }
             return true;
         });
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-            AIMarkerItem.clearAllFor(handler.player);
-            PossessionManager.onDisconnect(handler.player);
-        });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> RidingInteractions.useEntity(player, world, hand, entity));
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> RidingInteractions.useBlock(player, world, hand, hit));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> PossessionManager.onJoin(handler.player));

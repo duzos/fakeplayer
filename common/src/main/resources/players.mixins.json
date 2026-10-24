@@ -7,6 +7,7 @@
     "mixins": [
         "PlayerInvoker",
         "PlayerListAccessor",
+        "PlayerListPossessionMixin",
         "ServerPlayerPossessionMixin",
         "ServerLevelEntityStorageAccessor",
         "EntityManagerStorageAccessor",

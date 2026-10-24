@@ -588,6 +588,7 @@ public final class PossessionManager {
 
 	@Nullable
 	private static FakePlayerEntity placeInFake(MinecraftServer server, UUID id, PossessionLedger.Entry entry) {
+		if (PossessionFaults.enabled("hold-output-materialization")) return null;
 		ServerLevel level = levelOf(server, entry.dimension);
 		if (level == null || entry.shell == null || entry.pending == null) return null;
 		ListTag position = entry.shell.getListOrEmpty("Pos");
@@ -631,6 +632,8 @@ public final class PossessionManager {
 		FakePlayerEntity old = OUTPUTS.get(id);
 		if (old != null && old != fake && !old.isRemoved()) return false;
 		OUTPUTS.put(id, fake);
+		if (old != fake) Constants.traceEvent("possession output claimed fake={} epoch={} dimension={} chunk={},{}",
+				id, fake.possessionEpoch(), dimensionOf(level), fake.chunkPosition().x, fake.chunkPosition().z);
 		if (entry != null) entry.markPendingAdopted();
 		return true;
 	}
@@ -758,6 +761,7 @@ public final class PossessionManager {
 	}
 
 	public static void onDisconnect(ServerPlayer player) {
+		AIMarkerItem.clearAllFor(player);
 		release(player, Reason.LOGOUT, null);
 	}
 

@@ -50,14 +50,6 @@ public class ForgeModEvents {
 	}
 
 	@SubscribeEvent
-	public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent e) {
-		if (e.getEntity() instanceof ServerPlayer p) {
-			AIMarkerItem.clearAllFor(p);
-			PossessionManager.onDisconnect(p);
-		}
-	}
-
-	@SubscribeEvent
 	public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent e) {
 		if (e.getEntity() instanceof ServerPlayer p) PossessionManager.onJoin(p);
 	}
