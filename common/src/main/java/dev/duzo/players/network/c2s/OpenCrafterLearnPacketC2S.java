@@ -25,7 +25,8 @@ public record OpenCrafterLearnPacketC2S(int id) implements CustomPacketPayload {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(sender, ctx.message().id);
+		if (entity == null) return;
 		Services.COMMON_REGISTRY.openMenu(sender, new FakeCrafterMenuProvider(entity), buf -> buf.writeInt(entity.getId()));
 	}
 

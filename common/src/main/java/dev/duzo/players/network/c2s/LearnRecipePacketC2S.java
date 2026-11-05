@@ -31,7 +31,8 @@ public record LearnRecipePacketC2S(int id) implements CustomPacketPayload {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(sender, ctx.message().id);
+		if (entity == null) return;
 		if (!(sender.containerMenu instanceof FakeCrafterMenu menu) || menu.fake() != entity) return;
 
 		ItemStack out = menu.result().getItem(0);

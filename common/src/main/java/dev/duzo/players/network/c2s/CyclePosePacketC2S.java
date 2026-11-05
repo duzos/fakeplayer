@@ -23,7 +23,8 @@ public record CyclePosePacketC2S(int id) implements CustomPacketPayload {
 	public static void handle(PacketContext<CyclePosePacketC2S> ctx) {
 		if (Side.SERVER.equals(ctx.side())) {
 			try {
-				if (!(ctx.sender().level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) {
+				FakePlayerEntity entity = FakeLookup.resolve(ctx.sender(), ctx.message().id);
+				if (entity == null) {
 					Constants.LOG.error("Invalid entity id: {}", ctx.message().id);
 					return;
 				}

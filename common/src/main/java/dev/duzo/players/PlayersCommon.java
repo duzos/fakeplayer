@@ -1,5 +1,6 @@
 package dev.duzo.players;
 
+import dev.duzo.players.commands.PossessionCommand;
 import dev.duzo.players.commands.SendChatCommand;
 import dev.duzo.players.commands.SkinUrlCommand;
 import dev.duzo.players.commands.SpawnCommand;
@@ -26,6 +27,7 @@ public class PlayersCommon {
         Services.COMMON_REGISTRY.registerCommand(SendChatCommand::register);
         Services.COMMON_REGISTRY.registerCommand(SpawnCommand::register);
         Services.COMMON_REGISTRY.registerCommand(TraceCommand::register);
+        Services.COMMON_REGISTRY.registerCommand(PossessionCommand::register);
 
         PlayersNetwork.init();
     }

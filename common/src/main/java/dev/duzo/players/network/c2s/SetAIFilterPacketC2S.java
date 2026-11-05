@@ -24,7 +24,8 @@ public record SetAIFilterPacketC2S(int id, String tagName) implements CustomPack
 	public static void handle(PacketContext<SetAIFilterPacketC2S> ctx) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		if (ctx.sender() == null) return;
-		if (!(ctx.sender().level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(ctx.sender(), ctx.message().id);
+		if (entity == null) return;
 		String name = normalize(ctx.message().tagName());
 		entity.mutateAIState(s -> {
 			CompoundTag filter = s.filter().copy();
