@@ -35,7 +35,8 @@ public record CancelRequestPacketC2S(int id, String item) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(sender, ctx.message().id);
+		if (entity == null) return;
 		if (!FPJobs.is(entity.getAIState().jobId(), FPJobs.QUARTERMASTER)) return;
 
 		UUID owner = entity.getAIState().ownerUUID();

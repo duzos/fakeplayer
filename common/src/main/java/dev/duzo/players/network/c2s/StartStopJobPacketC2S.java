@@ -18,7 +18,8 @@ public record StartStopJobPacketC2S(int id, boolean run) {
 	public static void handle(PacketContext<StartStopJobPacketC2S> ctx) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		if (ctx.sender() == null) return;
-		if (!(ctx.sender().level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(ctx.sender(), ctx.message().id);
+		if (entity == null) return;
 		// reset first so the old executor's onPause runs and its result is flushed before we touch
 		// jobState below - flushing beforehand would persist the stale mid-job state instead.
 		entity.resetJobExecutor();
