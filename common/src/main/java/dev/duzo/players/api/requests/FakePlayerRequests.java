@@ -301,7 +301,7 @@ public final class FakePlayerRequests {
 	public static List<FakePlayerEntity> quartermasters(ServerLevel level, UUID owner) {
 		List<FakePlayerEntity> found = new ArrayList<>();
 		for (Entity entity : level.getAllEntities()) {
-			if (!(entity instanceof FakePlayerEntity fake)) continue;
+			if (!(entity instanceof FakePlayerEntity fake) || fake.isVacant()) continue;
 			if (!FPJobs.is(fake.getAIState().jobId(), FPJobs.QUARTERMASTER)) continue;
 			if (!owner.equals(fake.getAIState().ownerUUID())) continue;
 			found.add(fake);

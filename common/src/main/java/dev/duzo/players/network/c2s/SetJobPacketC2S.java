@@ -20,7 +20,8 @@ public record SetJobPacketC2S(int id, ResourceLocation jobId) {
 	public static void handle(PacketContext<SetJobPacketC2S> ctx) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		if (ctx.sender() == null) return;
-		if (!(ctx.sender().serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(ctx.sender(), ctx.message().id);
+		if (entity == null) return;
 		ResourceLocation jobId = ctx.message().jobId();
 		// a client must not be able to set a job that does not exist, or to sneak past the
 		// not-selectable marker jobs, whatever it sends
