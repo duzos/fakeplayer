@@ -19,6 +19,8 @@
   "players.upload.error.dimensions": "Skin must be 64x64 or 64x32 PNG.",
   "players.upload.error.format": "File is not a valid PNG.",
   "players.upload.error.empty": "Skin file is empty.",
+  "key.players.release_possession": "Release possession",
+  "message.players.possession.start": "You are %s. Press %s or /players release to return.",
   "item.players.chunk_anchor": "Chunk Anchor",
   "item.players.chunk_anchor.tooltip.1": "Right-click your fake to install",
   "item.players.chunk_anchor.tooltip.2": "Keeps the area around it loaded",
@@ -27,7 +29,5 @@
   "item.players.possession_link.tooltip.unbound": "Right-click your fake to link",
   "item.players.possession_link.tooltip.bound": "Linked to %s",
   "item.players.possession_link.tooltip.use": "Use in the air to take control",
-  "item.players.possession_link.tooltip.sneak": "Sneak to let go. Costs durability",
-  "hud.players.possession.status": "%s  |  %s/%s hp  |  %s",
-  "hud.players.possession.empty_hand": "empty hand"
+  "item.players.possession_link.tooltip.release": "Press %s or /players release to return. Costs durability"
 }

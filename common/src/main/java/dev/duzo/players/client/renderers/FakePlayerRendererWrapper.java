@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import dev.duzo.players.client.model.FakePlayerModel;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.resources.ResourceLocation;
@@ -21,6 +22,11 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 	public void render(FakePlayerEntity entity, float yaw, float partialTicks, PoseStack stack, MultiBufferSource buffer, int packedLight) {
 		FakePlayerRenderer renderer = new FakePlayerRenderer(context, entity.isSlim()); // Create the actual renderer
 		renderer.render(entity, yaw, partialTicks, stack, buffer, packedLight);
+	}
+
+	@Override
+	public boolean shouldRender(FakePlayerEntity entity, Frustum frustum, double camX, double camY, double camZ) {
+		return !entity.isVacant() && super.shouldRender(entity, frustum, camX, camY, camZ);
 	}
 
 	@Override

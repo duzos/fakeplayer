@@ -16,15 +16,13 @@ import net.neoforged.neoforge.event.TickEvent;
 public class ClientBusEvents {
 	@SubscribeEvent
 	public static void onClientTick(TickEvent.ClientTickEvent e) {
-		if (e.phase == TickEvent.Phase.START) {
-			PlayersCommonClient.tickStart(Minecraft.getInstance());
-			return;
-		}
+		if (e.phase == TickEvent.Phase.START) return;
 		PlayersCommonClient.tick(Minecraft.getInstance());
 	}
 
 	@SubscribeEvent
 	public static void onClientStopping(ClientPlayerNetworkEvent.LoggingOut e) {
+		PlayersCommonClient.onDisconnect();
 		PlayersCommonClient.onClientStopping();
 	}
 

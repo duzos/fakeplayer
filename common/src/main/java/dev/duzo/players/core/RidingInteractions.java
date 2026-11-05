@@ -152,7 +152,7 @@ public final class RidingInteractions {
 		ItemStack stack = player.getItemInHand(hand);
 		if (!AIMarkerItem.isSession(stack)) return null;
 		UUID id = AIMarkerItem.fakeUUID(stack);
-		return id != null && server.getEntity(id) instanceof FakePlayerEntity fake ? fake : null;
+		return id != null && server.getEntity(id) instanceof FakePlayerEntity fake && !fake.isVacant() ? fake : null;
 	}
 
 	private static void tell(Player player, String message, ChatFormatting color) {

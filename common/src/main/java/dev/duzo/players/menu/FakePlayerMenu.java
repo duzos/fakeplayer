@@ -104,7 +104,7 @@ public class FakePlayerMenu extends AbstractContainerMenu {
 
 	@Override
 	public boolean stillValid(Player player) {
-		return entity != null && entity.isAlive() && entity.distanceToSqr(player) <= 64.0D;
+		return entity != null && entity.isAlive() && !entity.isVacant() && !entity.isUnreconciled() && entity.distanceToSqr(player) <= 64.0D;
 	}
 
 	@Override

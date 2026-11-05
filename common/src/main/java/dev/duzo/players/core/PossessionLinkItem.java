@@ -2,7 +2,6 @@ package dev.duzo.players.core;
 
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.possession.PossessionManager;
-import dev.duzo.players.entities.possession.PossessionReturn;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
@@ -21,15 +20,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Right-click one of your fakes to bind it, then use it in the air to take control of that fake from anywhere it is loaded.
- * Costs one durability when the possession ends. Its tag also holds the return record of a possession in progress.
+ * Right-click one of your fakes to bind it, then use it in the air to swap bodies with that fake: you take its inventory and
+ * move to where it stands, and it waits as an empty shell. Costs one durability each time.
  */
 public class PossessionLinkItem extends Item {
 	public static final int DURABILITY = 64;
 
 	private static final String TAG_FAKE = "Fake";
 	private static final String TAG_NAME = "FakeName";
-	private static final String TAG_RETURN = "Return";
 
 	public PossessionLinkItem(Properties properties) {
 		super(properties);
@@ -47,21 +45,6 @@ public class PossessionLinkItem extends Item {
 		CompoundTag tag = stack.getOrCreateTag();
 		tag.putIntArray(TAG_FAKE, UUIDUtil.uuidToIntArray(fake.getUUID()));
 		tag.putString(TAG_NAME, fake.getSkinData().name());
-	}
-
-	@Nullable
-	public static PossessionReturn readReturn(ItemStack stack) {
-		CompoundTag tag = stack.getTag();
-		return tag == null || !tag.contains(TAG_RETURN) ? null : PossessionReturn.fromTag(tag.getCompound(TAG_RETURN));
-	}
-
-	public static void writeReturn(ItemStack stack, PossessionReturn record) {
-		stack.getOrCreateTag().put(TAG_RETURN, record.toTag());
-	}
-
-	public static void clearReturn(ItemStack stack) {
-		CompoundTag tag = stack.getTag();
-		if (tag != null) tag.remove(TAG_RETURN);
 	}
 
 	@Override
@@ -83,6 +66,6 @@ public class PossessionLinkItem extends Item {
 			tooltip.add(Component.translatable("item.players.possession_link.tooltip.bound", name).withStyle(ChatFormatting.AQUA));
 			tooltip.add(Component.translatable("item.players.possession_link.tooltip.use").withStyle(ChatFormatting.GRAY));
 		}
-		tooltip.add(Component.translatable("item.players.possession_link.tooltip.sneak").withStyle(ChatFormatting.GRAY));
+		tooltip.add(Component.translatable("item.players.possession_link.tooltip.release", Component.keybind("key.players.release_possession")).withStyle(ChatFormatting.GRAY));
 	}
 }

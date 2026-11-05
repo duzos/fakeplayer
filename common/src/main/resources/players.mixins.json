@@ -5,15 +5,21 @@
     "refmap": "${mod_id}.refmap.json",
     "compatibilityLevel": "JAVA_17",
     "mixins": [
-        "SpectatorTeleportMixin"
+        "PlayerInvoker",
+        "PlayerListAccessor",
+        "PlayerListPossessionMixin",
+        "ServerPlayerPossessionMixin",
+        "ServerLevelEntityStorageAccessor",
+        "EntityManagerStorageAccessor",
+        "EntityStorageAccessor"
     ],
     "client": [
-        "ItemPropertiesAccessor"
+        "ItemPropertiesAccessor",
+        "PlayerRendererNameMixin",
+        "PlayerInfoSkinMixin"
     ],
-    "server": [
-    ],
+    "server": [],
     "injectors": {
         "defaultRequire": 1
     }
 }
-

@@ -4,6 +4,7 @@ import commonnetwork.api.Network;
 import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.network.c2s.CustomBindStatePacketC2S;
 import dev.duzo.players.network.c2s.OpenFakeMenuPacketC2S;
+import dev.duzo.players.network.c2s.ReleasePossessionC2S;
 import dev.duzo.players.api.CustomBindTracker;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -24,6 +25,7 @@ public class FPKeybinds {
 	// 1.20.4's KeyMapping ctor takes the category as a plain translation-key String; there is no
 	// KeyMapping.Category yet, so no Category needs registering here.
 	public static final KeyMapping OPEN_MENU = new KeyMapping(OPEN_MENU_KEY, GLFW.GLFW_KEY_UNKNOWN, "key.category.players.main");
+	public static final KeyMapping RELEASE_POSSESSION = new KeyMapping("key.players.release_possession", GLFW.GLFW_KEY_R, "key.category.players.main");
 
 	private static Boolean lastSentBound;
 	private static LocalPlayer lastSentFor;
@@ -43,6 +45,15 @@ public class FPKeybinds {
 		}
 
 		syncBindState(player);
+
+		// drained every tick so a press made on a screen does not fire later; only acted on while possessing
+		boolean release = false;
+		while (RELEASE_POSSESSION.consumeClick()) {
+			release = true;
+		}
+		if (release && client.screen == null && PossessionDisguises.isLocalDisguised()) {
+			Network.getNetworkHandler().sendToServer(new ReleasePossessionC2S());
+		}
 
 		// consume every queued press so a press during a screen does not fire later
 		boolean pressed = false;

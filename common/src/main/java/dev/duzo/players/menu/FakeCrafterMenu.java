@@ -98,7 +98,7 @@ public class FakeCrafterMenu extends AbstractContainerMenu {
 
 	@Override
 	public boolean stillValid(Player player) {
-		return fake != null && fake.isAlive() && fake.distanceToSqr(player) <= 64.0D;
+		return fake != null && fake.isAlive() && !fake.isVacant() && !fake.isUnreconciled() && fake.distanceToSqr(player) <= 64.0D;
 	}
 
 	@Override

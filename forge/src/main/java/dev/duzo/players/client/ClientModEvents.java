@@ -1,10 +1,10 @@
 package dev.duzo.players.client;
 
 import dev.duzo.players.Constants;
-import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.client.renderers.FakeFishingHookRenderer;
 import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
 import dev.duzo.players.client.renderers.LegacyRodCast;
+import dev.duzo.players.client.renderers.PossessionBodyRenderer;
 import dev.duzo.players.client.screen.FakeCrafterScreen;
 import dev.duzo.players.client.screen.FakePlayerInventoryScreen;
 import dev.duzo.players.core.FPEntities;
@@ -15,9 +15,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.neoforged.neoforge.client.event.RegisterGuiOverlaysEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.gui.overlay.VanillaGuiOverlay;
 
 @Mod.EventBusSubscriber(modid = Constants.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientModEvents {
@@ -25,16 +23,13 @@ public class ClientModEvents {
 	public static void onEntityRenderersRegistry(EntityRenderersEvent.RegisterRenderers event) {
 		event.registerEntityRenderer(FPEntities.FAKE_PLAYER.get(), FakePlayerRendererWrapper::new);
 		event.registerEntityRenderer(FPEntities.FISHING_HOOK.get(), FakeFishingHookRenderer::new);
-	}
-
-	@SubscribeEvent
-	public static void onRegisterGuiOverlays(RegisterGuiOverlaysEvent event) {
-		event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "possession", (gui, graphics, partialTick, width, height) -> PossessionHud.render(graphics, partialTick));
+		event.registerEntityRenderer(FPEntities.POSSESSION_BODY.get(), PossessionBodyRenderer::new);
 	}
 
 	@SubscribeEvent
 	public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
 		event.register(FPKeybinds.OPEN_MENU);
+		event.register(FPKeybinds.RELEASE_POSSESSION);
 	}
 
 	@SubscribeEvent
