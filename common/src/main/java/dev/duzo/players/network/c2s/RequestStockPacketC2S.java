@@ -37,7 +37,8 @@ public record RequestStockPacketC2S(int id) {
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
 		if (!(sender.level() instanceof ServerLevel level)) return;
-		if (!(level.getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(sender, ctx.message().id);
+		if (entity == null) return;
 		if (!FPJobs.is(entity.getAIState().jobId(), FPJobs.QUARTERMASTER)) return;
 
 		// The first ownership check in this codebase. Without it any client could read any player's

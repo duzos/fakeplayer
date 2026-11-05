@@ -6,6 +6,7 @@ import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
 import dev.duzo.players.client.renderers.FishingLineRenderer;
 import dev.duzo.players.client.renderers.FishingRodTip;
 import dev.duzo.players.client.renderers.LegacyRodCast;
+import dev.duzo.players.client.renderers.PossessionBodyRenderer;
 import dev.duzo.players.client.screen.FakeCrafterScreen;
 import dev.duzo.players.client.screen.FakePlayerInventoryScreen;
 import dev.duzo.players.core.FPEntities;
@@ -14,10 +15,10 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.gui.screens.MenuScreens;
 
 public class PlayersFabricClient implements ClientModInitializer {
@@ -26,16 +27,17 @@ public class PlayersFabricClient implements ClientModInitializer {
 		PlayersCommonClient.init();
 
 		KeyBindingHelper.registerKeyBinding(FPKeybinds.OPEN_MENU);
+		KeyBindingHelper.registerKeyBinding(FPKeybinds.RELEASE_POSSESSION);
 
 		EntityRendererRegistry.register(FPEntities.FAKE_PLAYER.get(), FakePlayerRendererWrapper::new);
 		EntityRendererRegistry.register(FPEntities.FISHING_HOOK.get(), FakeFishingHookRenderer::new);
 		LegacyRodCast.register();
+		EntityRendererRegistry.register(FPEntities.POSSESSION_BODY.get(), PossessionBodyRenderer::new);
 		MenuScreens.register(FPMenus.FAKE_PLAYER.get(), FakePlayerInventoryScreen::new);
 		MenuScreens.register(FPMenus.CRAFTER_LEARN.get(), FakeCrafterScreen::new);
-		ClientTickEvents.START_CLIENT_TICK.register(PlayersCommonClient::tickStart);
 		ClientTickEvents.END_CLIENT_TICK.register(PlayersCommonClient::tick);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> PlayersCommonClient.onClientStopping());
-		HudRenderCallback.EVENT.register(PossessionHud::render);
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> PlayersCommonClient.onDisconnect());
 		WorldRenderEvents.START.register(ctx -> FishingRodTip.beginFrame());
 		WorldRenderEvents.LAST.register(ctx -> {
 			SessionItemMarkerRenderer.render(ctx.matrixStack(),

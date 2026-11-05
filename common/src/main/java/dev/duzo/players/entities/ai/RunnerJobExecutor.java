@@ -289,7 +289,7 @@ public class RunnerJobExecutor implements JobExecutor {
 				player.getInventory().add(offer); // mutates offer down to the leftover
 				delivered += before - offer.getCount();
 				if (!offer.isEmpty()) stack.grow(offer.getCount());
-			} else if (target instanceof FakePlayerEntity fake) {
+			} else if (target instanceof FakePlayerEntity fake && !fake.isVacant()) {
 				ItemStack leftover = fake.getInventory().addItem(offer); // copies, returns leftover
 				delivered += before - leftover.getCount();
 				if (!leftover.isEmpty()) stack.grow(leftover.getCount());
