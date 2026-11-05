@@ -6,12 +6,11 @@ import dev.duzo.players.network.c2s.BondPacketC2S;
 import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.CustomBindStatePacketC2S;
 import dev.duzo.players.network.c2s.CyclePosePacketC2S;
-import dev.duzo.players.network.c2s.PossessActionC2S;
-import dev.duzo.players.network.c2s.PossessInputC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
 import dev.duzo.players.network.c2s.LearnRecipePacketC2S;
 import dev.duzo.players.network.c2s.OpenCrafterLearnPacketC2S;
 import dev.duzo.players.network.c2s.OpenFakeMenuPacketC2S;
+import dev.duzo.players.network.c2s.ReleasePossessionC2S;
 import dev.duzo.players.network.c2s.RequestSkinDataPacketC2S;
 import dev.duzo.players.network.c2s.RequestItemPacketC2S;
 import dev.duzo.players.network.c2s.CancelRequestPacketC2S;
@@ -27,6 +26,7 @@ import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
 import dev.duzo.players.network.c2s.ToggleFakePlayerFlagPacketC2S;
 import dev.duzo.players.network.c2s.UploadSkinPacketC2S;
 import dev.duzo.players.network.s2c.OpenScreenPacketS2C;
+import dev.duzo.players.network.s2c.PossessionDisguiseS2C;
 import dev.duzo.players.network.s2c.SkinDataPacketS2C;
 
 public class PlayersNetwork {
@@ -56,7 +56,7 @@ public class PlayersNetwork {
 		Network.registerPacket(OpenFakeMenuPacketC2S.TYPE, OpenFakeMenuPacketC2S.CODEC, OpenFakeMenuPacketC2S::handle);
 		Network.registerPacket(SetBuildPacketC2S.TYPE, SetBuildPacketC2S.CODEC, SetBuildPacketC2S::handle);
 		Network.registerPacket(CustomBindStatePacketC2S.TYPE, CustomBindStatePacketC2S.CODEC, CustomBindStatePacketC2S::handle);
-		Network.registerPacket(PossessInputC2S.TYPE, PossessInputC2S.CODEC, PossessInputC2S::handle);
-		Network.registerPacket(PossessActionC2S.TYPE, PossessActionC2S.CODEC, PossessActionC2S::handle);
+		Network.registerPacket(ReleasePossessionC2S.TYPE, ReleasePossessionC2S.CODEC, ReleasePossessionC2S::handle);
+		Network.registerPacket(PossessionDisguiseS2C.TYPE, PossessionDisguiseS2C.CODEC, PossessionDisguiseS2C::handle);
 	}
 }

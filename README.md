@@ -76,7 +76,7 @@ Install it on the server and on every client that joins.
 ## Items and riding
 
 - **Chunk Anchor** keeps a fake working while you're away.
-- **Possession Link** lets you see through a fake and control it.
+- **Possession Link** swaps you into a fake's body. you get its inventory and stand where it stands, and R swaps you back.
 - Fakes ride boats, minecarts and seats, and can drive Create trains.
 
 ## Controls and commands

@@ -32,7 +32,8 @@ public record GiveAIMarkerPacketC2S(int id, byte mode, byte slot) implements Cus
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(sender, ctx.message().id);
+		if (entity == null) return;
 		// an owned fake takes markers from its owner or an op; the anchor needs an owner, since the build is paid from theirs
 		UUID owner = entity.getAIState().ownerUUID();
 		boolean anchor = ctx.message().mode() == AIMarkerItem.PURPOSE_ANCHOR;

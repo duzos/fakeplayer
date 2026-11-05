@@ -28,7 +28,8 @@ public record BondPacketC2S(int id, boolean bond) implements CustomPacketPayload
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(sender, ctx.message().id);
+		if (entity == null) return;
 		UUID owner = entity.getAIState().ownerUUID();
 		if (ctx.message().bond()) {
 			// a bonded fake has to be unbonded by its owner first

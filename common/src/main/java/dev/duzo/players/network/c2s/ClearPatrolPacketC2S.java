@@ -22,7 +22,8 @@ public record ClearPatrolPacketC2S(int id) implements CustomPacketPayload {
 	public static void handle(PacketContext<ClearPatrolPacketC2S> ctx) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		if (ctx.sender() == null) return;
-		if (!(ctx.sender().level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(ctx.sender(), ctx.message().id);
+		if (entity == null) return;
 		entity.mutateAIState(GuardJobExecutor::clearPatrol);
 	}
 

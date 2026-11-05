@@ -5,6 +5,7 @@ import dev.duzo.players.client.model.FakePlayerModel;
 import dev.duzo.players.entities.FakePlayerEntity;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.HumanoidMobRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -28,6 +29,11 @@ public class FakePlayerRendererWrapper extends LivingEntityRenderer<FakePlayerEn
 		super(context, new FakePlayerRenderer(context, false).getModel(), 0.5F);
 		this.wide = new FakePlayerRenderer(context, false);
 		this.slim = new FakePlayerRenderer(context, true);
+	}
+
+	@Override
+	public boolean shouldRender(FakePlayerEntity entity, Frustum frustum, double camX, double camY, double camZ, float partialTick) {
+		return !entity.isVacant() && super.shouldRender(entity, frustum, camX, camY, camZ, partialTick);
 	}
 
 	@Override
