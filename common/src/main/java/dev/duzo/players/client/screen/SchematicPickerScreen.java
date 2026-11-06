@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Chooses a Builder's schematic from the files the server offers, with a spinning preview of the
@@ -231,6 +232,22 @@ public class SchematicPickerScreen extends Screen {
 		return selected != null ? selected : search.getValue().trim();
 	}
 
+	/**
+	 * What the preview shows. Typed text only counts when nothing in the list matches it, or it is a
+	 * listed name in full, so a partial filter does not ask the server for a file it cannot be.
+	 */
+	private String previewName() {
+		if (selected != null) return selected;
+		String typed = search.getValue().trim();
+		if (typed.isEmpty()) return "";
+		return shown.isEmpty() || shown.contains(typed) ? typed : "";
+	}
+
+	private String ellipsize(String text, int width) {
+		if (this.font.width(text) <= width) return text;
+		return this.font.plainSubstrByWidth(text, width - this.font.width("...")) + "...";
+	}
+
 	private boolean isStructureId(String name) {
 		return name.indexOf(':') >= 0;
 	}
@@ -255,19 +272,20 @@ public class SchematicPickerScreen extends Screen {
 		}
 		long now = System.currentTimeMillis();
 		String target = target();
-		if (!target.equals(wanted)) {
-			wanted = target;
+		String previewTarget = previewName();
+		if (!previewTarget.equals(wanted)) {
+			wanted = previewTarget;
 			wantedAt = selected != null ? now : now + TYPING_DEBOUNCE_MILLIS;
 		}
 		if (inflight != null && now - inflightSince > REQUEST_TIMEOUT_MILLIS) inflight = null;
 		confirmButton.active = canConfirm(target);
-		confirmButton.setMessage(Component.literal(target.isEmpty() ? "Clear" : "Confirm"));
-		if (target.isEmpty() || isStructureId(target) || now < wantedAt || inflight != null || previews.containsKey(target)) return;
+		confirmButton.setMessage(Component.literal(target.isEmpty() && !parent.currentSchematic().isBlank() ? "Clear" : "Confirm"));
+		if (previewTarget.isEmpty() || isStructureId(previewTarget) || now < wantedAt || inflight != null || previews.containsKey(previewTarget)) return;
 		if (now - lastSent < MIN_REQUEST_GAP_MILLIS) return;
-		inflight = target;
+		inflight = previewTarget;
 		inflightSince = now;
 		lastSent = now;
-		Network.getNetworkHandler().sendToServer(new RequestSchematicPreviewC2S(entity.getId(), target));
+		Network.getNetworkHandler().sendToServer(new RequestSchematicPreviewC2S(entity.getId(), previewTarget));
 	}
 
 	@Override
@@ -332,6 +350,7 @@ public class SchematicPickerScreen extends Screen {
 		ctx.fill(listX, listY, listX + LIST_W, listY + listH, COL_CELL);
 		int rows = visibleRows();
 		String current = target();
+		String hoveredFull = null;
 		for (int i = 0; i < rows; i++) {
 			int index = scroll + i;
 			if (index >= shown.size()) break;
@@ -340,7 +359,12 @@ public class SchematicPickerScreen extends Screen {
 			boolean over = mouseX >= listX && mouseX < listX + LIST_W && mouseY >= y && mouseY < y + ROW_H;
 			if (name.equals(current)) ctx.fill(listX, y, listX + LIST_W, y + ROW_H, COL_CELL_PICKED);
 			else if (over) ctx.fill(listX, y, listX + LIST_W, y + ROW_H, COL_CELL_HOVER);
-			ctx.drawString(this.font, this.font.plainSubstrByWidth(name, LIST_W - 10), listX + 3, y + 2, COL_BODY, false);
+			String label = ellipsize(name, LIST_W - 10);
+			ctx.drawString(this.font, label, listX + 3, y + 2, COL_BODY, false);
+			if (over && !label.equals(name)) hoveredFull = name;
+		}
+		if (hoveredFull != null) {
+			ctx.setTooltipForNextFrame(this.font, List.of(Component.literal(hoveredFull)), Optional.empty(), mouseX, mouseY);
 		}
 		if (shown.isEmpty()) {
 			String note = !listLoaded ? "Loading..."
@@ -356,14 +380,13 @@ public class SchematicPickerScreen extends Screen {
 
 	private void drawPreview(GuiGraphics ctx) {
 		ctx.fill(previewX, previewY, previewX + previewW, previewY + previewH, 0xFF0B1016);
-		String name = target();
+		String name = previewName();
 		int infoY = previewY + previewH + 4;
 		if (name.isEmpty()) {
 			centered(ctx, muted("Pick a schematic"), previewY + previewH / 2 - 4);
 			return;
 		}
-		ctx.drawString(this.font, this.font.plainSubstrByWidth(name, previewW),
-				previewX, infoY, COL_ACCENT, false);
+		ctx.drawString(this.font, ellipsize(name, previewW), previewX, infoY, COL_ACCENT, false);
 		if (isStructureId(name)) {
 			centered(ctx, muted("No preview for structure ids"), previewY + previewH / 2 - 4);
 			return;
@@ -385,11 +408,12 @@ public class SchematicPickerScreen extends Screen {
 			}
 			return;
 		}
-		ctx.drawString(this.font, muted(model.sizeX() + " x " + model.sizeY() + " x " + model.sizeZ()
-				+ ", " + model.total() + " blocks"), previewX, infoY + 10, 0xFFFFFFFF, false);
+		int y = infoY + 10;
+		y = drawWrapped(ctx, muted(model.sizeX() + " x " + model.sizeY() + " x " + model.sizeZ()
+				+ ", " + model.total() + " blocks"), y);
 		if (model.truncated()) {
-			ctx.drawString(this.font, Component.literal("Preview truncated (" + model.carried() + " of " + model.total() + " blocks)")
-					.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xE7C44F))), previewX, infoY + 20, 0xFFFFFFFF, false);
+			drawWrapped(ctx, Component.literal("Shows " + model.carried() + " of " + model.total() + " blocks")
+					.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xE7C44F))), y);
 		}
 		if (model.visible() == 0) {
 			centered(ctx, muted("Nothing to show"), previewY + previewH / 2 - 4);
@@ -400,6 +424,14 @@ public class SchematicPickerScreen extends Screen {
 		int angle = (int) ((System.currentTimeMillis() - openedAt) * DEGREES_PER_SECOND / 1000 % 360) / step * step;
 		ctx.guiRenderState.submitPicturesInPictureState(new SchematicPreviewRenderState(model, angle,
 				previewX, previewY, previewX + previewW, previewY + previewH, 1f, null));
+	}
+
+	private int drawWrapped(GuiGraphics ctx, Component text, int y) {
+		for (FormattedCharSequence line : this.font.split(text, previewW)) {
+			ctx.drawString(this.font, line, previewX, y, 0xFFFFFFFF, false);
+			y += 10;
+		}
+		return y;
 	}
 
 	private void centered(GuiGraphics ctx, Component text, int y) {
