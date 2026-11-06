@@ -27,6 +27,12 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 	private @Nullable WeakReference<SchematicPreviewModel> renderedModel;
 	private int renderedAngle = -1;
 
+	private @Nullable BlockModelResolver resolver;
+	// resolved once per model, dropped when the model or the loaded block models change (resource reload)
+	private final Map<BlockState, BlockModelRenderState> resolved = new IdentityHashMap<>();
+	private @Nullable WeakReference<SchematicPreviewModel> resolvedFor;
+	private @Nullable Object resolvedAgainst;
+
 	public SchematicPreviewRenderer(MultiBufferSource.BufferSource bufferSource) {
 		super(bufferSource);
 	}
@@ -66,9 +72,13 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 		pose.scale(fit, fit, fit);
 		pose.translate(-sx / 2f, -sy / 2f, -sz / 2f);
 
-		BlockModelResolver resolver = new BlockModelResolver(minecraft.getModelManager());
-		// one resolved render state per distinct block state, submitted once per position
-		Map<BlockState, BlockModelRenderState> resolved = new IdentityHashMap<>();
+		if (resolver == null) resolver = new BlockModelResolver(minecraft.getModelManager());
+		Object blockModels = minecraft.getModelManager().getBlockModelSet();
+		if (resolvedFor == null || resolvedFor.get() != model || resolvedAgainst != blockModels) {
+			resolved.clear();
+			resolvedFor = new WeakReference<>(model);
+			resolvedAgainst = blockModels;
+		}
 		FeatureRenderDispatcher features = minecraft.gameRenderer.getFeatureRenderDispatcher();
 		SubmitNodeCollector collector = features.getSubmitNodeStorage();
 		for (int i = 0; i < model.visible(); i++) {
@@ -101,6 +111,9 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 	@Override
 	public void close() {
 		renderedModel = null;
+		resolvedFor = null;
+		resolvedAgainst = null;
+		resolved.clear();
 		super.close();
 	}
 }
