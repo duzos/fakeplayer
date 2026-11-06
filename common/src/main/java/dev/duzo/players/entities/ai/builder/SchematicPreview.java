@@ -53,7 +53,7 @@ public final class SchematicPreview {
 		int total = 0;
 		for (int i = 0; i < blocks.size(); i++) {
 			CompoundTag b = blocks.getCompound(i);
-			int index = b.contains(StructureTemplate.BLOCK_TAG_STATE) ? b.getInt(StructureTemplate.BLOCK_TAG_STATE) : -1;
+			int index = b.contains(StructureTemplate.BLOCK_TAG_STATE, Tag.TAG_ANY_NUMERIC) ? b.getInt(StructureTemplate.BLOCK_TAG_STATE) : -1;
 			if (index < 0 || index >= palette.size()) continue;
 			BlockState state = palette.get(index);
 			if (state.isAir() || state.is(Blocks.JIGSAW) || state.is(Blocks.STRUCTURE_BLOCK) || state.is(Blocks.STRUCTURE_VOID)) continue;
