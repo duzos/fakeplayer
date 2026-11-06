@@ -364,7 +364,7 @@ public class SchematicPickerScreen extends Screen {
 			if (over && !label.equals(name)) hoveredFull = name;
 		}
 		if (hoveredFull != null) {
-			ctx.renderTooltip(this.font, List.of(Component.literal(hoveredFull).getVisualOrderText()), mouseX, mouseY);
+			this.setTooltipForNextRenderPass(Component.literal(hoveredFull));
 		}
 		if (shown.isEmpty()) {
 			String note = !listLoaded ? "Loading..."
@@ -412,8 +412,11 @@ public class SchematicPickerScreen extends Screen {
 		y = drawWrapped(ctx, muted(model.sizeX() + " x " + model.sizeY() + " x " + model.sizeZ()
 				+ ", " + model.total() + " blocks"), y);
 		if (model.truncated()) {
-			drawWrapped(ctx, Component.literal("Shows " + model.carried() + " of " + model.total() + " blocks")
+			y = drawWrapped(ctx, Component.literal("Shows " + model.carried() + " of " + model.total() + " blocks")
 					.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xE7C44F))), y);
+		}
+		if (model.simplified()) {
+			drawWrapped(ctx, muted("Simplified preview"), y);
 		}
 		if (model.visible() == 0) {
 			centered(ctx, muted("Nothing to show"), previewY + previewH / 2 - 4);
