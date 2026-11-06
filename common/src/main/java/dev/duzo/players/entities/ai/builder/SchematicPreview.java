@@ -19,11 +19,19 @@ import java.util.Map;
  */
 public final class SchematicPreview {
 	public static final int MAX_BLOCKS = 32768;
+	/** Shared by the encoder's check and the decoder's clamp, so what is sent is exactly what is read. */
+	public static final int MAX_PALETTE = 8192;
+	public static final int MAX_SIDE = 4096;
 
 	/** `total` counts every placeable block, so it can exceed the number of cells actually carried. */
 	public record Data(int sizeX, int sizeY, int sizeZ, int[] palette, int[] cellState, int[] cellPos, int total) {
 		public int cells() {
 			return cellPos.length;
+		}
+
+		public boolean withinCaps() {
+			return sizeX <= MAX_SIDE && sizeY <= MAX_SIDE && sizeZ <= MAX_SIDE
+					&& palette.length <= MAX_PALETTE && cells() <= MAX_BLOCKS;
 		}
 	}
 

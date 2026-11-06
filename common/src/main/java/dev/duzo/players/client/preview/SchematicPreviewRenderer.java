@@ -9,13 +9,15 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import java.lang.ref.WeakReference;
 import org.jspecify.annotations.Nullable;
 
 public class SchematicPreviewRenderer extends PictureInPictureRenderer<SchematicPreviewRenderState> {
 	private static final float TILT_DEGREES = 30f;
 	private static final float FILL = 0.92f;
 
-	private @Nullable SchematicPreviewModel renderedModel;
+	// weak, so the renderer that outlives every picker does not keep the last model alive
+	private @Nullable WeakReference<SchematicPreviewModel> renderedModel;
 	private int renderedAngle = -1;
 
 	public SchematicPreviewRenderer(MultiBufferSource.BufferSource bufferSource) {
@@ -29,13 +31,13 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 
 	@Override
 	protected boolean textureIsReadyToBlit(SchematicPreviewRenderState state) {
-		return state.model() == renderedModel && state.angle() == renderedAngle;
+		return renderedModel != null && state.model() == renderedModel.get() && state.angle() == renderedAngle;
 	}
 
 	@Override
 	protected void renderToTexture(SchematicPreviewRenderState state, PoseStack pose) {
 		SchematicPreviewModel model = state.model();
-		renderedModel = model;
+		renderedModel = new WeakReference<>(model);
 		renderedAngle = state.angle();
 
 		Minecraft minecraft = Minecraft.getInstance();
@@ -64,6 +66,11 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 			blocks.renderSingleBlock(model.state(i), pose, this.bufferSource, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
 			pose.popPose();
 		}
+	}
+
+	@Override
+	protected float getTranslateY(int height, int guiScale) {
+		return height / 2f;
 	}
 
 	@Override
