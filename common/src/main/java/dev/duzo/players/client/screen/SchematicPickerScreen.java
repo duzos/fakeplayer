@@ -235,8 +235,13 @@ public class SchematicPickerScreen extends Screen {
 		return name.indexOf(':') >= 0;
 	}
 
+	/** An empty name clears the plan, which only means something when there is one to clear. */
+	private boolean canConfirm(String target) {
+		return !target.isEmpty() || !parent.currentSchematic().isBlank();
+	}
+
 	private void confirm() {
-		if (target().isEmpty()) return;
+		if (!canConfirm(target())) return;
 		parent.chooseSchematic(target());
 		Minecraft.getInstance().setScreen(parent);
 	}
@@ -255,7 +260,8 @@ public class SchematicPickerScreen extends Screen {
 			wantedAt = selected != null ? now : now + TYPING_DEBOUNCE_MILLIS;
 		}
 		if (inflight != null && now - inflightSince > REQUEST_TIMEOUT_MILLIS) inflight = null;
-		confirmButton.active = !target.isEmpty();
+		confirmButton.active = canConfirm(target);
+		confirmButton.setMessage(Component.literal(target.isEmpty() ? "Clear" : "Confirm"));
 		if (target.isEmpty() || isStructureId(target) || now < wantedAt || inflight != null || previews.containsKey(target)) return;
 		if (now - lastSent < MIN_REQUEST_GAP_MILLIS) return;
 		inflight = target;
