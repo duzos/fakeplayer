@@ -1,8 +1,13 @@
 package dev.duzo.players.client.preview;
 
 import dev.duzo.players.entities.ai.builder.SchematicPreview;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A received preview reduced to the blocks that can be seen. Built once on arrival, so the per-frame
@@ -38,6 +43,7 @@ public final class SchematicPreviewModel {
 		BlockState[] palette = new BlockState[data.palette().length];
 		for (int i = 0; i < palette.length; i++) palette[i] = Block.stateById(data.palette()[i]);
 
+		Map<BlockState, Boolean> fullShapes = new HashMap<>();
 		int sx = data.sizeX();
 		int sy = data.sizeY();
 		int sz = data.sizeZ();
@@ -64,7 +70,7 @@ public final class SchematicPreviewModel {
 			int x = pos % sx;
 			int y = (pos / sx) % sy;
 			int z = pos / (sx * sy);
-			if (grid != null && buried(grid, sx, sy, sz, x, y, z)) continue;
+			if (grid != null && buried(grid, fullShapes, sx, sy, sz, x, y, z)) continue;
 			outStates[n] = palette[slot];
 			ox[n] = x;
 			oy[n] = y;
@@ -76,16 +82,26 @@ public final class SchematicPreviewModel {
 	}
 
 	/** Every face is against a block that hides it: a full opaque cube, or the same state (glass, leaves, slabs). */
-	private static boolean buried(BlockState[] grid, int sx, int sy, int sz, int x, int y, int z) {
+	private static boolean buried(BlockState[] grid, Map<BlockState, Boolean> fullShapes, int sx, int sy, int sz, int x, int y, int z) {
 		if (x <= 0 || x >= sx - 1 || y <= 0 || y >= sy - 1 || z <= 0 || z >= sz - 1) return false;
 		BlockState self = grid[index(sx, sy, x, y, z)];
-		return hides(self, grid[index(sx, sy, x - 1, y, z)]) && hides(self, grid[index(sx, sy, x + 1, y, z)])
-				&& hides(self, grid[index(sx, sy, x, y - 1, z)]) && hides(self, grid[index(sx, sy, x, y + 1, z)])
-				&& hides(self, grid[index(sx, sy, x, y, z - 1)]) && hides(self, grid[index(sx, sy, x, y, z + 1)]);
+		return hides(fullShapes, self, grid[index(sx, sy, x - 1, y, z)]) && hides(fullShapes, self, grid[index(sx, sy, x + 1, y, z)])
+				&& hides(fullShapes, self, grid[index(sx, sy, x, y - 1, z)]) && hides(fullShapes, self, grid[index(sx, sy, x, y + 1, z)])
+				&& hides(fullShapes, self, grid[index(sx, sy, x, y, z - 1)]) && hides(fullShapes, self, grid[index(sx, sy, x, y, z + 1)]);
 	}
 
-	private static boolean hides(BlockState self, BlockState neighbour) {
-		return neighbour != null && (neighbour.isSolidRender() || neighbour == self);
+	private static boolean hides(Map<BlockState, Boolean> fullShapes, BlockState self, BlockState neighbour) {
+		if (neighbour == null) return false;
+		return neighbour.isSolidRender() || (neighbour == self && fullShapes.computeIfAbsent(self, SchematicPreviewModel::fullCube));
+	}
+
+	/** Slabs and stairs have the same state next to them and still show faces, so only a whole cube counts. */
+	private static boolean fullCube(BlockState state) {
+		try {
+			return Block.isShapeFullBlock(state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO));
+		} catch (RuntimeException e) {
+			return false;
+		}
 	}
 
 	private static int index(int sx, int sy, int x, int y, int z) {
