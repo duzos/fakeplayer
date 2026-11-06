@@ -36,7 +36,7 @@ public class SchematicPickerScreen extends Screen {
 	private static final int ROW_H = 12;
 	private static final int LIST_W = 120;
 	private static final int BTN_H = 16;
-	private static final int INFO_H = 34;
+	private static final int INFO_H = 44;
 
 	private static final int COL_PANEL = 0xFF11171F;
 	private static final int COL_PANEL_BORDER = 0xFF2A3548;
@@ -83,7 +83,6 @@ public class SchematicPickerScreen extends Screen {
 		}
 	};
 	private int lastClickRow = -1;
-	private String listTooltip;
 	private long lastClickAt;
 	private String wanted = "";
 	private long wantedAt;
@@ -340,8 +339,6 @@ public class SchematicPickerScreen extends Screen {
 			ctx.drawString(this.font, muted("list capped at " + names.size()), listX, cancelButton.getY() + 4, 0xFFFFFFFF, false);
 		}
 		super.render(ctx, mouseX, mouseY, partialTick);
-		// last, since the preview draws in this same pass and would otherwise paint over it
-		if (listTooltip != null) ctx.renderTooltip(this.font, Component.literal(listTooltip), mouseX, mouseY);
 	}
 
 	private void drawList(GuiGraphics ctx, int mouseX, int mouseY) {
@@ -361,7 +358,7 @@ public class SchematicPickerScreen extends Screen {
 			ctx.drawString(this.font, label, listX + 3, y + 2, COL_BODY, false);
 			if (over && !label.equals(name)) hoveredFull = name;
 		}
-		listTooltip = hoveredFull;
+		if (hoveredFull != null) this.setTooltipForNextRenderPass(Component.literal(hoveredFull));
 		if (shown.isEmpty()) {
 			String note = !listLoaded ? "Loading..."
 					: names.isEmpty() ? "No schematic files found" : "No match: Confirm uses the typed name";
@@ -408,8 +405,11 @@ public class SchematicPickerScreen extends Screen {
 		y = drawWrapped(ctx, muted(model.sizeX() + " x " + model.sizeY() + " x " + model.sizeZ()
 				+ ", " + model.total() + " blocks"), y);
 		if (model.truncated()) {
-			drawWrapped(ctx, Component.literal("Shows " + model.carried() + " of " + model.total() + " blocks")
+			y = drawWrapped(ctx, Component.literal("Shows " + model.carried() + " of " + model.total() + " blocks")
 					.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xE7C44F))), y);
+		}
+		if (model.simplified()) {
+			drawWrapped(ctx, muted("Simplified preview"), y);
 		}
 		if (model.visible() == 0) {
 			centered(ctx, muted("Nothing to show"), previewY + previewH / 2 - 4);
