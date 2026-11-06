@@ -61,8 +61,9 @@ public final class SchematicPreviewRenderer {
 			blocks.renderSingleBlock(model.state(i), pose, buffers, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
 			pose.popPose();
 		}
-		// not GuiGraphics.flush, which turns the depth test off and would let the far side of the model win
-		buffers.endBatch();
+		// the render types switch depth testing on themselves while they draw; it is their teardown that
+		// leaves it off, and GuiGraphics.flush turns it back on for the rest of the gui
+		graphics.flush();
 		pose.popPose();
 
 		RenderSystem.clear(256, Minecraft.ON_OSX);

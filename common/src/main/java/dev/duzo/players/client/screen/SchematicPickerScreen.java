@@ -36,7 +36,7 @@ public class SchematicPickerScreen extends Screen {
 	private static final int ROW_H = 12;
 	private static final int LIST_W = 120;
 	private static final int BTN_H = 16;
-	private static final int INFO_H = 44;
+	private static final int INFO_H = 34;
 
 	private static final int COL_PANEL = 0xFF11171F;
 	private static final int COL_PANEL_BORDER = 0xFF2A3548;
@@ -408,12 +408,11 @@ public class SchematicPickerScreen extends Screen {
 		int y = infoY + 10;
 		y = drawWrapped(ctx, muted(model.sizeX() + " x " + model.sizeY() + " x " + model.sizeZ()
 				+ ", " + model.total() + " blocks"), y);
-		if (model.truncated()) {
-			y = drawWrapped(ctx, Component.literal("Shows " + model.carried() + " of " + model.total() + " blocks")
-					.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xE7C44F))), y);
-		}
-		if (model.simplified()) {
-			drawWrapped(ctx, muted("Simplified preview"), y);
+		if (model.truncated() || model.simplified()) {
+			String note = model.truncated()
+					? "Shows " + model.carried() + " of " + model.total() + " blocks" + (model.simplified() ? ", simplified" : "")
+					: "Simplified preview";
+			drawWrapped(ctx, Component.literal(note).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xE7C44F))), y);
 		}
 		if (model.visible() == 0) {
 			centered(ctx, muted("Nothing to show"), previewY + previewH / 2 - 4);
@@ -425,7 +424,9 @@ public class SchematicPickerScreen extends Screen {
 	}
 
 	private int drawWrapped(GuiGraphics ctx, Component text, int y) {
+		int bottom = previewY + previewH + INFO_H;
 		for (FormattedCharSequence line : this.font.split(text, previewW)) {
+			if (y + 10 > bottom) break;
 			ctx.drawString(this.font, line, previewX, y, 0xFFFFFFFF, false);
 			y += 10;
 		}
