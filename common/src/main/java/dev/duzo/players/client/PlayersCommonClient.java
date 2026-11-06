@@ -24,13 +24,13 @@ public class PlayersCommonClient {
 	}
 
 	private static void receiveSchematicList(int entityId, List<String> names, boolean truncated) {
-		if (Minecraft.getInstance().screen instanceof SchematicPickerScreen picker && picker.entityId() == entityId) {
+		if (Minecraft.getInstance().gui.screen() instanceof SchematicPickerScreen picker && picker.entityId() == entityId) {
 			picker.onList(names, truncated);
 		}
 	}
 
 	private static void receiveSchematicPreview(int entityId, String name, SchematicPreview.Data data, String error, boolean busy) {
-		if (Minecraft.getInstance().screen instanceof SchematicPickerScreen picker && picker.entityId() == entityId) {
+		if (Minecraft.getInstance().gui.screen() instanceof SchematicPickerScreen picker && picker.entityId() == entityId) {
 			picker.onPreview(name, data, error, busy);
 		}
 	}

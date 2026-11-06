@@ -758,7 +758,7 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	private void openSchematicPicker() {
-		Minecraft.getInstance().setScreen(new SchematicPickerScreen(this, entity, schematicName()));
+		Minecraft.getInstance().gui.setScreen(new SchematicPickerScreen(this, entity, schematicName()));
 	}
 
 	/** What Enter used to send from the name field, for a name chosen in the picker. */

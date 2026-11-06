@@ -12,6 +12,8 @@ import dev.duzo.players.entities.ai.builder.SchematicPreview;
 import dev.duzo.players.entities.ai.builder.SchematicStore;
 import dev.duzo.players.network.s2c.SchematicPreviewS2C;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -31,8 +33,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /** Asks for one schematic's blocks, so the picker can draw it before it is chosen. */
-public record RequestSchematicPreviewC2S(int id, String name) {
+public record RequestSchematicPreviewC2S(int id, String name) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("builder_request_schematic_preview");
+	public static final CustomPacketPayload.Type<RequestSchematicPreviewC2S> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, RequestSchematicPreviewC2S> CODEC = CustomPacketPayload.codec(RequestSchematicPreviewC2S::encode, RequestSchematicPreviewC2S::decode);
 
 	/** Each request reads a file from disk, so a client asking faster than a person can click is ignored. */
 	private static final long MIN_GAP_MILLIS = 250;
@@ -173,6 +177,11 @@ public record RequestSchematicPreviewC2S(int id, String name) {
 		if (last != null && now - last < MIN_GAP_MILLIS) return false;
 		LAST.put(player, now);
 		return true;
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

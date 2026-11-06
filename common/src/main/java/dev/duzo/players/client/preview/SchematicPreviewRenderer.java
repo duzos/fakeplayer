@@ -6,12 +6,10 @@ import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
 import net.minecraft.util.LightCoordsUtil;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.BlockModelRenderState;
 import net.minecraft.client.renderer.block.BlockModelResolver;
 import net.minecraft.client.renderer.block.model.BlockDisplayContext;
-import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -27,10 +25,6 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 	private @Nullable WeakReference<SchematicPreviewModel> renderedModel;
 	private int renderedAngle = -1;
 
-	public SchematicPreviewRenderer(MultiBufferSource.BufferSource bufferSource) {
-		super(bufferSource);
-	}
-
 	@Override
 	public Class<SchematicPreviewRenderState> getRenderStateClass() {
 		return SchematicPreviewRenderState.class;
@@ -42,13 +36,13 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 	}
 
 	@Override
-	protected void renderToTexture(SchematicPreviewRenderState state, PoseStack pose) {
+	protected void renderToTexture(SchematicPreviewRenderState state, PoseStack pose, SubmitNodeCollector collector) {
 		SchematicPreviewModel model = state.model();
 		renderedModel = new WeakReference<>(model);
 		renderedAngle = state.angle();
 
 		Minecraft minecraft = Minecraft.getInstance();
-		minecraft.gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
+		minecraft.gameRenderer.lighting().setupFor(Lighting.Entry.ITEMS_3D);
 
 		float width = state.x1() - state.x0();
 		float height = state.y1() - state.y0();
@@ -69,8 +63,6 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 		BlockModelResolver resolver = new BlockModelResolver(minecraft.getModelManager());
 		// one resolved render state per distinct block state, submitted once per position
 		Map<BlockState, BlockModelRenderState> resolved = new IdentityHashMap<>();
-		FeatureRenderDispatcher features = minecraft.gameRenderer.getFeatureRenderDispatcher();
-		SubmitNodeCollector collector = features.getSubmitNodeStorage();
 		for (int i = 0; i < model.visible(); i++) {
 			BlockState blockState = model.state(i);
 			BlockModelRenderState renderState = resolved.get(blockState);
@@ -85,7 +77,6 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 			renderState.submit(pose, collector, LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
 			pose.popPose();
 		}
-		features.renderAllFeatures();
 	}
 
 	@Override
