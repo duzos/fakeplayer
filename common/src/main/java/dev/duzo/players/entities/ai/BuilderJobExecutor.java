@@ -19,6 +19,7 @@ import dev.duzo.players.entities.ai.requests.SenderAlerts;
 import dev.duzo.players.entities.speech.FakeSpeech;
 import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -947,10 +948,12 @@ public class BuilderJobExecutor implements JobExecutor {
 	/** A stack that holds nothing: no shulker contents, bundle items, block entity data, loot table, bees, pot decorations, banner patterns or skull profile. Names and custom data are fine. */
 	private static boolean plain(ItemStack stack, Item item) {
 		if (!stack.is(item)) return false;
-		return !stack.has(DataComponents.CONTAINER) && !stack.has(DataComponents.BUNDLE_CONTENTS)
-				&& !stack.has(DataComponents.BLOCK_ENTITY_DATA) && !stack.has(DataComponents.CONTAINER_LOOT)
-				&& !stack.has(DataComponents.BEES) && !stack.has(DataComponents.POT_DECORATIONS)
-				&& !stack.has(DataComponents.BANNER_PATTERNS) && !stack.has(DataComponents.PROFILE);
+		// has() also sees an item's default components, and a plain chest's default container is empty
+		DataComponentPatch patch = stack.getComponentsPatch();
+		return patch.get(DataComponents.CONTAINER) == null && patch.get(DataComponents.BUNDLE_CONTENTS) == null
+				&& patch.get(DataComponents.BLOCK_ENTITY_DATA) == null && patch.get(DataComponents.CONTAINER_LOOT) == null
+				&& patch.get(DataComponents.BEES) == null && patch.get(DataComponents.POT_DECORATIONS) == null
+				&& patch.get(DataComponents.BANNER_PATTERNS) == null && patch.get(DataComponents.PROFILE) == null;
 	}
 
 	private static int count(SimpleContainer inv, Item item) {
