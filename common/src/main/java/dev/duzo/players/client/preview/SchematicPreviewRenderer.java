@@ -55,8 +55,8 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 
 		// the same net handedness as a block item in a gui slot
 		pose.scale(1f, -1f, -1f);
-		pose.mulPose(Axis.XP.rotationDegrees(TILT_DEGREES));
-		pose.mulPose(Axis.YP.rotationDegrees(state.angle()));
+		pose.rotateDegrees(Axis.XP, TILT_DEGREES);
+		pose.rotateDegrees(Axis.YP, state.angle());
 		pose.scale(fit, fit, fit);
 		pose.translate(-sx / 2f, -sy / 2f, -sz / 2f);
 
