@@ -30,7 +30,7 @@ public class PlayersFabricClient implements ClientModInitializer {
 		EntityRendererRegistry.register(FPEntities.FAKE_PLAYER.get(), FakePlayerRendererWrapper::new);
 		EntityRendererRegistry.register(FPEntities.FISHING_HOOK.get(), FakeFishingHookRenderer::new);
 		EntityRendererRegistry.register(FPEntities.POSSESSION_BODY.get(), PossessionBodyRenderer::new);
-		SpecialGuiElementRegistry.register(ctx -> new SchematicPreviewRenderer(ctx.vertexConsumers()));
+		PictureInPictureRendererRegistry.register(ctx -> new SchematicPreviewRenderer(ctx.bufferSource()));
 		MenuScreens.register(FPMenus.FAKE_PLAYER.get(), FakePlayerInventoryScreen::new);
 		MenuScreens.register(FPMenus.CRAFTER_LEARN.get(), FakeCrafterScreen::new);
 		ClientTickEvents.END_CLIENT_TICK.register(PlayersCommonClient::tick);
