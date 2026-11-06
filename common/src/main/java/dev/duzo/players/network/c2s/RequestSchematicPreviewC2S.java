@@ -82,25 +82,34 @@ public record RequestSchematicPreviewC2S(int id, String name) {
 		// a fresh template from the data fixer and the frozen block registry, and nothing else of the
 		// level is touched, so none of it needs the server thread.
 		Util.ioPool().execute(() -> {
-			SchematicPreview.Data loadedData = null;
-			String failure = null;
 			try {
-				SchematicStore.Result<StructureTemplate> loaded = SchematicStore.load(level, name, uploader);
-				if (loaded.ok()) loadedData = SchematicPreview.of(loaded.value());
-				else failure = loaded.error() == null ? "could not load" : loaded.error();
-			} catch (RuntimeException e) {
-				failure = "could not load";
-			}
-			SchematicPreview.Data done = loadedData;
-			String error = failure;
-			server.execute(() -> {
+				SchematicPreview.Data loadedData = null;
+				String failure = null;
+				try {
+					SchematicStore.Result<StructureTemplate> loaded = SchematicStore.load(level, name, uploader);
+					if (loaded.ok()) loadedData = SchematicPreview.of(loaded.value());
+					else failure = loaded.error() == null ? "could not load" : loaded.error();
+				} catch (Throwable t) {
+					failure = "could not load";
+				}
+				SchematicPreview.Data done = loadedData;
+				String error = failure;
+				server.execute(() -> {
+					if (done != null && key != null) remember(key, done);
+					ServerPlayer online = server.getPlayerList().getPlayer(player);
+					if (online == null) return;
+					reply(online, done != null ? forData(id, name, done) : error(id, name, error));
+				});
+			} finally {
 				end(player);
-				if (done != null && key != null) remember(key, done);
-				ServerPlayer online = server.getPlayerList().getPlayer(player);
-				if (online == null) return;
-				reply(online, done != null ? forData(id, name, done) : error(id, name, error));
-			});
+			}
 		});
+	}
+
+	/** Called when a server stops, so a load that never finished cannot keep a slot for the next world. */
+	public static synchronized void reset() {
+		IN_FLIGHT.clear();
+		LAST.clear();
 	}
 
 	private static SchematicPreviewS2C forData(int id, String name, SchematicPreview.Data data) {
