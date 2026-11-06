@@ -59,6 +59,7 @@ public class AISubMenuScreen extends Screen {
 	private static final int FILTER_TOGGLE_W = 30;
 	private static final int FILTER_TOGGLE_GAP = 4;
 	private static final int ROT_BTN_W = 48;
+	private static final int PENDING_SCHEMATIC_TICKS = 200;
 
 	private static final int COL_PANEL = 0xFF11171F;
 	private static final int COL_PANEL_BORDER = 0xFF2A3548;
@@ -105,6 +106,7 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton schematicButton;
 	// the name just chosen, kept until the synced state catches up so a quick Rot or Anchor click does not send the old one
 	private String pendingSchematic;
+	private int pendingSchematicTicks;
 	private FlatButton anchorButton;
 	private FlatButton rotateButton;
 	private FlatButton mirrorButton;
@@ -276,7 +278,7 @@ public class AISubMenuScreen extends Screen {
 		AIState s = entity.getAIState();
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
 		relayout(s);
-		if (pendingSchematic != null && BuilderParams.read(s).schematic().equals(pendingSchematic)) {
+		if (pendingSchematic != null && (BuilderParams.read(s).schematic().equals(pendingSchematic) || ++pendingSchematicTicks > PENDING_SCHEMATIC_TICKS)) {
 			pendingSchematic = null;
 		}
 		if (schematicButton != null) schematicButton.setMessage(schematicLabel());
@@ -760,9 +762,14 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	/** What Enter used to send from the name field, for a name chosen in the picker. */
+	String currentSchematic() {
+		return schematicName();
+	}
+
 	void chooseSchematic(String name) {
 		BuilderParams p = BuilderParams.read(entity.getAIState());
 		pendingSchematic = name.trim();
+		pendingSchematicTicks = 0;
 		sendBuild(p.rotation().ordinal(), p.mirror().ordinal());
 	}
 

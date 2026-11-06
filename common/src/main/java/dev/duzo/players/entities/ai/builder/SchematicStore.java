@@ -22,11 +22,13 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /** Name to template, server side. Names come from clients, so nothing here may leave its search roots. */
 public final class SchematicStore {
@@ -115,6 +117,7 @@ public final class SchematicStore {
 		if (uploader != null && isPlainName(uploader)) roots.add(UPLOAD_ROOT.resolve(uploader));
 		roots.add(CONFIG_ROOT);
 		Map<String, String> found = new LinkedHashMap<>();
+		Set<String> earlier = new HashSet<>();
 		boolean truncated = false;
 		for (Path root : roots) {
 			if (!Files.isDirectory(root)) continue;
@@ -125,6 +128,7 @@ public final class SchematicStore {
 				continue;
 			}
 			int scanned = 0;
+			Set<String> thisRoot = new HashSet<>();
 			try (DirectoryStream<Path> stream = Files.newDirectoryStream(realRoot, "*.nbt")) {
 				for (Path entry : stream) {
 					if (++scanned > MAX_SCAN) {
@@ -135,14 +139,18 @@ public final class SchematicStore {
 					String name = file.substring(0, file.length() - 4);
 					// load() strips one suffix, so a name still ending in one would never resolve to this file
 					if (!isListable(name) || name.endsWith(".nbt")) continue;
-					// the file system folds case on Windows, so the first root's spelling is the one load() finds
-					if (found.containsKey(name.toLowerCase(Locale.ROOT))) continue;
+					// the file system folds case on Windows, so an earlier root's spelling is the one load() finds;
+					// within one root every distinct name stays
+					String folded = name.toLowerCase(Locale.ROOT);
+					if (earlier.contains(folded) || found.containsKey(name)) continue;
 					if (!contained(realRoot, file)) continue;
-					found.put(name.toLowerCase(Locale.ROOT), name);
+					found.put(name, name);
+					thisRoot.add(folded);
 				}
 			} catch (IOException | java.nio.file.InvalidPathException e) {
 				Constants.LOG.warn("could not list schematics in {}", root, e);
 			}
+			earlier.addAll(thisRoot);
 		}
 		List<String> names = new ArrayList<>(found.values());
 		names.sort(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()));
