@@ -203,7 +203,7 @@ public final class BuildPlan {
 		return true;
 	}
 
-	private static List<BlockState> readPalette(CompoundTag tag) {
+	static List<BlockState> readPalette(CompoundTag tag) {
 		ListTag list = tag.getList(StructureTemplate.PALETTE_TAG).orElse(null);
 		if (list == null) {
 			ListTag palettes = tag.getList(StructureTemplate.PALETTE_LIST_TAG).orElseGet(ListTag::new);
