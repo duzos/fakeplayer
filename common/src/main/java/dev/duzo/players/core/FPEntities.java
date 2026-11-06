@@ -13,7 +13,7 @@ import net.minecraft.world.entity.player.Player;
 import java.util.function.Supplier;
 
 public class FPEntities {
-	public static final Supplier<EntityType<FakePlayerEntity>> FAKE_PLAYER = register("fake_player", () -> EntityType.Builder.<FakePlayerEntity>of(FakePlayerEntity::new, MobCategory.MISC).sized(0.6F, 1.8F).vehicleAttachment(Player.DEFAULT_VEHICLE_ATTACHMENT).updateInterval(2).build("fake_player"));
+	public static final Supplier<EntityType<FakePlayerEntity>> FAKE_PLAYER = register("fake_player", () -> EntityType.Builder.<FakePlayerEntity>of(FakePlayerEntity::new, MobCategory.MISC).sized(0.6F, 1.8F).vehicleAttachment(Player.DEFAULT_VEHICLE_ATTACHMENT).build("fake_player"));
 	public static final Supplier<EntityType<FakeFishingHook>> FISHING_HOOK = register("fishing_hook", () -> EntityType.Builder.<FakeFishingHook>of(FakeFishingHook::new, MobCategory.MISC).sized(0.25F, 0.25F).clientTrackingRange(5).updateInterval(1).build("fishing_hook"));
 
 	public static final Supplier<EntityType<PossessionBodyEntity>> POSSESSION_BODY = register("possession_body", () -> EntityType.Builder.<PossessionBodyEntity>of(PossessionBodyEntity::new, MobCategory.MISC).sized(0.6F, 1.8F).noSummon().clientTrackingRange(10).build("possession_body"));
