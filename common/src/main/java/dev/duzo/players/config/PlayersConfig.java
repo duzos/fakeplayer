@@ -64,6 +64,14 @@ public class PlayersConfig {
 	 * with nobody online). A /forceload on a chunk an anchored fake already forced is released when the fake
 	 * moves away. */
 	public boolean chunkAnchors = true;
+	/** Whether a Possession Link may be used to take control of a fake. False ends every possession in progress. */
+	public boolean possession = true;
+	/** Farthest a possessed fake may be from where the player started, in blocks; going past it ends the possession.
+	 * Defaults to 128 so a possessor is never left idle and unprotected far from their own body. 0 means no limit,
+	 * which also allows crossing dimensions. */
+	public int possessionMaxDistance = 128;
+	/** Seconds before a player can take control again after a possession ends, for any reason. 0 means no wait. */
+	public int possessionCooldownSeconds = 5;
 	/** How much fakes say: "off" (only lines a player asked for), "quiet" (plus problems they need to act on) or
 	 * "chatty" (plus progress chatter). Each kind of line is spoken at most once per 30 seconds per fake, and a
 	 * fake speaks at most once per 2 seconds. Lines a player asked for are exempt from both limits. */
@@ -159,6 +167,8 @@ public class PlayersConfig {
 		INSTANCE.builderStripeWidth = Math.max(1, Math.min(16, INSTANCE.builderStripeWidth));
 		if (INSTANCE.builderPlaceTicks < 1) INSTANCE.builderPlaceTicks = 4;
 		if (INSTANCE.builderMaxAnchorDistance < 0) INSTANCE.builderMaxAnchorDistance = 64;
+		if (INSTANCE.possessionMaxDistance < 0) INSTANCE.possessionMaxDistance = 0;
+		if (INSTANCE.possessionCooldownSeconds < 0) INSTANCE.possessionCooldownSeconds = 0;
 	}
 
 	private static void save(Gson gson) {

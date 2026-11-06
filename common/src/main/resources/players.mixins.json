@@ -5,9 +5,18 @@
     "refmap": "${mod_id}.refmap.json",
     "compatibilityLevel": "JAVA_17",
     "mixins": [
+        "PlayerInvoker",
+        "PlayerListAccessor",
+        "PlayerListPossessionMixin",
+        "ServerPlayerPossessionMixin",
+        "ServerLevelEntityStorageAccessor",
+        "EntityManagerStorageAccessor",
+        "EntityStorageAccessor"
     ],
     "client": [
-        "FishingRodCastMixin"
+        "FishingRodCastMixin",
+        "PlayerRendererNameMixin",
+        "PlayerInfoSkinMixin"
     ],
     "server": [
     ],
@@ -15,4 +24,3 @@
         "defaultRequire": 1
     }
 }
-

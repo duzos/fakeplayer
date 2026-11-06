@@ -30,7 +30,8 @@ public record RequestItemPacketC2S(int id, String item, int count) {
 		if (!Side.SERVER.equals(ctx.side())) return;
 		ServerPlayer sender = ctx.sender();
 		if (sender == null) return;
-		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(sender, ctx.message().id);
+		if (entity == null) return;
 		// the clicked entity is validated only to confirm the menu belonged to a quartermaster; the
 		// request itself goes to the nearest stocked one, so a small pool does not shadow a big one
 		if (!FPJobs.is(entity.getAIState().jobId(), FPJobs.QUARTERMASTER)) return;

@@ -14,6 +14,7 @@ public class PlayersCommonClient {
 		// registered from the client side so the packet class itself never names a Screen: a
 		// dedicated server refuses to load client classes, and it loads every packet it registers
 		StockListPacketS2C.setOpener(PlayersCommonClient::openStockScreen);
+		PossessionDisguises.init();
 	}
 
 	private static void openStockScreen(int entityId, List<StockListPacketS2C.Entry> stock, int total,
@@ -37,6 +38,11 @@ public class PlayersCommonClient {
 
 	public static void openSelectScreen(FakePlayerEntity entity) {
 		Minecraft.getInstance().setScreen(new SkinSelectScreen(entity));
+	}
+
+	/** Disguises are tied to the server that sent them, so none outlive the connection. */
+	public static void onDisconnect() {
+		PossessionDisguises.clear();
 	}
 
 	/**

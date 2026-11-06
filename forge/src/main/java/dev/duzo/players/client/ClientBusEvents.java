@@ -21,6 +21,7 @@ public class ClientBusEvents {
 
 	@SubscribeEvent
 	public static void onClientStopping(ClientPlayerNetworkEvent.LoggingOut e) {
+		PlayersCommonClient.onDisconnect();
 		PlayersCommonClient.onClientStopping();
 	}
 

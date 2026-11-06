@@ -6,6 +6,7 @@ import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.core.SessionItemSweeper;
 import dev.duzo.players.entities.ai.FriendlyFire;
+import dev.duzo.players.entities.possession.PossessionManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.neoforged.bus.api.EventPriority;
@@ -16,6 +17,9 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.minecraft.server.level.ServerLevel;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import static dev.duzo.players.platform.ForgeCommonRegistry.COMMANDS;
@@ -43,8 +47,18 @@ public class ForgeModEvents {
 	}
 
 	@SubscribeEvent
-	public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent e) {
-		if (e.getEntity() instanceof ServerPlayer p) AIMarkerItem.clearAllFor(p);
+	public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent e) {
+		if (e.getEntity() instanceof ServerPlayer p) PossessionManager.onJoin(p);
+	}
+
+	@SubscribeEvent
+	public static void onServerStopping(ServerStoppingEvent e) {
+		PossessionManager.onServerStopping(e.getServer());
+	}
+
+	@SubscribeEvent
+	public static void onServerStopped(ServerStoppedEvent e) {
+		PossessionManager.onServerStopped();
 	}
 
 	@SubscribeEvent
