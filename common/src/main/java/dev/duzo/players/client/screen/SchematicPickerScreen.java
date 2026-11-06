@@ -127,14 +127,14 @@ public class SchematicPickerScreen extends Screen {
 
 	@Override
 	public void onClose() {
-		Minecraft.getInstance().setScreen(parent);
+		Minecraft.getInstance().gui.setScreen(parent);
 	}
 
 	@Override
 	protected void init() {
 		super.init();
 		if (entity == null) {
-			Minecraft.getInstance().setScreen(parent);
+			Minecraft.getInstance().gui.setScreen(parent);
 			return;
 		}
 		panelW = Math.min(340, this.width - 8);
@@ -260,14 +260,14 @@ public class SchematicPickerScreen extends Screen {
 	private void confirm() {
 		if (!canConfirm(target())) return;
 		parent.chooseSchematic(target());
-		Minecraft.getInstance().setScreen(parent);
+		Minecraft.getInstance().gui.setScreen(parent);
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
 		if (entity == null || entity.isRemoved() || !FPJobs.is(entity.getAIState().jobId(), FPJobs.BUILDER)) {
-			Minecraft.getInstance().setScreen(parent);
+			Minecraft.getInstance().gui.setScreen(parent);
 			return;
 		}
 		long now = System.currentTimeMillis();

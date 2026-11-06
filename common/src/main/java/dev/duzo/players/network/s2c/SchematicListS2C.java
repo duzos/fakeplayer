@@ -6,14 +6,18 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.ai.builder.BuilderParams;
 import dev.duzo.players.entities.ai.builder.SchematicStore;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** The schematic files a Builder's owner can pick from, sent in reply to a list request. */
-public record SchematicListS2C(int id, List<String> names, boolean truncated) {
+public record SchematicListS2C(int id, List<String> names, boolean truncated) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("builder_schematic_list");
+	public static final CustomPacketPayload.Type<SchematicListS2C> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, SchematicListS2C> CODEC = CustomPacketPayload.codec(SchematicListS2C::encode, SchematicListS2C::decode);
 
 	public static SchematicListS2C decode(FriendlyByteBuf buf) {
 		int id = buf.readInt();
@@ -40,6 +44,11 @@ public record SchematicListS2C(int id, List<String> names, boolean truncated) {
 		if (receiver == null) return;
 		SchematicListS2C msg = ctx.message();
 		receiver.receive(msg.id(), msg.names(), msg.truncated());
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {

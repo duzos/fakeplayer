@@ -6,13 +6,17 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.ai.builder.BuilderParams;
 import dev.duzo.players.entities.ai.builder.SchematicPreview;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 
 /** One schematic's blocks for the picker's preview, or the reason it could not be loaded. */
 public record SchematicPreviewS2C(int id, String name, SchematicPreview.@Nullable Data data, String error,
-                                boolean busy) {
+                                boolean busy) implements CustomPacketPayload {
 	public static final Identifier LOCATION = PlayersCommon.id("builder_schematic_preview");
+	public static final CustomPacketPayload.Type<SchematicPreviewS2C> TYPE = new CustomPacketPayload.Type<>(LOCATION);
+	public static final StreamCodec<FriendlyByteBuf, SchematicPreviewS2C> CODEC = CustomPacketPayload.codec(SchematicPreviewS2C::encode, SchematicPreviewS2C::decode);
 
 	private static final int MAX_ERROR = 256;
 
@@ -60,6 +64,11 @@ public record SchematicPreviewS2C(int id, String name, SchematicPreview.@Nullabl
 	/** The server was asked too soon after the last request and did nothing; ask again shortly. */
 	public static SchematicPreviewS2C busy(int id, String name) {
 		return new SchematicPreviewS2C(id, name, null, "", true);
+	}
+
+	@Override
+	public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 
 	public void encode(FriendlyByteBuf buf) {
