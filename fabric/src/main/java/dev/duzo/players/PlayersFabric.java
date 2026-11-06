@@ -14,6 +14,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import dev.duzo.players.network.c2s.RequestSchematicPreviewC2S;
 import net.minecraft.server.level.ServerPlayer;
 
 public class PlayersFabric implements ModInitializer {
@@ -37,6 +38,9 @@ public class PlayersFabric implements ModInitializer {
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> RidingInteractions.useBlock(player, world, hand, hit));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> PossessionManager.onJoin(handler.player));
         ServerLifecycleEvents.SERVER_STOPPING.register(PossessionManager::onServerStopping);
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> PossessionManager.onServerStopped());
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            PossessionManager.onServerStopped();
+            RequestSchematicPreviewC2S.reset();
+        });
     }
 }
