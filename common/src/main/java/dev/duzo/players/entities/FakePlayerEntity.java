@@ -1149,6 +1149,12 @@ public class FakePlayerEntity extends PathfinderMob implements CrossbowAttackMob
 	}
 
 	@Override
+	protected boolean isImmobile() {
+		// as for a player: asleep in a bed the move control must not walk on, or the fake slides off the bed
+		return super.isImmobile() || this.isBedSleeping();
+	}
+
+	@Override
 	public boolean isSleeping() {
 		return super.isSleeping() || this.getPhysicalState() == PhysicalState.LAYING;
 	}
