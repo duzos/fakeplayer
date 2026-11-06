@@ -11,7 +11,7 @@ import dev.duzo.players.entities.ai.builder.SchematicPreview;
 import dev.duzo.players.network.c2s.RequestSchematicListC2S;
 import dev.duzo.players.network.c2s.RequestSchematicPreviewC2S;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -122,7 +122,7 @@ public class SchematicPickerScreen extends Screen {
 	}
 
 	@Override
-	public void renderBackground(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
+	public void extractBackground(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
 	}
 
 	@Override
@@ -324,29 +324,29 @@ public class SchematicPickerScreen extends Screen {
 	}
 
 	@Override
-	public void render(GuiGraphics ctx, int mouseX, int mouseY, float partialTick) {
+	public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float partialTick) {
 		ctx.fill(0, 0, this.width, this.height, 0xA0050709);
 		ctx.fill(panelX - 2, panelY - 2, panelX + panelW + 2, panelY + panelH + 2, 0xFF000000);
 		ctx.fill(panelX - 1, panelY - 1, panelX + panelW + 1, panelY + panelH + 1, COL_PANEL_BORDER);
 		ctx.fill(panelX, panelY, panelX + panelW, panelY + panelH, COL_PANEL);
 		ctx.fill(panelX, panelY, panelX + panelW, panelY + TITLE_H, COL_TITLE_BAR);
 		ctx.fill(panelX + PADDING, panelY + TITLE_H - 1, panelX + panelW - PADDING, panelY + TITLE_H, COL_ACCENT);
-		ctx.drawString(this.font, Component.literal("Choose schematic")
+		ctx.text(this.font, Component.literal("Choose schematic")
 				.withStyle(s -> s.withColor(TextColor.fromRgb(COL_ACCENT & 0xFFFFFF)).withBold(true)),
 				panelX + PADDING, panelY + 8, 0xFFFFFFFF, false);
 		String count = listLoaded ? names.size() + " files" : "loading";
-		ctx.drawString(this.font, muted(count), panelX + panelW - PADDING - this.font.width(count), panelY + 8, 0xFFFFFFFF, false);
+		ctx.text(this.font, muted(count), panelX + panelW - PADDING - this.font.width(count), panelY + 8, 0xFFFFFFFF, false);
 
 		drawList(ctx, mouseX, mouseY);
 		drawPreview(ctx);
 
 		if (listTruncated) {
-			ctx.drawString(this.font, muted("list capped at " + names.size()), listX, cancelButton.getY() + 4, 0xFFFFFFFF, false);
+			ctx.text(this.font, muted("list capped at " + names.size()), listX, cancelButton.getY() + 4, 0xFFFFFFFF, false);
 		}
-		super.render(ctx, mouseX, mouseY, partialTick);
+		super.extractRenderState(ctx, mouseX, mouseY, partialTick);
 	}
 
-	private void drawList(GuiGraphics ctx, int mouseX, int mouseY) {
+	private void drawList(GuiGraphicsExtractor ctx, int mouseX, int mouseY) {
 		ctx.fill(listX, listY, listX + LIST_W, listY + listH, COL_CELL);
 		int rows = visibleRows();
 		String current = target();
@@ -360,7 +360,7 @@ public class SchematicPickerScreen extends Screen {
 			if (name.equals(current)) ctx.fill(listX, y, listX + LIST_W, y + ROW_H, COL_CELL_PICKED);
 			else if (over) ctx.fill(listX, y, listX + LIST_W, y + ROW_H, COL_CELL_HOVER);
 			String label = ellipsize(name, LIST_W - 10);
-			ctx.drawString(this.font, label, listX + 3, y + 2, COL_BODY, false);
+			ctx.text(this.font, label, listX + 3, y + 2, COL_BODY, false);
 			if (over && !label.equals(name)) hoveredFull = name;
 		}
 		if (hoveredFull != null) {
@@ -369,7 +369,7 @@ public class SchematicPickerScreen extends Screen {
 		if (shown.isEmpty()) {
 			String note = !listLoaded ? "Loading..."
 					: names.isEmpty() ? "No schematic files found" : "No match: Confirm uses the typed name";
-			ctx.drawWordWrap(this.font, muted(note), listX + 4, listY + 4, LIST_W - 8, 0xFFFFFFFF);
+			ctx.textWithWordWrap(this.font, muted(note), listX + 4, listY + 4, LIST_W - 8, 0xFFFFFFFF);
 		}
 		if (shown.size() > rows) {
 			int barH = Math.max(8, listH * rows / shown.size());
@@ -378,7 +378,7 @@ public class SchematicPickerScreen extends Screen {
 		}
 	}
 
-	private void drawPreview(GuiGraphics ctx) {
+	private void drawPreview(GuiGraphicsExtractor ctx) {
 		ctx.fill(previewX, previewY, previewX + previewW, previewY + previewH, 0xFF0B1016);
 		String name = previewName();
 		int infoY = previewY + previewH + 4;
@@ -386,7 +386,7 @@ public class SchematicPickerScreen extends Screen {
 			centered(ctx, muted("Pick a schematic"), previewY + previewH / 2 - 4);
 			return;
 		}
-		ctx.drawString(this.font, ellipsize(name, previewW), previewX, infoY, COL_ACCENT, false);
+		ctx.text(this.font, ellipsize(name, previewW), previewX, infoY, COL_ACCENT, false);
 		if (isStructureId(name)) {
 			centered(ctx, muted("No preview for structure ids"), previewY + previewH / 2 - 4);
 			return;
@@ -403,7 +403,7 @@ public class SchematicPickerScreen extends Screen {
 					previewW - 8);
 			int y = previewY + Math.max(4, (previewH - lines.size() * 10) / 2);
 			for (FormattedCharSequence line : lines) {
-				ctx.drawString(this.font, line, previewX + 4, y, 0xFFFFFFFF, false);
+				ctx.text(this.font, line, previewX + 4, y, 0xFFFFFFFF, false);
 				y += 10;
 			}
 			return;
@@ -422,20 +422,20 @@ public class SchematicPickerScreen extends Screen {
 		// coarse steps cap how often the texture is redrawn: 10 a second, or 5 for a big model
 		int step = model.visible() > BIG_MODEL ? 4 : 2;
 		int angle = (int) ((System.currentTimeMillis() - openedAt) * DEGREES_PER_SECOND / 1000 % 360) / step * step;
-		ctx.guiRenderState.submitPicturesInPictureState(new SchematicPreviewRenderState(model, angle,
+		ctx.guiRenderState.addPicturesInPictureState(new SchematicPreviewRenderState(model, angle,
 				previewX, previewY, previewX + previewW, previewY + previewH, 1f, null));
 	}
 
-	private int drawWrapped(GuiGraphics ctx, Component text, int y) {
+	private int drawWrapped(GuiGraphicsExtractor ctx, Component text, int y) {
 		for (FormattedCharSequence line : this.font.split(text, previewW)) {
-			ctx.drawString(this.font, line, previewX, y, 0xFFFFFFFF, false);
+			ctx.text(this.font, line, previewX, y, 0xFFFFFFFF, false);
 			y += 10;
 		}
 		return y;
 	}
 
-	private void centered(GuiGraphics ctx, Component text, int y) {
-		ctx.drawString(this.font, text, previewX + (previewW - this.font.width(text)) / 2, y, 0xFFFFFFFF, false);
+	private void centered(GuiGraphicsExtractor ctx, Component text, int y) {
+		ctx.text(this.font, text, previewX + (previewW - this.font.width(text)) / 2, y, 0xFFFFFFFF, false);
 	}
 
 	private static Component muted(String text) {
