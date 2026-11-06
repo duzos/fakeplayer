@@ -9,6 +9,7 @@ import dev.duzo.players.entities.ai.FriendlyFire;
 import dev.duzo.players.entities.possession.PossessionManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
+import dev.duzo.players.network.c2s.RequestSchematicPreviewC2S;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -60,6 +61,7 @@ public class ForgeModEvents {
 	@SubscribeEvent
 	public static void onServerStopped(ServerStoppedEvent e) {
 		PossessionManager.onServerStopped();
+		RequestSchematicPreviewC2S.reset();
 	}
 
 	@SubscribeEvent
