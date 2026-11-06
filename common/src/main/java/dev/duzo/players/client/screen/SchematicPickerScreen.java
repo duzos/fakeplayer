@@ -23,7 +23,7 @@ import net.minecraft.util.FormattedCharSequence;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -57,6 +57,7 @@ public class SchematicPickerScreen extends Screen {
 	private static final long MIN_REQUEST_GAP_MILLIS = 300;
 	private static final long REQUEST_TIMEOUT_MILLIS = 3000;
 	private static final long DEGREES_PER_SECOND = 20;
+	private static final int BIG_MODEL = 8000;
 
 	private record Preview(@Nullable SchematicPreviewModel model, String error) {}
 
@@ -77,7 +78,14 @@ public class SchematicPickerScreen extends Screen {
 	private @Nullable String selected;
 	private int scroll;
 
-	private final Map<String, Preview> previews = new HashMap<>();
+	private static final int CACHE_SIZE = 16;
+	private final Map<String, Preview> previews = new LinkedHashMap<>(16, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<String, Preview> eldest) {
+			return size() > CACHE_SIZE;
+		}
+	};
+	private int lastClickRow = -1;
 	private String wanted = "";
 	private long wantedAt;
 	private @Nullable String inflight;
@@ -176,8 +184,13 @@ public class SchematicPickerScreen extends Screen {
 		if (at >= 0) scroll = clampScroll(at - visibleRows() / 2);
 	}
 
-	public void onPreview(String name, SchematicPreview.@Nullable Data data, String error) {
+	public void onPreview(String name, SchematicPreview.@Nullable Data data, String error, boolean busy) {
 		if (name.equals(inflight)) inflight = null;
+		if (busy) {
+			// not an answer: leave it uncached and let tick() ask again once the gap has passed
+			lastSent = System.currentTimeMillis();
+			return;
+		}
 		if (data == null) {
 			previews.put(name, new Preview(null, error.isEmpty() ? "could not load" : error));
 			return;
@@ -218,7 +231,12 @@ public class SchematicPickerScreen extends Screen {
 		return selected != null ? selected : search.getValue().trim();
 	}
 
+	private boolean isStructureId(String name) {
+		return name.indexOf(':') >= 0;
+	}
+
 	private void confirm() {
+		if (target().isEmpty()) return;
 		parent.chooseSchematic(target());
 		Minecraft.getInstance().setScreen(parent);
 	}
@@ -237,7 +255,8 @@ public class SchematicPickerScreen extends Screen {
 			wantedAt = selected != null ? now : now + TYPING_DEBOUNCE_MILLIS;
 		}
 		if (inflight != null && now - inflightSince > REQUEST_TIMEOUT_MILLIS) inflight = null;
-		if (target.isEmpty() || now < wantedAt || inflight != null || previews.containsKey(target)) return;
+		confirmButton.active = !target.isEmpty();
+		if (target.isEmpty() || isStructureId(target) || now < wantedAt || inflight != null || previews.containsKey(target)) return;
 		if (now - lastSent < MIN_REQUEST_GAP_MILLIS) return;
 		inflight = target;
 		inflightSince = now;
@@ -252,7 +271,9 @@ public class SchematicPickerScreen extends Screen {
 			int row = scroll + (int) ((event.y() - listY) / ROW_H);
 			if (row < shown.size()) {
 				selected = shown.get(row);
-				if (doubleClick) confirm();
+				boolean again = doubleClick && row == lastClickRow;
+				lastClickRow = row;
+				if (again) confirm();
 				return true;
 			}
 		}
@@ -336,6 +357,10 @@ public class SchematicPickerScreen extends Screen {
 		}
 		ctx.drawString(this.font, this.font.plainSubstrByWidth(name, previewW),
 				previewX, infoY, COL_ACCENT, false);
+		if (isStructureId(name)) {
+			centered(ctx, muted("No preview for structure ids"), previewY + previewH / 2 - 4);
+			return;
+		}
 		Preview preview = previews.get(name);
 		if (preview == null) {
 			centered(ctx, muted("Loading..."), previewY + previewH / 2 - 4);
@@ -363,7 +388,9 @@ public class SchematicPickerScreen extends Screen {
 			centered(ctx, muted("Nothing to show"), previewY + previewH / 2 - 4);
 			return;
 		}
-		int angle = (int) ((System.currentTimeMillis() - openedAt) * DEGREES_PER_SECOND / 1000 % 360);
+		// coarse steps cap how often the texture is redrawn: 10 a second, or 5 for a big model
+		int step = model.visible() > BIG_MODEL ? 4 : 2;
+		int angle = (int) ((System.currentTimeMillis() - openedAt) * DEGREES_PER_SECOND / 1000 % 360) / step * step;
 		ctx.guiRenderState.submitPicturesInPictureState(new SchematicPreviewRenderState(model, angle,
 				previewX, previewY, previewX + previewW, previewY + previewH, 1f, null));
 	}
