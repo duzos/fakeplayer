@@ -2,8 +2,12 @@ package dev.duzo.players.client;
 
 import dev.duzo.players.api.SkinGrabber;
 import dev.duzo.players.client.screen.QuartermasterStockScreen;
+import dev.duzo.players.client.screen.SchematicPickerScreen;
 import dev.duzo.players.client.screen.SkinSelectScreen;
 import dev.duzo.players.entities.FakePlayerEntity;
+import dev.duzo.players.entities.ai.builder.SchematicPreview;
+import dev.duzo.players.network.s2c.SchematicListS2C;
+import dev.duzo.players.network.s2c.SchematicPreviewS2C;
 import dev.duzo.players.network.s2c.StockListPacketS2C;
 import net.minecraft.client.Minecraft;
 
@@ -14,7 +18,21 @@ public class PlayersCommonClient {
 		// registered from the client side so the packet class itself never names a Screen: a
 		// dedicated server refuses to load client classes, and it loads every packet it registers
 		StockListPacketS2C.setOpener(PlayersCommonClient::openStockScreen);
+		SchematicListS2C.setReceiver(PlayersCommonClient::receiveSchematicList);
+		SchematicPreviewS2C.setReceiver(PlayersCommonClient::receiveSchematicPreview);
 		PossessionDisguises.init();
+	}
+
+	private static void receiveSchematicList(int entityId, List<String> names, boolean truncated) {
+		if (Minecraft.getInstance().screen instanceof SchematicPickerScreen picker && picker.entityId() == entityId) {
+			picker.onList(names, truncated);
+		}
+	}
+
+	private static void receiveSchematicPreview(int entityId, String name, SchematicPreview.Data data, String error) {
+		if (Minecraft.getInstance().screen instanceof SchematicPickerScreen picker && picker.entityId() == entityId) {
+			picker.onPreview(name, data, error);
+		}
 	}
 
 	private static void openStockScreen(int entityId, List<StockListPacketS2C.Entry> stock, int total,

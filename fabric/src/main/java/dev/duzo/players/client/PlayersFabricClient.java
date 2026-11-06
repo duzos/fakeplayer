@@ -1,5 +1,6 @@
 package dev.duzo.players.client;
 
+import dev.duzo.players.client.preview.SchematicPreviewRenderer;
 import dev.duzo.players.client.renderers.FakeFishingHookRenderer;
 import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
 import dev.duzo.players.client.renderers.FishingLineRenderer;
@@ -16,6 +17,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.SpecialGuiElementRegistry;
 import net.minecraft.client.gui.screens.MenuScreens;
 
 public class PlayersFabricClient implements ClientModInitializer {
@@ -29,6 +31,7 @@ public class PlayersFabricClient implements ClientModInitializer {
 		EntityRendererRegistry.register(FPEntities.FAKE_PLAYER.get(), FakePlayerRendererWrapper::new);
 		EntityRendererRegistry.register(FPEntities.FISHING_HOOK.get(), FakeFishingHookRenderer::new);
 		EntityRendererRegistry.register(FPEntities.POSSESSION_BODY.get(), PossessionBodyRenderer::new);
+		SpecialGuiElementRegistry.register(ctx -> new SchematicPreviewRenderer(ctx.vertexConsumers()));
 		MenuScreens.register(FPMenus.FAKE_PLAYER.get(), FakePlayerInventoryScreen::new);
 		MenuScreens.register(FPMenus.CRAFTER_LEARN.get(), FakeCrafterScreen::new);
 		ClientTickEvents.END_CLIENT_TICK.register(PlayersCommonClient::tick);
