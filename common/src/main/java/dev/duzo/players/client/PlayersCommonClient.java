@@ -29,9 +29,9 @@ public class PlayersCommonClient {
 		}
 	}
 
-	private static void receiveSchematicPreview(int entityId, String name, SchematicPreview.Data data, String error) {
+	private static void receiveSchematicPreview(int entityId, String name, SchematicPreview.Data data, String error, boolean busy) {
 		if (Minecraft.getInstance().screen instanceof SchematicPickerScreen picker && picker.entityId() == entityId) {
-			picker.onPreview(name, data, error);
+			picker.onPreview(name, data, error, busy);
 		}
 	}
 

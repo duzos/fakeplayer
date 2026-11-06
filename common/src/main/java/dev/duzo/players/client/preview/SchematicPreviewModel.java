@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class SchematicPreviewModel {
 	/** Above this the occlusion grid is skipped and every block is drawn, rather than allocating it. */
-	private static final long MAX_GRID = 4L * 1024 * 1024;
+	private static final long MAX_GRID = 1024L * 1024;
 
 	private final int sizeX;
 	private final int sizeY;
@@ -43,12 +43,12 @@ public final class SchematicPreviewModel {
 		int sz = data.sizeZ();
 		long volume = (long) sx * sy * sz;
 		int cells = data.cells();
-		boolean[] solid = volume <= MAX_GRID ? new boolean[(int) volume] : null;
-		if (solid != null) {
+		BlockState[] grid = volume <= MAX_GRID ? new BlockState[(int) volume] : null;
+		if (grid != null) {
 			for (int i = 0; i < cells; i++) {
 				int slot = data.cellState()[i];
 				int pos = data.cellPos()[i];
-				if (slot >= 0 && slot < palette.length && pos >= 0 && pos < volume) solid[pos] = palette[slot].isSolidRender();
+				if (slot >= 0 && slot < palette.length && pos >= 0 && pos < volume) grid[pos] = palette[slot];
 			}
 		}
 
@@ -64,7 +64,7 @@ public final class SchematicPreviewModel {
 			int x = pos % sx;
 			int y = (pos / sx) % sy;
 			int z = pos / (sx * sy);
-			if (solid != null && buried(solid, sx, sy, sz, x, y, z)) continue;
+			if (grid != null && buried(grid, sx, sy, sz, x, y, z)) continue;
 			outStates[n] = palette[slot];
 			ox[n] = x;
 			oy[n] = y;
@@ -75,11 +75,17 @@ public final class SchematicPreviewModel {
 				java.util.Arrays.copyOf(oy, n), java.util.Arrays.copyOf(oz, n));
 	}
 
-	private static boolean buried(boolean[] solid, int sx, int sy, int sz, int x, int y, int z) {
-		return x > 0 && x < sx - 1 && y > 0 && y < sy - 1 && z > 0 && z < sz - 1
-				&& solid[index(sx, sy, x - 1, y, z)] && solid[index(sx, sy, x + 1, y, z)]
-				&& solid[index(sx, sy, x, y - 1, z)] && solid[index(sx, sy, x, y + 1, z)]
-				&& solid[index(sx, sy, x, y, z - 1)] && solid[index(sx, sy, x, y, z + 1)];
+	/** Every face is against a block that hides it: a full opaque cube, or the same state (glass, leaves, slabs). */
+	private static boolean buried(BlockState[] grid, int sx, int sy, int sz, int x, int y, int z) {
+		if (x <= 0 || x >= sx - 1 || y <= 0 || y >= sy - 1 || z <= 0 || z >= sz - 1) return false;
+		BlockState self = grid[index(sx, sy, x, y, z)];
+		return hides(self, grid[index(sx, sy, x - 1, y, z)]) && hides(self, grid[index(sx, sy, x + 1, y, z)])
+				&& hides(self, grid[index(sx, sy, x, y - 1, z)]) && hides(self, grid[index(sx, sy, x, y + 1, z)])
+				&& hides(self, grid[index(sx, sy, x, y, z - 1)]) && hides(self, grid[index(sx, sy, x, y, z + 1)]);
+	}
+
+	private static boolean hides(BlockState self, BlockState neighbour) {
+		return neighbour != null && (neighbour.isSolidRender() || neighbour == self);
 	}
 
 	private static int index(int sx, int sy, int x, int y, int z) {
