@@ -298,7 +298,8 @@ public class SchematicPickerScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) {
-			confirm();
+			// an empty name clears the plan, which takes a click on Clear rather than a stray Enter
+			if (!target().isEmpty()) confirm();
 			return true;
 		}
 		return super.keyPressed(event);
