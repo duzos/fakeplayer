@@ -105,7 +105,6 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton schematicButton;
 	// the name just chosen, kept until the synced state catches up so a quick Rot or Anchor click does not send the old one
 	private String pendingSchematic;
-	private int pendingSchematicTicks;
 	private FlatButton anchorButton;
 	private FlatButton rotateButton;
 	private FlatButton mirrorButton;
@@ -277,7 +276,7 @@ public class AISubMenuScreen extends Screen {
 		AIState s = entity.getAIState();
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
 		relayout(s);
-		if (pendingSchematic != null && (BuilderParams.read(s).schematic().equals(pendingSchematic) || ++pendingSchematicTicks > 40)) {
+		if (pendingSchematic != null && BuilderParams.read(s).schematic().equals(pendingSchematic)) {
 			pendingSchematic = null;
 		}
 		if (schematicButton != null) schematicButton.setMessage(schematicLabel());
@@ -623,6 +622,12 @@ public class AISubMenuScreen extends Screen {
 	}
 
 	@Override
+	public void removed() {
+		super.removed();
+		pendingSchematic = null;
+	}
+
+	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (this.filterEdit != null && this.filterEdit.isFocused()) {
 			if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_TAB) {
@@ -758,7 +763,6 @@ public class AISubMenuScreen extends Screen {
 	void chooseSchematic(String name) {
 		BuilderParams p = BuilderParams.read(entity.getAIState());
 		pendingSchematic = name.trim();
-		pendingSchematicTicks = 0;
 		sendBuild(p.rotation().ordinal(), p.mirror().ordinal());
 	}
 
