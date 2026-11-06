@@ -7,11 +7,10 @@ import dev.duzo.players.network.c2s.ClearPatrolPacketC2S;
 import dev.duzo.players.network.c2s.CustomBindStatePacketC2S;
 import dev.duzo.players.network.c2s.CyclePosePacketC2S;
 import dev.duzo.players.network.c2s.OpenFakeMenuPacketC2S;
-import dev.duzo.players.network.c2s.PossessActionC2S;
-import dev.duzo.players.network.c2s.PossessInputC2S;
 import dev.duzo.players.network.c2s.GiveAIMarkerPacketC2S;
 import dev.duzo.players.network.c2s.LearnRecipePacketC2S;
 import dev.duzo.players.network.c2s.OpenCrafterLearnPacketC2S;
+import dev.duzo.players.network.c2s.ReleasePossessionC2S;
 import dev.duzo.players.network.c2s.RequestSkinDataPacketC2S;
 import dev.duzo.players.network.c2s.RequestItemPacketC2S;
 import dev.duzo.players.network.c2s.CancelRequestPacketC2S;
@@ -27,6 +26,7 @@ import dev.duzo.players.network.c2s.StartStopJobPacketC2S;
 import dev.duzo.players.network.c2s.ToggleFakePlayerFlagPacketC2S;
 import dev.duzo.players.network.c2s.UploadSkinPacketC2S;
 import dev.duzo.players.network.s2c.OpenScreenPacketS2C;
+import dev.duzo.players.network.s2c.PossessionDisguiseS2C;
 import dev.duzo.players.network.s2c.SkinDataPacketS2C;
 
 public class PlayersNetwork {
@@ -56,7 +56,7 @@ public class PlayersNetwork {
 		Network.registerPacket(OpenFakeMenuPacketC2S.LOCATION, OpenFakeMenuPacketC2S.class, OpenFakeMenuPacketC2S::encode, OpenFakeMenuPacketC2S::decode, OpenFakeMenuPacketC2S::handle);
 		Network.registerPacket(SetBuildPacketC2S.LOCATION, SetBuildPacketC2S.class, SetBuildPacketC2S::encode, SetBuildPacketC2S::decode, SetBuildPacketC2S::handle);
 		Network.registerPacket(CustomBindStatePacketC2S.LOCATION, CustomBindStatePacketC2S.class, CustomBindStatePacketC2S::encode, CustomBindStatePacketC2S::decode, CustomBindStatePacketC2S::handle);
-		Network.registerPacket(PossessInputC2S.LOCATION, PossessInputC2S.class, PossessInputC2S::encode, PossessInputC2S::decode, PossessInputC2S::handle);
-		Network.registerPacket(PossessActionC2S.LOCATION, PossessActionC2S.class, PossessActionC2S::encode, PossessActionC2S::decode, PossessActionC2S::handle);
+		Network.registerPacket(ReleasePossessionC2S.LOCATION, ReleasePossessionC2S.class, ReleasePossessionC2S::encode, ReleasePossessionC2S::decode, ReleasePossessionC2S::handle);
+		Network.registerPacket(PossessionDisguiseS2C.LOCATION, PossessionDisguiseS2C.class, PossessionDisguiseS2C::encode, PossessionDisguiseS2C::decode, PossessionDisguiseS2C::handle);
 	}
 }

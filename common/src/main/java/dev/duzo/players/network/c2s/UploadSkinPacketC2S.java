@@ -41,7 +41,9 @@ public record UploadSkinPacketC2S(int id, String key, byte[] data) {
 				return;
 			}
 
-			if (!(sender.serverLevel().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) {
+			FakePlayerEntity entity = FakeLookup.resolve(sender, ctx.message().id);
+
+			if (entity == null) {
 				Constants.LOG.error("Invalid entity id: {}", ctx.message().id);
 				return;
 			}

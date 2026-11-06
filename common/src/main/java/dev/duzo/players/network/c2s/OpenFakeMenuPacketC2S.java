@@ -25,7 +25,8 @@ public record OpenFakeMenuPacketC2S(int id) {
 
 		ServerPlayer sender = ctx.sender();
 		if (sender == null || sender.isSpectator()) return;
-		if (!(sender.level().getEntity(ctx.message().id) instanceof FakePlayerEntity entity)) return;
+		FakePlayerEntity entity = FakeLookup.resolve(sender, ctx.message().id);
+		if (entity == null) return;
 		if (entity.distanceToSqr(sender) > REACH_SQR) return;
 
 		Services.COMMON_REGISTRY.openMenu(sender, new FakePlayerMenuProvider(entity), buf -> buf.writeInt(entity.getId()));

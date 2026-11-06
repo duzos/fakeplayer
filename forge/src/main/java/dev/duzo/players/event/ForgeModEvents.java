@@ -6,7 +6,6 @@ import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.core.SessionItemSweeper;
 import dev.duzo.players.entities.ai.FriendlyFire;
-import dev.duzo.players.entities.possession.PossessionGuard;
 import dev.duzo.players.entities.possession.PossessionManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -16,6 +15,8 @@ import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -40,7 +41,6 @@ public class ForgeModEvents {
 	public static void onPlayerDeath(LivingDeathEvent e) {
 		if (e.getEntity() instanceof ServerPlayer p) {
 			AIMarkerItem.clearAllFor(p);
-			PossessionManager.onDeath(p);
 		}
 	}
 
@@ -50,48 +50,18 @@ public class ForgeModEvents {
 	}
 
 	@SubscribeEvent
-	public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent e) {
-		if (e.getEntity() instanceof ServerPlayer p) {
-			AIMarkerItem.clearAllFor(p);
-			PossessionManager.onDisconnect(p);
-		}
-	}
-
-	@SubscribeEvent
 	public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent e) {
 		if (e.getEntity() instanceof ServerPlayer p) PossessionManager.onJoin(p);
 	}
 
-	@SubscribeEvent(priority = EventPriority.HIGHEST)
-	public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock e) {
-		if (PossessionGuard.blocks(e.getEntity())) {
-			e.setCanceled(true);
-			e.setCancellationResult(InteractionResult.FAIL);
-		}
+	@SubscribeEvent
+	public static void onServerStopping(ServerStoppingEvent e) {
+		PossessionManager.onServerStopping(e.getServer());
 	}
 
-	@SubscribeEvent(priority = EventPriority.HIGHEST)
-	public static void onRightClickItem(PlayerInteractEvent.RightClickItem e) {
-		if (PossessionGuard.blocks(e.getEntity())) {
-			e.setCanceled(true);
-			e.setCancellationResult(InteractionResult.FAIL);
-		}
-	}
-
-	@SubscribeEvent(priority = EventPriority.HIGHEST)
-	public static void onEntityInteract(PlayerInteractEvent.EntityInteract e) {
-		if (PossessionGuard.blocks(e.getEntity())) {
-			e.setCanceled(true);
-			e.setCancellationResult(InteractionResult.FAIL);
-		}
-	}
-
-	@SubscribeEvent(priority = EventPriority.HIGHEST)
-	public static void onEntityInteractSpecific(PlayerInteractEvent.EntityInteractSpecific e) {
-		if (PossessionGuard.blocks(e.getEntity())) {
-			e.setCanceled(true);
-			e.setCancellationResult(InteractionResult.FAIL);
-		}
+	@SubscribeEvent
+	public static void onServerStopped(ServerStoppedEvent e) {
+		PossessionManager.onServerStopped();
 	}
 
 	@SubscribeEvent
