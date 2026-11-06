@@ -1,7 +1,7 @@
 package dev.duzo.players.client.preview;
 
 import net.minecraft.client.gui.navigation.ScreenRectangle;
-import net.minecraft.client.gui.render.state.pip.PictureInPictureRenderState;
+import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState;
 import org.jspecify.annotations.Nullable;
 
 /** The angle is whole degrees on purpose: equal states let the renderer keep its texture between frames. */

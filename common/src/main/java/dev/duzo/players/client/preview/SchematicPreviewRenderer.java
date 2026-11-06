@@ -5,9 +5,16 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
-import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.block.BlockModelRenderState;
+import net.minecraft.client.renderer.block.BlockModelResolver;
+import net.minecraft.client.renderer.block.model.BlockDisplayContext;
+import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
+import net.minecraft.world.level.block.state.BlockState;
+import java.util.IdentityHashMap;
+import java.util.Map;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import java.lang.ref.WeakReference;
 import org.jspecify.annotations.Nullable;
@@ -59,13 +66,26 @@ public class SchematicPreviewRenderer extends PictureInPictureRenderer<Schematic
 		pose.scale(fit, fit, fit);
 		pose.translate(-sx / 2f, -sy / 2f, -sz / 2f);
 
-		BlockRenderDispatcher blocks = minecraft.getBlockRenderer();
+		BlockModelResolver resolver = new BlockModelResolver(minecraft.getModelManager());
+		// one resolved render state per distinct block state, submitted once per position
+		Map<BlockState, BlockModelRenderState> resolved = new IdentityHashMap<>();
+		FeatureRenderDispatcher features = minecraft.gameRenderer.getFeatureRenderDispatcher();
+		SubmitNodeCollector collector = features.getSubmitNodeStorage();
 		for (int i = 0; i < model.visible(); i++) {
+			BlockState blockState = model.state(i);
+			BlockModelRenderState renderState = resolved.get(blockState);
+			if (renderState == null) {
+				renderState = new BlockModelRenderState();
+				resolver.update(renderState, blockState, BlockDisplayContext.create());
+				resolved.put(blockState, renderState);
+			}
+			if (renderState.isEmpty()) continue;
 			pose.pushPose();
 			pose.translate(model.x(i), model.y(i), model.z(i));
-			blocks.renderSingleBlock(model.state(i), pose, this.bufferSource, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
+			renderState.submit(pose, collector, LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
 			pose.popPose();
 		}
+		features.renderAllFeatures();
 	}
 
 	@Override
