@@ -14,25 +14,29 @@ import java.util.Map;
  * render never has to look at a block that has all six faces buried.
  */
 public final class SchematicPreviewModel {
-	/** Above this the occlusion grid is skipped and every block is drawn, rather than allocating it. */
-	private static final long MAX_GRID = 1024L * 1024;
+	/** Drawn every frame, so the list handed to the renderer stops here. */
+	public static final int MAX_DRAWN = 8192;
+	/** Above this many cells the occlusion test is skipped and every block is a candidate. */
+	private static final int MAX_OCCLUSION_CELLS = 32768;
 
 	private final int sizeX;
 	private final int sizeY;
 	private final int sizeZ;
 	private final int total;
 	private final int carried;
+	private final boolean simplified;
 	private final BlockState[] states;
 	private final int[] xs;
 	private final int[] ys;
 	private final int[] zs;
 
-	private SchematicPreviewModel(SchematicPreview.Data data, BlockState[] states, int[] xs, int[] ys, int[] zs) {
+	private SchematicPreviewModel(SchematicPreview.Data data, boolean simplified, BlockState[] states, int[] xs, int[] ys, int[] zs) {
 		this.sizeX = data.sizeX();
 		this.sizeY = data.sizeY();
 		this.sizeZ = data.sizeZ();
 		this.total = data.total();
 		this.carried = data.cells();
+		this.simplified = simplified;
 		this.states = states;
 		this.xs = xs;
 		this.ys = ys;
@@ -49,12 +53,14 @@ public final class SchematicPreviewModel {
 		int sz = data.sizeZ();
 		long volume = (long) sx * sy * sz;
 		int cells = data.cells();
-		BlockState[] grid = volume <= MAX_GRID ? new BlockState[(int) volume] : null;
-		if (grid != null) {
+		// keyed by packed position, so the test costs by the blocks present and not by the volume they sit in
+		Map<Long, BlockState> grid = null;
+		if (cells <= MAX_OCCLUSION_CELLS) {
+			grid = new HashMap<>(cells * 2);
 			for (int i = 0; i < cells; i++) {
 				int slot = data.cellState()[i];
 				int pos = data.cellPos()[i];
-				if (slot >= 0 && slot < palette.length && pos >= 0 && pos < volume) grid[pos] = palette[slot];
+				if (slot >= 0 && slot < palette.length && pos >= 0 && pos < volume) grid.put((long) pos, palette[slot]);
 			}
 		}
 
@@ -77,17 +83,65 @@ public final class SchematicPreviewModel {
 			oz[n] = z;
 			n++;
 		}
-		return new SchematicPreviewModel(data, java.util.Arrays.copyOf(outStates, n), java.util.Arrays.copyOf(ox, n),
+
+		if (n > MAX_DRAWN) {
+			int[] keep = choose(ox, oy, oz, n, sx);
+			BlockState[] ks = new BlockState[keep.length];
+			int[] kx = new int[keep.length];
+			int[] ky = new int[keep.length];
+			int[] kz = new int[keep.length];
+			for (int k = 0; k < keep.length; k++) {
+				ks[k] = outStates[keep[k]];
+				kx[k] = ox[keep[k]];
+				ky[k] = oy[keep[k]];
+				kz[k] = oz[keep[k]];
+			}
+			return new SchematicPreviewModel(data, true, ks, kx, ky, kz);
+		}
+		return new SchematicPreviewModel(data, false, java.util.Arrays.copyOf(outStates, n), java.util.Arrays.copyOf(ox, n),
 				java.util.Arrays.copyOf(oy, n), java.util.Arrays.copyOf(oz, n));
 	}
 
+	/** The top visible block of every x,z column first, so the outline survives, then an even stride through the rest. */
+	private static int[] choose(int[] ox, int[] oy, int[] oz, int n, int sx) {
+		Map<Long, Integer> top = new HashMap<>();
+		for (int i = 0; i < n; i++) {
+			long column = ox[i] + (long) sx * oz[i];
+			Integer held = top.get(column);
+			if (held == null || oy[i] > oy[held]) top.put(column, i);
+		}
+		boolean[] isTop = new boolean[n];
+		int[] tops = new int[top.size()];
+		int t = 0;
+		for (int index : top.values()) {
+			isTop[index] = true;
+			tops[t++] = index;
+		}
+		java.util.Arrays.sort(tops);
+		if (tops.length >= MAX_DRAWN) return stride(tops, MAX_DRAWN);
+		int[] others = new int[n - tops.length];
+		int o = 0;
+		for (int i = 0; i < n; i++) if (!isTop[i]) others[o++] = i;
+		int[] extra = stride(others, MAX_DRAWN - tops.length);
+		int[] out = new int[tops.length + extra.length];
+		System.arraycopy(tops, 0, out, 0, tops.length);
+		System.arraycopy(extra, 0, out, tops.length, extra.length);
+		return out;
+	}
+
+	private static int[] stride(int[] from, int count) {
+		int[] out = new int[Math.min(count, from.length)];
+		for (int k = 0; k < out.length; k++) out[k] = from[(int) ((long) k * from.length / out.length)];
+		return out;
+	}
+
 	/** Every face is against a block that hides it: a full opaque cube, or the same state (glass, leaves, slabs). */
-	private static boolean buried(BlockState[] grid, Map<BlockState, Boolean> fullShapes, int sx, int sy, int sz, int x, int y, int z) {
+	private static boolean buried(Map<Long, BlockState> grid, Map<BlockState, Boolean> fullShapes, int sx, int sy, int sz, int x, int y, int z) {
 		if (x <= 0 || x >= sx - 1 || y <= 0 || y >= sy - 1 || z <= 0 || z >= sz - 1) return false;
-		BlockState self = grid[index(sx, sy, x, y, z)];
-		return hides(fullShapes, self, grid[index(sx, sy, x - 1, y, z)]) && hides(fullShapes, self, grid[index(sx, sy, x + 1, y, z)])
-				&& hides(fullShapes, self, grid[index(sx, sy, x, y - 1, z)]) && hides(fullShapes, self, grid[index(sx, sy, x, y + 1, z)])
-				&& hides(fullShapes, self, grid[index(sx, sy, x, y, z - 1)]) && hides(fullShapes, self, grid[index(sx, sy, x, y, z + 1)]);
+		BlockState self = grid.get(index(sx, sy, x, y, z));
+		return hides(fullShapes, self, grid.get(index(sx, sy, x - 1, y, z))) && hides(fullShapes, self, grid.get(index(sx, sy, x + 1, y, z)))
+				&& hides(fullShapes, self, grid.get(index(sx, sy, x, y - 1, z))) && hides(fullShapes, self, grid.get(index(sx, sy, x, y + 1, z)))
+				&& hides(fullShapes, self, grid.get(index(sx, sy, x, y, z - 1))) && hides(fullShapes, self, grid.get(index(sx, sy, x, y, z + 1)));
 	}
 
 	private static boolean hides(Map<BlockState, Boolean> fullShapes, BlockState self, BlockState neighbour) {
@@ -104,8 +158,8 @@ public final class SchematicPreviewModel {
 		}
 	}
 
-	private static int index(int sx, int sy, int x, int y, int z) {
-		return x + sx * (y + sy * z);
+	private static long index(int sx, int sy, int x, int y, int z) {
+		return x + (long) sx * (y + (long) sy * z);
 	}
 
 	public int sizeX() {
@@ -122,6 +176,10 @@ public final class SchematicPreviewModel {
 
 	public int total() {
 		return total;
+	}
+
+	public boolean simplified() {
+		return simplified;
 	}
 
 	public boolean truncated() {
