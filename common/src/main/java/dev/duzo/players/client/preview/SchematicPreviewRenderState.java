@@ -2,7 +2,7 @@ package dev.duzo.players.client.preview;
 
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.state.pip.PictureInPictureRenderState;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /** The angle is whole degrees on purpose: equal states let the renderer keep its texture between frames. */
 public record SchematicPreviewRenderState(SchematicPreviewModel model, int angle, int x0, int y0, int x1, int y1,

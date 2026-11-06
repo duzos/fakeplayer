@@ -12,13 +12,13 @@ import dev.duzo.players.entities.ai.builder.SchematicPreview;
 import dev.duzo.players.entities.ai.builder.SchematicStore;
 import dev.duzo.players.network.s2c.SchematicPreviewS2C;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Util;
+import net.minecraft.Util;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,7 +32,7 @@ import java.util.UUID;
 
 /** Asks for one schematic's blocks, so the picker can draw it before it is chosen. */
 public record RequestSchematicPreviewC2S(int id, String name) {
-	public static final Identifier LOCATION = PlayersCommon.id("builder_request_schematic_preview");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("builder_request_schematic_preview");
 
 	/** Each request reads a file from disk, so a client asking faster than a person can click is ignored. */
 	private static final long MIN_GAP_MILLIS = 250;
@@ -157,7 +157,7 @@ public record RequestSchematicPreviewC2S(int id, String name) {
 		}
 	}
 
-	private static synchronized SchematicPreview.@Nullable Data cached(Key key) {
+	private static synchronized @Nullable SchematicPreview.Data cached(Key key) {
 		return CACHE.get(key);
 	}
 

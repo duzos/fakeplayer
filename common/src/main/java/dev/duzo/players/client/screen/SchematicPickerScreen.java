@@ -14,13 +14,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -87,6 +85,8 @@ public class SchematicPickerScreen extends Screen {
 		}
 	};
 	private int lastClickRow = -1;
+	private long lastClickAt;
+	private static final long DOUBLE_CLICK_MILLIS = 250;
 	private String wanted = "";
 	private long wantedAt;
 	private @Nullable String inflight;
@@ -185,7 +185,7 @@ public class SchematicPickerScreen extends Screen {
 		if (at >= 0) scroll = clampScroll(at - visibleRows() / 2);
 	}
 
-	public void onPreview(String name, SchematicPreview.@Nullable Data data, String error, boolean busy) {
+	public void onPreview(String name, @Nullable SchematicPreview.Data data, String error, boolean busy) {
 		if (name.equals(inflight)) inflight = null;
 		if (busy) {
 			// not an answer: leave it uncached and let tick() ask again once the gap has passed
@@ -289,19 +289,21 @@ public class SchematicPickerScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-		if (event.button() == 0 && event.x() >= listX && event.x() < listX + LIST_W
-				&& event.y() >= listY && event.y() < listY + visibleRows() * ROW_H) {
-			int row = scroll + (int) ((event.y() - listY) / ROW_H);
+	public boolean mouseClicked(double mx, double my, int button) {
+		if (button == 0 && mx >= listX && mx < listX + LIST_W
+				&& my >= listY && my < listY + visibleRows() * ROW_H) {
+			int row = scroll + (int) ((my - listY) / ROW_H);
 			if (row < shown.size()) {
 				selected = shown.get(row);
-				boolean again = doubleClick && row == lastClickRow;
+				long clickAt = System.currentTimeMillis();
+				boolean again = row == lastClickRow && clickAt - lastClickAt < DOUBLE_CLICK_MILLIS;
 				lastClickRow = row;
+				lastClickAt = clickAt;
 				if (again) confirm();
 				return true;
 			}
 		}
-		return super.mouseClicked(event, doubleClick);
+		return super.mouseClicked(mx, my, button);
 	}
 
 	@Override
@@ -314,13 +316,13 @@ public class SchematicPickerScreen extends Screen {
 	}
 
 	@Override
-	public boolean keyPressed(KeyEvent event) {
-		if (event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) {
+	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		if (keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_NUMPADENTER) {
 			// an empty name clears the plan, which takes a click on Clear rather than a stray Enter
 			if (!target().isEmpty()) confirm();
 			return true;
 		}
-		return super.keyPressed(event);
+		return super.keyPressed(keyCode, scanCode, modifiers);
 	}
 
 	@Override

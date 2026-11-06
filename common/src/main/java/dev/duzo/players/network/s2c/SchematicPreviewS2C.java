@@ -6,13 +6,13 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.ai.builder.BuilderParams;
 import dev.duzo.players.entities.ai.builder.SchematicPreview;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.Identifier;
-import org.jspecify.annotations.Nullable;
+import net.minecraft.resources.ResourceLocation;
+import javax.annotation.Nullable;
 
 /** One schematic's blocks for the picker's preview, or the reason it could not be loaded. */
-public record SchematicPreviewS2C(int id, String name, SchematicPreview.@Nullable Data data, String error,
+public record SchematicPreviewS2C(int id, String name, @Nullable SchematicPreview.Data data, String error,
                                 boolean busy) {
-	public static final Identifier LOCATION = PlayersCommon.id("builder_schematic_preview");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("builder_schematic_preview");
 
 	private static final int MAX_ERROR = 256;
 
@@ -41,7 +41,7 @@ public record SchematicPreviewS2C(int id, String name, SchematicPreview.@Nullabl
 	/** Filled in by the client entrypoint, for the same reason as {@link StockListPacketS2C.Opener}. */
 	@FunctionalInterface
 	public interface Receiver {
-		void receive(int entityId, String name, SchematicPreview.@Nullable Data data, String error, boolean busy);
+		void receive(int entityId, String name, @Nullable SchematicPreview.Data data, String error, boolean busy);
 	}
 
 	private static Receiver receiver;

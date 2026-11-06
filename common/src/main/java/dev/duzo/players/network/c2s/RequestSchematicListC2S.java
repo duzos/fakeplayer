@@ -9,13 +9,13 @@ import dev.duzo.players.entities.FakePlayerEntity;
 import dev.duzo.players.entities.ai.builder.SchematicStore;
 import dev.duzo.players.network.s2c.SchematicListS2C;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.UUID;
 
 /** Asks for the schematic files the picker can offer a Builder's owner. */
 public record RequestSchematicListC2S(int id) {
-	public static final Identifier LOCATION = PlayersCommon.id("builder_request_schematic_list");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("builder_request_schematic_list");
 
 	public static RequestSchematicListC2S decode(FriendlyByteBuf buf) {
 		return new RequestSchematicListC2S(buf.readInt());

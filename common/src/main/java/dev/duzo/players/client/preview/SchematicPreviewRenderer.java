@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import java.lang.ref.WeakReference;
-import org.jspecify.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public class SchematicPreviewRenderer extends PictureInPictureRenderer<SchematicPreviewRenderState> {
 	private static final float TILT_DEGREES = 30f;

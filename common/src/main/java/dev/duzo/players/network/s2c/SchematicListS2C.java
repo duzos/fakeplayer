@@ -6,14 +6,14 @@ import dev.duzo.players.PlayersCommon;
 import dev.duzo.players.entities.ai.builder.BuilderParams;
 import dev.duzo.players.entities.ai.builder.SchematicStore;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** The schematic files a Builder's owner can pick from, sent in reply to a list request. */
 public record SchematicListS2C(int id, List<String> names, boolean truncated) {
-	public static final Identifier LOCATION = PlayersCommon.id("builder_schematic_list");
+	public static final ResourceLocation LOCATION = PlayersCommon.id("builder_schematic_list");
 
 	public static SchematicListS2C decode(FriendlyByteBuf buf) {
 		int id = buf.readInt();
