@@ -34,6 +34,7 @@ public class ForgeModEvents {
 	@SubscribeEvent
 	public static void onServerTick(ServerTickEvent.Post e) {
 		SessionItemSweeper.tick(e.getServer());
+		PossessionManager.tick(e.getServer());
 	}
 
 	@SubscribeEvent(priority = EventPriority.HIGHEST)

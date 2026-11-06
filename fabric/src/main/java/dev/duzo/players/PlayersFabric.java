@@ -21,6 +21,7 @@ public class PlayersFabric implements ModInitializer {
         PlayersCommon.init();
 
         ServerTickEvents.END_SERVER_TICK.register(SessionItemSweeper::tick);
+        ServerTickEvents.END_SERVER_TICK.register(PossessionManager::tick);
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
                 !FriendlyFire.shouldBlock(source, entity));
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
