@@ -53,7 +53,8 @@ public class SleepInBedGoal extends Goal {
 		if (!this.fake.isIdleNow() || !this.fake.isStanding() || this.fake.isBedSleeping()) return false;
 		long now = level.getGameTime();
 		if (now < this.cooldownUntil) return false;
-		if ((now + this.fake.getId()) % CHECK_TICKS != 0) return false;
+		// goals are only polled on ticks where tickCount + id is even, so stagger on tickCount or half the fakes never match
+		if ((this.fake.tickCount + this.fake.getId()) % CHECK_TICKS != 0) return false;
 		if (!dark(level, this.fake) || this.fake.isInWater() || !this.fake.onGround()) return false;
 
 		BlockPos found = findBed(level);
