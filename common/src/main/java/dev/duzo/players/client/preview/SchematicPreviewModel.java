@@ -16,8 +16,6 @@ import java.util.Map;
 public final class SchematicPreviewModel {
 	/** Drawn every frame, so the list handed to the renderer stops here. */
 	public static final int MAX_DRAWN = 8192;
-	/** Above this many cells the occlusion test is skipped and every block is a candidate. */
-	private static final int MAX_OCCLUSION_CELLS = 32768;
 
 	private final int sizeX;
 	private final int sizeY;
@@ -54,14 +52,11 @@ public final class SchematicPreviewModel {
 		long volume = (long) sx * sy * sz;
 		int cells = data.cells();
 		// keyed by packed position, so the test costs by the blocks present and not by the volume they sit in
-		Map<Long, BlockState> grid = null;
-		if (cells <= MAX_OCCLUSION_CELLS) {
-			grid = new HashMap<>(cells * 2);
-			for (int i = 0; i < cells; i++) {
-				int slot = data.cellState()[i];
-				int pos = data.cellPos()[i];
-				if (slot >= 0 && slot < palette.length && pos >= 0 && pos < volume) grid.put((long) pos, palette[slot]);
-			}
+		Map<Long, BlockState> grid = new HashMap<>(cells * 2);
+		for (int i = 0; i < cells; i++) {
+			int slot = data.cellState()[i];
+			int pos = data.cellPos()[i];
+			if (slot >= 0 && slot < palette.length && pos >= 0 && pos < volume) grid.put((long) pos, palette[slot]);
 		}
 
 		BlockState[] outStates = new BlockState[cells];
@@ -76,7 +71,7 @@ public final class SchematicPreviewModel {
 			int x = pos % sx;
 			int y = (pos / sx) % sy;
 			int z = pos / (sx * sy);
-			if (grid != null && buried(grid, fullShapes, sx, sy, sz, x, y, z)) continue;
+			if (buried(grid, fullShapes, sx, sy, sz, x, y, z)) continue;
 			outStates[n] = palette[slot];
 			ox[n] = x;
 			oy[n] = y;
