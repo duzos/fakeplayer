@@ -19,7 +19,8 @@ import dev.duzo.players.entities.ai.requests.SenderAlerts;
 import dev.duzo.players.entities.speech.FakeSpeech;
 import dev.duzo.players.entities.speech.Verbosity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -51,6 +52,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -948,11 +950,15 @@ public class BuilderJobExecutor implements JobExecutor {
 	private static boolean plain(ItemStack stack, Item item) {
 		if (!stack.is(item)) return false;
 		// has() also sees an item's default components, and a plain chest's default container is empty
-		DataComponentPatch patch = stack.getComponentsPatch();
-		return patch.get(DataComponents.CONTAINER) == null && patch.get(DataComponents.BUNDLE_CONTENTS) == null
-				&& patch.get(DataComponents.BLOCK_ENTITY_DATA) == null && patch.get(DataComponents.CONTAINER_LOOT) == null
-				&& patch.get(DataComponents.BEES) == null && patch.get(DataComponents.POT_DECORATIONS) == null
-				&& patch.get(DataComponents.BANNER_PATTERNS) == null && patch.get(DataComponents.PROFILE) == null;
+		DataComponentMap prototype = stack.getPrototype();
+		return unchanged(stack, prototype, DataComponents.CONTAINER) && unchanged(stack, prototype, DataComponents.BUNDLE_CONTENTS)
+				&& unchanged(stack, prototype, DataComponents.BLOCK_ENTITY_DATA) && unchanged(stack, prototype, DataComponents.CONTAINER_LOOT)
+				&& unchanged(stack, prototype, DataComponents.BEES) && unchanged(stack, prototype, DataComponents.POT_DECORATIONS)
+				&& unchanged(stack, prototype, DataComponents.BANNER_PATTERNS) && unchanged(stack, prototype, DataComponents.PROFILE);
+	}
+
+	private static boolean unchanged(ItemStack stack, DataComponentMap prototype, DataComponentType<?> type) {
+		return Objects.equals(stack.get(type), prototype.get(type));
 	}
 
 	private static int count(SimpleContainer inv, Item item) {
