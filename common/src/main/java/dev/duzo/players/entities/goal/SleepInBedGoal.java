@@ -23,7 +23,7 @@ import java.util.EnumSet;
 public class SleepInBedGoal extends Goal {
 	private static final int SEARCH_RANGE = 24;
 	private static final int CHECK_TICKS = 40;
-	private static final int FAIL_COOLDOWN = 400;
+	private static final int FAIL_COOLDOWN = 100;
 	private static final int WAKE_COOLDOWN = 200;
 	private static final int HURT_COOLDOWN = 600;
 	private static final int WALK_TIMEOUT = 20 * 30;
@@ -95,7 +95,7 @@ public class SleepInBedGoal extends Goal {
 	public void tick() {
 		if (this.sleeping) return;
 		this.walkTicks++;
-		if (this.bed.closerToCenterThan(this.fake.position(), 1.14D) && Math.abs(this.fake.getY() - this.bed.getY()) < 1.5D) {
+		if (this.bed.closerToCenterThan(this.fake.position(), 2.0D) && Math.abs(this.fake.getY() - this.bed.getY()) < 1.5D) {
 			this.fake.getNavigation().stop();
 			this.fake.startSleeping(this.bed);
 			this.sleeping = true;
