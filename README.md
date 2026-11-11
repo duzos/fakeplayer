@@ -39,6 +39,15 @@ Install it on the server and on every client that joins.
 <img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/skin-example.png" height="280" alt="A skin grabbed from a username and applied to a fake player">
 </div>
 
+<div align="center">
+<table>
+  <tr>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/sleeping.png" width="330" alt="A fake asleep in a bed"><br><sub>Asleep in a bed at night</sub></td>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/speech-bubble.png" width="330" alt="A speech bubble over a fake"><br><sub>What it says shows over its head</sub></td>
+  </tr>
+</table>
+</div>
+
 ## Jobs
 
 - Bond a fake, pick a job from its menu and place the markers it hands you. It follows you while you do.
@@ -64,6 +73,11 @@ Install it on the server and on every client that joins.
   </tr>
   <tr>
     <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/crafter.png" width="330" alt="Crafter"><br><sub><b>Crafter</b> crafting by hand at its table</sub></td>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/builder-house.png" width="330" alt="Builder"><br><sub><b>Builder</b> after putting up a house</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/builder-picker.png" width="330" alt="Schematic picker"><br><sub>Picking a build, with a spinning preview</sub></td>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/builder-hologram.png" width="330" alt="Build hologram"><br><sub>A ghost of the build before you place it</sub></td>
   </tr>
 </table>
 </div>
@@ -79,6 +93,10 @@ Install it on the server and on every client that joins.
 - **Chunk Anchor** keeps a fake working while you're away.
 - **Possession Link** swaps you into a fake's body. You get its inventory and stand where it stands, and R swaps you back.
 - Fakes ride boats, minecarts and seats, and can drive Create trains.
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/riding-minecart.png" width="420" alt="A fake riding a minecart">
+</div>
 
 ## Controls and commands
 

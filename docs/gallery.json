@@ -12,5 +12,13 @@
   "lumberjack.png":    { "title": "Lumberjack Job",  "description": "A fake player after felling a tree on the Lumberjack job.", "ordering": 13 },
   "farmer.png":        { "title": "Farmer Job",      "description": "A fake player tending a watered plot on the Farmer job.",    "ordering": 14 },
   "fisherman.png":     { "title": "Fisherman Job",   "description": "A fake player casting at the water's edge on the Fisherman job.", "ordering": 15 },
-  "crafter.png":       { "title": "Crafter Job",     "description": "A fake player crafting by hand at its table on the Crafter job.", "ordering": 16 }
+  "crafter.png":       { "title": "Crafter Job",     "description": "A fake player crafting by hand at its table on the Crafter job.", "ordering": 16 },
+  "builder-house.png":   { "title": "Builder Job", "description": "A village house a fake put up on the Builder job.", "ordering": 17 },
+  "builder-midbuild.png": { "title": "Builder at Work", "description": "A Builder partway through a house, one slice at a time.", "ordering": 18 },
+  "builder-picker.png":  { "title": "Schematic Picker", "description": "Pick what to build from a list, with a spinning preview.", "ordering": 19 },
+  "builder-hologram.png": { "title": "Build Hologram", "description": "Hold the marker to see a ghost of the finished build before you place it.", "ordering": 20 },
+  "builder-menu.png":    { "title": "Builder Menu", "description": "A Builder set up with its plan, anchor and supply chest.", "ordering": 21 },
+  "speech-bubble.png":   { "title": "Speech Bubbles", "description": "What a fake says shows in a bubble over its head.", "ordering": 22 },
+  "sleeping.png":        { "title": "Sleeping", "description": "An idle fake asleep in a bed at dusk.", "ordering": 23 },
+  "riding-minecart.png": { "title": "Riding", "description": "A fake riding a minecart.", "ordering": 24 }
 }
