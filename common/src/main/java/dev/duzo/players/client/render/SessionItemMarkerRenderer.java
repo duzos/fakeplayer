@@ -2,6 +2,7 @@ package dev.duzo.players.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import dev.duzo.players.client.renderers.AnchorHologram;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
@@ -54,14 +55,32 @@ public final class SessionItemMarkerRenderer {
 		if (player == null || mc.level == null) return;
 
 		List<ActiveMarker> active = collectActiveMarkers(player, mc.level);
+		if (!holdsAnchor(player)) AnchorHologram.idle();
 		if (active.isEmpty()) return;
 
 		BlockPos crosshair = pickBlock(player);
 		VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
 
+		boolean ghost = false;
 		for (ActiveMarker m : active) {
 			m.purpose.render(poseStack, lines, cam, mc, m.stack, m.fake, crosshair);
+			if (m.purpose == Purpose.ANCHOR && (m.stack == player.getMainHandItem() || m.stack == player.getOffhandItem())) {
+				ghost = AnchorHologram.prepare(poseStack, lines, cam, mc.level, player, m.fake, mc);
+			}
 		}
+
+		if (ghost && bufferSource instanceof MultiBufferSource.BufferSource buffers) {
+			buffers.endBatch(RenderType.lines());
+			AnchorHologram.drawGhost(poseStack, buffers, cam, mc);
+		}
+	}
+
+	private static boolean holdsAnchor(LocalPlayer player) {
+		return isAnchor(player.getMainHandItem()) || isAnchor(player.getOffhandItem());
+	}
+
+	private static boolean isAnchor(ItemStack stack) {
+		return AIMarkerItem.isSession(stack) && AIMarkerItem.purposeOf(stack) == AIMarkerItem.PURPOSE_ANCHOR;
 	}
 
 	@Nullable
