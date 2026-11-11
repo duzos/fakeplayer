@@ -5,6 +5,7 @@ import dev.duzo.players.core.RidingInteractions;
 import dev.duzo.players.core.SessionItemSweeper;
 import dev.duzo.players.entities.ai.FriendlyFire;
 import dev.duzo.players.entities.possession.PossessionManager;
+import dev.duzo.players.network.c2s.RequestSchematicPreviewC2S;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -37,6 +38,9 @@ public class PlayersFabric implements ModInitializer {
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> RidingInteractions.useBlock(player, world, hand, hit));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> PossessionManager.onJoin(handler.player));
         ServerLifecycleEvents.SERVER_STOPPING.register(PossessionManager::onServerStopping);
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> PossessionManager.onServerStopped());
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            PossessionManager.onServerStopped();
+            RequestSchematicPreviewC2S.reset();
+        });
     }
 }
