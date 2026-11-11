@@ -306,7 +306,14 @@ public final class PilotServer {
     }
 
     private static void click(Screen screen, double x, double y, int button, int modifiers) {
-        MouseButtonEvent event = new MouseButtonEvent(x, y, new MouseButtonInfo(button, modifiers));
+        // the API keeps GLFW numbering (0 left, 1 right, 2 middle); 26.3 input is SDL, where left is 1
+        int sdlButton = switch (button) {
+            case 0 -> InputConstants.MOUSE_BUTTON_LEFT;
+            case 1 -> InputConstants.MOUSE_BUTTON_RIGHT;
+            case 2 -> InputConstants.MOUSE_BUTTON_MIDDLE;
+            default -> button;
+        };
+        MouseButtonEvent event = new MouseButtonEvent(x, y, new MouseButtonInfo(sdlButton, modifiers));
         screen.mouseClicked(event, false);
         screen.mouseReleased(event);
     }
