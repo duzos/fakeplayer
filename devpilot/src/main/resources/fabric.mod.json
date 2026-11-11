@@ -1,0 +1,22 @@
+{
+    "schemaVersion": 1,
+    "id": "fppilot",
+    "version": "${version}",
+    "name": "FP Pilot",
+    "description": "Dev-only localhost remote control for play-testing Fake Players. Not for players.",
+    "authors": [
+        "duzo"
+    ],
+    "license": "${license}",
+    "environment": "client",
+    "entrypoints": {
+        "client": [
+            "dev.duzo.fppilot.DevPilot"
+        ]
+    },
+    "depends": {
+        "fabricloader": ">=0.14",
+        "fabric-api": "*",
+        "minecraft": "${minecraft_version_range_fabric}"
+    }
+}

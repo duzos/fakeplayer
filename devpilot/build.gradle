@@ -1,0 +1,48 @@
+plugins {
+    id 'java-library'
+    id 'net.fabricmc.fabric-loom'
+}
+
+// Dev-only: a localhost remote-control client for play-tests. Standalone on purpose; it does not use the
+// multiloader plugins and nothing in common/fabric/forge depends on it, so it never ships in a release jar.
+base {
+    archivesName = "fppilot-${minecraft_version}"
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(java_version)
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Minecraft ${minecraft_version} ships unobfuscated; no mappings artifact exists or is needed
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+}
+
+loom {
+    runs {
+        client {
+            client()
+            setConfigName("Fabric Client (devpilot)")
+            ideConfigGenerated(false)
+            runDir("run/devpilot")
+        }
+    }
+}
+
+processResources {
+    var props = [
+            version                       : project.version,
+            license                       : license,
+            minecraft_version_range_fabric: minecraft_version_range_fabric
+    ]
+    inputs.properties(props)
+    filesMatching('fabric.mod.json') {
+        expand props
+    }
+}
