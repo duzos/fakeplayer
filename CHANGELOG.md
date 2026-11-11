@@ -15,7 +15,7 @@
 - if a chain can't be finished you get one message listing everything missing. a crafted request needs a bonded, free Crafter with a table marked.
 - fakes now ride boats, minecarts, Create seats and trains and other mods' seats. seat one with its AI marker, and use stairs on it to get off. a fake at a train's conductor seat runs the train from a schedule.
 - added the Possession Link. link it to your fake and use it in the air to swap bodies with it. you take its inventory and stand where it stands, while your own things wait safely. press R or use /players release to swap back. your old body stays behind, and a hit on it brings you back.
-- added the Builder job. pick a structure from its list, with a spinning preview, and give it a chest of blocks and it builds it, asking a Quartermaster for anything missing. several Builders can share one build.
+- added the Builder job. pick a structure from its list, with a spinning preview, and give it a chest of blocks and it builds it, asking a Quartermaster for anything missing. hold its marker to see a ghost of the finished build. several Builders can share one build.
 - added the Chunk Anchor. install it in your fake and the chunks around it stay loaded, so it keeps working while you're away.
 - fakes can use drawers and other modded storage as sources, deposits and pool storage. thanks to SmollNarwhal for the suggestion.
 - idle fakes watch nearby players, wave when their owner comes back and sleep in a free bed at night.
