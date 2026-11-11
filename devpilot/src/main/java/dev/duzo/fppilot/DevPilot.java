@@ -46,7 +46,8 @@ public final class DevPilot implements ClientModInitializer {
     }
 
     private static void onTick() {
-        if (!autoStartChecked) {
+        // a request served during the startup resource reload kills the 26.3 client natively, so wait it out
+        if (!autoStartChecked && Minecraft.getInstance().isGameLoadFinished()) {
             autoStartChecked = true;
             if (PilotConfig.startEnabled()) setEnabled(true);
         }
