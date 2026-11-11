@@ -2,6 +2,7 @@ package dev.duzo.players.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import dev.duzo.players.client.renderers.AnchorHologram;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.FPJobs;
 import dev.duzo.players.entities.FakePlayerEntity;
@@ -54,7 +55,10 @@ public final class SessionItemMarkerRenderer {
 		if (player == null || mc.level == null) return;
 
 		List<ActiveMarker> active = collectActiveMarkers(player, mc.level);
-		if (active.isEmpty()) return;
+		ItemStack held = heldSession(player);
+		boolean anchorHeld = held != null && AIMarkerItem.purposeOf(held) == AIMarkerItem.PURPOSE_ANCHOR;
+		if (!anchorHeld) AnchorHologram.idle();
+		if (active.isEmpty() && !anchorHeld) return;
 
 		BlockPos crosshair = pickBlock(player);
 		VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
@@ -62,6 +66,24 @@ public final class SessionItemMarkerRenderer {
 		for (ActiveMarker m : active) {
 			m.purpose.render(poseStack, lines, cam, mc, m.stack, m.fake, crosshair);
 		}
+
+		if (anchorHeld) {
+			UUID fakeId = AIMarkerItem.fakeUUID(held);
+			FakePlayerEntity bound = fakeId != null && findEntity(mc.level, fakeId) instanceof FakePlayerEntity f ? f : null;
+			if (AnchorHologram.prepare(poseStack, lines, cam, mc.level, player, bound, mc)) {
+				MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+				buffers.endBatch(RenderType.lines());
+				AnchorHologram.drawGhost(poseStack, buffers, cam, mc);
+			}
+		}
+	}
+
+	/** Main hand first, then off hand, the stack a session marker's world overlay follows. */
+	@Nullable
+	private static ItemStack heldSession(LocalPlayer player) {
+		if (AIMarkerItem.isSession(player.getMainHandItem())) return player.getMainHandItem();
+		if (AIMarkerItem.isSession(player.getOffhandItem())) return player.getOffhandItem();
+		return null;
 	}
 
 	@Nullable
