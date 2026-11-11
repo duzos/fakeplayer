@@ -1,6 +1,7 @@
 package dev.duzo.players.client;
 
 import dev.duzo.players.client.preview.SchematicPreviewRenderer;
+import dev.duzo.players.client.renderers.AnchorHologram;
 import dev.duzo.players.client.renderers.FakeFishingHookRenderer;
 import dev.duzo.players.client.renderers.FakePlayerRendererWrapper;
 import dev.duzo.players.client.renderers.PossessionBodyRenderer;
@@ -39,5 +40,6 @@ public class PlayersFabricClient implements ClientModInitializer {
 		// The fishing bobber/line are drawn by FakeFishingHookRenderer via the entity submit-node
 		// pipeline; only the region/waypoint/chest gizmo overlay needs this world-render hook.
 		LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> SessionItemRenderer.render(ctx.poseStack()));
+		LevelRenderEvents.COLLECT_SUBMITS.register(ctx -> AnchorHologram.submitGhost(ctx.poseStack(), ctx.submitNodeCollector()));
 	}
 }
