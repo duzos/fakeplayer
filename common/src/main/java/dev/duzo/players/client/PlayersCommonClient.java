@@ -1,6 +1,7 @@
 package dev.duzo.players.client;
 
 import dev.duzo.players.api.SkinGrabber;
+import dev.duzo.players.client.renderers.AnchorHologram;
 import dev.duzo.players.client.screen.QuartermasterStockScreen;
 import dev.duzo.players.client.screen.SchematicPickerScreen;
 import dev.duzo.players.client.screen.SkinSelectScreen;
@@ -30,6 +31,7 @@ public class PlayersCommonClient {
 	}
 
 	private static void receiveSchematicPreview(int entityId, String name, SchematicPreview.Data data, String error, boolean busy) {
+		AnchorHologram.onPreview(entityId, name, data, error, busy);
 		if (Minecraft.getInstance().screen instanceof SchematicPickerScreen picker && picker.entityId() == entityId) {
 			picker.onPreview(name, data, error, busy);
 		}
@@ -61,6 +63,7 @@ public class PlayersCommonClient {
 	/** Disguises are tied to the server that sent them, so none outlive the connection. */
 	public static void onDisconnect() {
 		PossessionDisguises.clear();
+		AnchorHologram.reset();
 	}
 
 	/**
