@@ -55,32 +55,35 @@ public final class SessionItemMarkerRenderer {
 		if (player == null || mc.level == null) return;
 
 		List<ActiveMarker> active = collectActiveMarkers(player, mc.level);
-		if (!holdsAnchor(player)) AnchorHologram.idle();
-		if (active.isEmpty()) return;
+		ItemStack held = heldSession(player);
+		boolean anchorHeld = held != null && AIMarkerItem.purposeOf(held) == AIMarkerItem.PURPOSE_ANCHOR;
+		if (!anchorHeld) AnchorHologram.idle();
+		if (active.isEmpty() && !anchorHeld) return;
 
 		BlockPos crosshair = pickBlock(player);
 		VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
 
-		boolean ghost = false;
 		for (ActiveMarker m : active) {
 			m.purpose.render(poseStack, lines, cam, mc, m.stack, m.fake, crosshair);
-			if (m.purpose == Purpose.ANCHOR && (m.stack == player.getMainHandItem() || m.stack == player.getOffhandItem())) {
-				ghost = AnchorHologram.prepare(poseStack, lines, cam, mc.level, player, m.fake, mc);
+		}
+
+		if (anchorHeld) {
+			UUID boundId = AIMarkerItem.fakeUUID(held);
+			FakePlayerEntity bound = boundId != null && findEntity(mc.level, boundId) instanceof FakePlayerEntity f ? f : null;
+			boolean ghost = AnchorHologram.prepare(poseStack, lines, cam, mc.level, player, bound, mc);
+			if (ghost && bufferSource instanceof MultiBufferSource.BufferSource buffers) {
+				buffers.endBatch(RenderType.lines());
+				AnchorHologram.drawGhost(poseStack, buffers, cam, mc);
 			}
 		}
-
-		if (ghost && bufferSource instanceof MultiBufferSource.BufferSource buffers) {
-			buffers.endBatch(RenderType.lines());
-			AnchorHologram.drawGhost(poseStack, buffers, cam, mc);
-		}
 	}
 
-	private static boolean holdsAnchor(LocalPlayer player) {
-		return isAnchor(player.getMainHandItem()) || isAnchor(player.getOffhandItem());
-	}
-
-	private static boolean isAnchor(ItemStack stack) {
-		return AIMarkerItem.isSession(stack) && AIMarkerItem.purposeOf(stack) == AIMarkerItem.PURPOSE_ANCHOR;
+	/** The session marker in hand, main hand first. */
+	@Nullable
+	private static ItemStack heldSession(LocalPlayer player) {
+		if (AIMarkerItem.isSession(player.getMainHandItem())) return player.getMainHandItem();
+		if (AIMarkerItem.isSession(player.getOffhandItem())) return player.getOffhandItem();
+		return null;
 	}
 
 	@Nullable
