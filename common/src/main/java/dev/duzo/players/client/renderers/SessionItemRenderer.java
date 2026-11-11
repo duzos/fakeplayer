@@ -45,14 +45,16 @@ public final class SessionItemRenderer {
 		if (player == null || level == null) return;
 
 		ItemStack stack = sessionStack(player.getMainHandItem(), player.getOffhandItem());
+		byte purpose = stack == null ? -1 : AIMarkerItem.purpose(stack);
+		if (purpose != AIMarkerItem.PURPOSE_ANCHOR) AnchorHologram.idle();
 		if (stack == null) return;
-		byte purpose = AIMarkerItem.purpose(stack);
 
 		MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
 		VertexConsumer lines = buffers.getBuffer(RenderType.lines());
 		Vec3 cam = mc.gameRenderer.getMainCamera().position();
 		FakePlayerEntity bound = findFake(level, AIMarkerItem.fakeUUID(stack));
 		BlockPos crosshair = crosshairBlock(mc);
+		boolean ghost = false;
 
 		switch (purpose) {
 			case AIMarkerItem.PURPOSE_REGION -> renderRegion(pose, lines, cam, stack, bound, crosshair);
@@ -60,11 +62,13 @@ public final class SessionItemRenderer {
 			case AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.PURPOSE_POOL -> renderChestPicker(pose, lines, cam, level, bound, crosshair);
 			case AIMarkerItem.PURPOSE_ANCHOR -> {
 				if (crosshair != null) drawBlock(pose, lines, cam, crosshair, COLOR_LIVE);
+				ghost = AnchorHologram.prepare(pose, lines, cam, level, player, bound, mc);
 			}
 			default -> {}
 		}
 
 		buffers.endBatch(RenderType.lines());
+		if (ghost) AnchorHologram.drawGhost(pose, buffers, cam, mc);
 	}
 
 	private static void renderRegion(PoseStack pose, VertexConsumer lines, Vec3 cam, ItemStack stack,
