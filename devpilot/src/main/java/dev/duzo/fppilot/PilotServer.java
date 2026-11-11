@@ -280,19 +280,24 @@ public final class PilotServer {
         }
         if (target == null) throw new IllegalArgumentException("no such widget (GET /screen lists them)");
         if (!target.isActive()) throw new IllegalStateException("widget '" + target.getMessage().getString() + "' is disabled");
-        click(screen, target.getX() + target.getWidth() / 2.0, target.getY() + target.getHeight() / 2.0, 0);
+        click(screen, target.getX() + target.getWidth() / 2.0, target.getY() + target.getHeight() / 2.0, 0, modifiers(body));
         return ok();
     }
 
-    /** A click at screen (GUI-scaled) coordinates: {"x", "y", "button": 0}. */
+    /** A click at screen (GUI-scaled) coordinates: {"x", "y", "button": 0, "modifiers": 0}. */
     private static JsonObject mouse(JsonObject body) {
         click(requireScreen(), body.get("x").getAsDouble(), body.get("y").getAsDouble(),
-                body.has("button") ? body.get("button").getAsInt() : 0);
+                body.has("button") ? body.get("button").getAsInt() : 0, modifiers(body));
         return ok();
     }
 
-    private static void click(Screen screen, double x, double y, int button) {
-        MouseButtonEvent event = new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0));
+    /** GLFW modifier bits held during the click (1 shift, 2 control, 4 alt), for shift-click and the like. */
+    private static int modifiers(JsonObject body) {
+        return body.has("modifiers") ? body.get("modifiers").getAsInt() : 0;
+    }
+
+    private static void click(Screen screen, double x, double y, int button, int modifiers) {
+        MouseButtonEvent event = new MouseButtonEvent(x, y, new MouseButtonInfo(button, modifiers));
         screen.mouseClicked(event, false);
         screen.mouseReleased(event);
     }
