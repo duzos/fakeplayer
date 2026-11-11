@@ -15,12 +15,20 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /** Name to template, server side. Names come from clients, so nothing here may leave its search roots. */
 public final class SchematicStore {
@@ -45,6 +53,8 @@ public final class SchematicStore {
 	private static final long MAX_FILE_BYTES = 8L * 1024 * 1024;
 	private static final long MAX_NBT_BYTES = 32L * 1024 * 1024;
 	private static final int MAX_NAME = 64;
+	public static final int MAX_LIST = 512;
+	private static final int MAX_SCAN = 4096;
 
 	private SchematicStore() {}
 
@@ -52,7 +62,7 @@ public final class SchematicStore {
 	 * Search order: the Create folder, the uploads of `uploader` (none when null or empty), the mod's own config
 	 * folder, then a namespaced id through the structure manager. Other players' upload folders are never searched.
 	 */
-	static Result<StructureTemplate> load(ServerLevel level, String name, @Nullable String uploader) {
+	public static Result<StructureTemplate> load(ServerLevel level, String name, @Nullable String uploader) {
 		if (name == null) return Result.fail("no schematic set");
 		String n = name.trim();
 		if (n.endsWith(".nbt")) n = n.substring(0, n.length() - 4);
@@ -79,6 +89,107 @@ public final class SchematicStore {
 			return read(level, file, name);
 		}
 		return Result.fail("schematic not found: " + n);
+	}
+
+	public record Listing(List<String> names, boolean truncated) {}
+
+	private record CachedListing(long at, Listing listing) {}
+
+	private static final long LIST_CACHE_MILLIS = 5000;
+	private static final Map<String, CachedListing> LISTINGS = new HashMap<>();
+
+	/** Loose schematic files visible to `uploader`, by the same names load() accepts. Reads directory entries only. */
+	public static synchronized Listing list(@Nullable String uploader) {
+		String key = uploader == null ? "" : uploader;
+		long now = System.currentTimeMillis();
+		LISTINGS.values().removeIf(c -> now - c.at() > LIST_CACHE_MILLIS);
+		CachedListing cached = LISTINGS.get(key);
+		if (cached != null) return cached.listing();
+		Listing fresh = scan(uploader);
+		if (LISTINGS.size() >= 64) LISTINGS.clear();
+		LISTINGS.put(key, new CachedListing(now, fresh));
+		return fresh;
+	}
+
+	private static Listing scan(@Nullable String uploader) {
+		List<Path> roots = new ArrayList<>();
+		roots.add(CREATE_ROOT);
+		if (uploader != null && isPlainName(uploader)) roots.add(UPLOAD_ROOT.resolve(uploader));
+		roots.add(CONFIG_ROOT);
+		Map<String, String> found = new LinkedHashMap<>();
+		Set<String> earlier = new HashSet<>();
+		boolean truncated = false;
+		for (Path root : roots) {
+			if (!Files.isDirectory(root)) continue;
+			Path realRoot;
+			try {
+				realRoot = root.toRealPath();
+			} catch (IOException | java.nio.file.InvalidPathException e) {
+				continue;
+			}
+			int scanned = 0;
+			Set<String> thisRoot = new HashSet<>();
+			try (DirectoryStream<Path> stream = Files.newDirectoryStream(realRoot, "*.nbt")) {
+				for (Path entry : stream) {
+					if (++scanned > MAX_SCAN) {
+						truncated = true;
+						break;
+					}
+					String file = entry.getFileName().toString();
+					String name = file.substring(0, file.length() - 4);
+					// load() strips one suffix, so a name still ending in one would never resolve to this file
+					if (!isListable(name) || name.endsWith(".nbt")) continue;
+					// the file system folds case on Windows, so an earlier root's spelling is the one load() finds;
+					// within one root every distinct name stays
+					String folded = name.toLowerCase(Locale.ROOT);
+					if (earlier.contains(folded) || found.containsKey(name)) continue;
+					if (!contained(realRoot, file)) continue;
+					found.put(name, name);
+					thisRoot.add(folded);
+				}
+			} catch (IOException | java.nio.file.InvalidPathException e) {
+				Constants.LOG.warn("could not list schematics in {}", root, e);
+			}
+			earlier.addAll(thisRoot);
+		}
+		List<String> names = new ArrayList<>(found.values());
+		names.sort(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()));
+		if (names.size() > MAX_LIST) {
+			names = new ArrayList<>(names.subList(0, MAX_LIST));
+			truncated = true;
+		}
+		return new Listing(names, truncated);
+	}
+
+	private static boolean contained(Path realRoot, String child) {
+		try {
+			Path file = realRoot.resolve(child).normalize();
+			if (!file.startsWith(realRoot) || !Files.isRegularFile(file)) return false;
+			return file.toRealPath().startsWith(realRoot);
+		} catch (IOException | java.nio.file.InvalidPathException e) {
+			return false;
+		}
+	}
+
+	/** The file load() would read for a plain (not namespaced) name, or null when there is none. */
+	public static @Nullable Path locate(String name, @Nullable String uploader) {
+		String n = name.trim();
+		if (n.endsWith(".nbt")) n = n.substring(0, n.length() - 4);
+		if (!isListable(n)) return null;
+		List<Path> roots = new ArrayList<>();
+		roots.add(CREATE_ROOT);
+		if (uploader != null && isPlainName(uploader)) roots.add(UPLOAD_ROOT.resolve(uploader));
+		roots.add(CONFIG_ROOT);
+		for (Path root : roots) {
+			Path file = resolve(root, n + ".nbt");
+			if (file != null) return file;
+		}
+		return null;
+	}
+
+	private static boolean isListable(String n) {
+		return !n.isEmpty() && n.equals(n.trim()) && n.length() <= MAX_NAME && n.indexOf(':') < 0
+				&& n.indexOf('/') < 0 && n.indexOf('\\') < 0 && !n.contains("..") && !n.startsWith(".");
 	}
 
 	private static boolean isPlainName(String s) {

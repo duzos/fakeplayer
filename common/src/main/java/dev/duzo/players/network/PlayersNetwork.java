@@ -15,6 +15,10 @@ import dev.duzo.players.network.c2s.RequestSkinDataPacketC2S;
 import dev.duzo.players.network.c2s.RequestItemPacketC2S;
 import dev.duzo.players.network.c2s.CancelRequestPacketC2S;
 import dev.duzo.players.network.c2s.RequestStockPacketC2S;
+import dev.duzo.players.network.c2s.RequestSchematicListC2S;
+import dev.duzo.players.network.c2s.RequestSchematicPreviewC2S;
+import dev.duzo.players.network.s2c.SchematicListS2C;
+import dev.duzo.players.network.s2c.SchematicPreviewS2C;
 import dev.duzo.players.network.s2c.StockListPacketS2C;
 import dev.duzo.players.network.c2s.SetAIFilterPacketC2S;
 import dev.duzo.players.network.c2s.SetBuildPacketC2S;
@@ -58,5 +62,9 @@ public class PlayersNetwork {
 		Network.registerPacket(CustomBindStatePacketC2S.TYPE, CustomBindStatePacketC2S.CODEC, CustomBindStatePacketC2S::handle);
 		Network.registerPacket(ReleasePossessionC2S.TYPE, ReleasePossessionC2S.CODEC, ReleasePossessionC2S::handle);
 		Network.registerPacket(PossessionDisguiseS2C.TYPE, PossessionDisguiseS2C.CODEC, PossessionDisguiseS2C::handle);
+		Network.registerPacket(RequestSchematicListC2S.TYPE, RequestSchematicListC2S.CODEC, RequestSchematicListC2S::handle);
+		Network.registerPacket(RequestSchematicPreviewC2S.TYPE, RequestSchematicPreviewC2S.CODEC, RequestSchematicPreviewC2S::handle);
+		Network.registerPacket(SchematicListS2C.TYPE, SchematicListS2C.CODEC, SchematicListS2C::handle);
+		Network.registerPacket(SchematicPreviewS2C.TYPE, SchematicPreviewS2C.CODEC, SchematicPreviewS2C::handle);
 	}
 }

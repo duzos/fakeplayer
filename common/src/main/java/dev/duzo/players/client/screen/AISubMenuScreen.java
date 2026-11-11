@@ -59,6 +59,7 @@ public class AISubMenuScreen extends Screen {
 	private static final int FILTER_TOGGLE_W = 30;
 	private static final int FILTER_TOGGLE_GAP = 4;
 	private static final int ROT_BTN_W = 48;
+	private static final int PENDING_SCHEMATIC_TICKS = 200;
 
 	private static final int COL_PANEL = 0xFF11171F;
 	private static final int COL_PANEL_BORDER = 0xFF2A3548;
@@ -102,7 +103,10 @@ public class AISubMenuScreen extends Screen {
 	private FlatButton filterButton;
 	private FlatButton filterToggle;
 	private FlatButton startStopButton;
-	private EditBox schematicEdit;
+	private FlatButton schematicButton;
+	// the name just chosen, kept until the synced state catches up so a quick Rot or Anchor click does not send the old one
+	private String pendingSchematic;
+	private int pendingSchematicTicks;
 	private FlatButton anchorButton;
 	private FlatButton rotateButton;
 	private FlatButton mirrorButton;
@@ -239,14 +243,12 @@ public class AISubMenuScreen extends Screen {
 		stockButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Apply"), this::applyStock);
 		this.addRenderableWidget(stockButton);
 
-		schematicEdit = new EditBox(this.font, innerLeft + 52, markerSectionY, FILTER_EDIT_W + FILTER_TOGGLE_W + FILTER_TOGGLE_GAP,
-				BTN_H, Component.literal("schematic"));
-		schematicEdit.setMaxLength(BuilderParams.MAX_NAME);
-		schematicEdit.setValue(BuilderParams.read(entity.getAIState()).schematic());
-		this.addRenderableWidget(schematicEdit);
-		hints.add(new Hint(schematicEdit, Component.literal(
-				"Schematic file name without .nbt. Found in schematics/, schematics/uploaded/<you>/ or config/players/schematics/. "
-						+ "Enter saves it.")));
+		schematicButton = new FlatButton(innerLeft + 52, markerSectionY, FILTER_EDIT_W + FILTER_TOGGLE_W + FILTER_TOGGLE_GAP,
+				BTN_H, schematicLabel(), this::openSchematicPicker);
+		this.addRenderableWidget(schematicButton);
+		hints.add(new Hint(schematicButton, Component.literal(
+				"Pick a schematic, with a preview. Lists the files in schematics/, schematics/uploaded/<you>/ and config/players/schematics/. "
+						+ "A structure id such as minecraft:igloo/top can be typed in the picker.")));
 		anchorButton = new FlatButton(rightBtnX, markerSectionY, RIGHT_BTN_W, BTN_H, Component.literal("Anchor"), this::giveAnchor);
 		this.addRenderableWidget(anchorButton);
 		hints.add(new Hint(anchorButton, Component.literal(
@@ -276,11 +278,10 @@ public class AISubMenuScreen extends Screen {
 		AIState s = entity.getAIState();
 		if (bondButton != null) bondButton.setMessage(bondButtonLabel(s));
 		relayout(s);
-		// the server normalizes the list, so a dropped typo is shown back rather than left in the box
-		if (schematicEdit != null && !schematicEdit.isFocused()) {
-			String stored = BuilderParams.read(s).schematic();
-			if (!stored.equals(schematicEdit.getValue())) schematicEdit.setValue(stored);
+		if (pendingSchematic != null && (BuilderParams.read(s).schematic().equals(pendingSchematic) || ++pendingSchematicTicks > PENDING_SCHEMATIC_TICKS)) {
+			pendingSchematic = null;
 		}
+		if (schematicButton != null) schematicButton.setMessage(schematicLabel());
 		if (stockEdit != null && !stockEdit.isFocused()) {
 			String stored = StockList.text(s);
 			if (!stored.equals(stockEdit.getValue())) stockEdit.setValue(stored);
@@ -319,7 +320,7 @@ public class AISubMenuScreen extends Screen {
 		requestButton.visible = false;
 		stockButton.visible = false;
 		stockEdit.visible = false;
-		schematicEdit.visible = false;
+		schematicButton.visible = false;
 		anchorButton.visible = false;
 		rotateButton.visible = false;
 		mirrorButton.visible = false;
@@ -346,9 +347,9 @@ public class AISubMenuScreen extends Screen {
 				case SCHEMATIC -> {
 					BuilderParams p = BuilderParams.read(s);
 					place(anchorButton, btnY);
-					schematicEdit.setX(innerLeft + 52);
-					schematicEdit.setY(btnY);
-					schematicEdit.visible = true;
+					schematicButton.setX(innerLeft + 52);
+					schematicButton.setY(btnY);
+					schematicButton.visible = true;
 					rotateButton.setX(rightBtnX - ROT_BTN_W - FILTER_TOGGLE_GAP);
 					rotateButton.setY(btnY + ROW_H);
 					rotateButton.visible = true;
@@ -625,27 +626,11 @@ public class AISubMenuScreen extends Screen {
 	@Override
 	public void removed() {
 		super.removed();
-		if (schematicEdit != null && entity != null && FPJobs.is(entity.getAIState().jobId(), FPJobs.BUILDER)) {
-			BuilderParams p = BuilderParams.read(entity.getAIState());
-			if (!schematicEdit.getValue().trim().equals(p.schematic())) sendBuild(p.rotation().ordinal(), p.mirror().ordinal());
-		}
+		pendingSchematic = null;
 	}
 
 	@Override
 	public boolean keyPressed(KeyEvent event) {
-		if (this.schematicEdit != null && this.schematicEdit.isFocused()) {
-			if (event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) {
-				BuilderParams p = BuilderParams.read(entity.getAIState());
-				sendBuild(p.rotation().ordinal(), p.mirror().ordinal());
-				this.schematicEdit.setFocused(false);
-				return true;
-			}
-			if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_TAB) {
-				return super.keyPressed(event);
-			}
-			this.schematicEdit.keyPressed(event);
-			return true;
-		}
 		if (this.filterEdit != null && this.filterEdit.isFocused()) {
 			if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_TAB) {
 				return super.keyPressed(event);
@@ -659,10 +644,6 @@ public class AISubMenuScreen extends Screen {
 	// every visible edit box, so a newly added one is not silently starved of keystrokes
 	@Override
 	public boolean charTyped(CharacterEvent event) {
-		if (this.schematicEdit != null && this.schematicEdit.isFocused()) {
-			this.schematicEdit.charTyped(event);
-			return true;
-		}
 		if (this.filterEdit != null && this.filterEdit.isFocused()) {
 			this.filterEdit.charTyped(event);
 			return true;
@@ -765,9 +746,36 @@ public class AISubMenuScreen extends Screen {
 		return tag.equals("*") ? "" : tag;
 	}
 
+	private String schematicName() {
+		return pendingSchematic != null ? pendingSchematic : BuilderParams.read(entity.getAIState()).schematic();
+	}
+
+	private Component schematicLabel() {
+		String name = schematicName();
+		if (name.isBlank()) return Component.literal("Choose schematic...");
+		int max = FILTER_EDIT_W + FILTER_TOGGLE_W + FILTER_TOGGLE_GAP - 8;
+		return Component.literal(this.font.width(name) <= max ? name : this.font.plainSubstrByWidth(name, max - this.font.width("...")) + "...");
+	}
+
+	private void openSchematicPicker() {
+		Minecraft.getInstance().gui.setScreen(new SchematicPickerScreen(this, entity, schematicName()));
+	}
+
+	/** What Enter used to send from the name field, for a name chosen in the picker. */
+	String currentSchematic() {
+		return schematicName();
+	}
+
+	void chooseSchematic(String name) {
+		BuilderParams p = BuilderParams.read(entity.getAIState());
+		pendingSchematic = name.trim();
+		pendingSchematicTicks = 0;
+		sendBuild(p.rotation().ordinal(), p.mirror().ordinal());
+	}
+
 	private void sendBuild(int rotation, int mirror) {
 		BuilderParams p = BuilderParams.read(entity.getAIState());
-		Network.getNetworkHandler().sendToServer(new SetBuildPacketC2S(entity.getId(), schematicEdit.getValue().trim(), rotation, mirror, p.clear()));
+		Network.getNetworkHandler().sendToServer(new SetBuildPacketC2S(entity.getId(), schematicName(), rotation, mirror, p.clear()));
 	}
 
 	private void cycleRotation() {
