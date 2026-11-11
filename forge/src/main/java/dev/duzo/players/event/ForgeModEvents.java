@@ -4,6 +4,7 @@ package dev.duzo.players.event;
 import dev.duzo.players.Constants;
 import dev.duzo.players.core.AIMarkerItem;
 import dev.duzo.players.core.RidingInteractions;
+import dev.duzo.players.network.c2s.RequestSchematicPreviewC2S;
 import dev.duzo.players.core.SessionItemSweeper;
 import dev.duzo.players.entities.ai.FriendlyFire;
 import dev.duzo.players.entities.possession.PossessionManager;
@@ -62,6 +63,7 @@ public class ForgeModEvents {
 	@SubscribeEvent
 	public static void onServerStopped(ServerStoppedEvent e) {
 		PossessionManager.onServerStopped();
+		RequestSchematicPreviewC2S.reset();
 	}
 
 	@SubscribeEvent
