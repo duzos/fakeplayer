@@ -55,8 +55,9 @@ public final class SessionItemRenderer {
 		if (player == null || level == null) return;
 
 		ItemStack stack = sessionStack(player.getMainHandItem(), player.getOffhandItem());
+		byte purpose = stack == null ? -1 : AIMarkerItem.purpose(stack);
+		if (purpose != AIMarkerItem.PURPOSE_ANCHOR) AnchorHologram.idle();
 		if (stack == null) return;
-		byte purpose = AIMarkerItem.purpose(stack);
 
 		FakePlayerEntity bound = findFake(level, AIMarkerItem.fakeUUID(stack));
 		BlockPos crosshair = crosshairBlock(mc);
@@ -68,6 +69,7 @@ public final class SessionItemRenderer {
 				case AIMarkerItem.PURPOSE_CHEST_PICKER, AIMarkerItem.PURPOSE_POOL -> renderChestPicker(level, bound, crosshair);
 				case AIMarkerItem.PURPOSE_ANCHOR -> {
 					if (crosshair != null) drawBlock(crosshair, COLOR_LIVE);
+					AnchorHologram.prepare(level, player, bound, mc);
 				}
 				default -> {}
 			}

@@ -1,6 +1,7 @@
 package dev.duzo.players.client;
 
 import dev.duzo.players.Constants;
+import dev.duzo.players.client.renderers.AnchorHologram;
 import dev.duzo.players.client.renderers.SessionItemRenderer;
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
@@ -9,6 +10,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 
 @EventBusSubscriber(modid = Constants.MOD_ID, value = Dist.CLIENT)
 public class ClientBusEvents {
@@ -28,5 +30,10 @@ public class ClientBusEvents {
 		// The fishing bobber/line are drawn by FakeFishingHookRenderer via the entity submit-node
 		// pipeline; only the region/waypoint/chest gizmo overlay needs this world-render hook.
 		SessionItemRenderer.render(e.getPoseStack());
+	}
+
+	@SubscribeEvent
+	public static void onSubmitGeometry(SubmitCustomGeometryEvent e) {
+		AnchorHologram.submitGhost(e.getPoseStack(), e.getSubmitNodeCollector());
 	}
 }
