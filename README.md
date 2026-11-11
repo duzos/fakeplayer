@@ -45,7 +45,8 @@ Install it on the server and on every client that joins.
 - **Miner** strip-mines ore (or whatever you filter for), **Lumberjack** fells and replants trees, and **Farmer** plants and harvests any seed.
 - **Fisherman** casts a real bobber with your enchanted rod and swaps in a fresh one when it breaks.
 - **Guard** patrols your waypoints, **Follow** sticks with you and **Idle** waits at its spot.
-- **Courier** hauls between chests, **Crafter** makes a recipe you teach it by hand, and **Builder** puts up Create schematics and other structure files.
+- **Courier** hauls between chests and **Crafter** makes a recipe you teach it by hand.
+- **Builder** puts up Create schematics and other structure files. Pick one from its list, which spins a preview of each, then hold the marker to see a ghost of the finished build before you place it. Several Builders can share a build, and a Quartermaster sends over any blocks they're short of.
 
 <div align="center">
 <table>
@@ -76,7 +77,7 @@ Install it on the server and on every client that joins.
 ## Items and riding
 
 - **Chunk Anchor** keeps a fake working while you're away.
-- **Possession Link** lets you see through a fake and control it.
+- **Possession Link** swaps you into a fake's body. You get its inventory and stand where it stands, and R swaps you back.
 - Fakes ride boats, minecarts and seats, and can drive Create trains.
 
 ## Controls and commands
