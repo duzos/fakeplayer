@@ -204,7 +204,7 @@ public final class BuildPlan {
 		return true;
 	}
 
-	private static List<BlockState> readPalette(CompoundTag tag) {
+	static List<BlockState> readPalette(CompoundTag tag) {
 		ListTag list;
 		if (tag.contains(StructureTemplate.PALETTE_TAG)) {
 			list = tag.getList(StructureTemplate.PALETTE_TAG, Tag.TAG_COMPOUND);
