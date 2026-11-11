@@ -305,7 +305,8 @@ public class AIMarkerItem extends Item {
 		return player instanceof ServerPlayer sp && sp.hasPermissions(2);
 	}
 
-	private static Rotation rotationFor(Direction facing) {
+	/** The turn a build placed by a player facing this way gets; the anchor hologram shows the same. */
+	public static Rotation rotationFor(Direction facing) {
 		return switch (facing) {
 			case EAST -> Rotation.CLOCKWISE_90;
 			case SOUTH -> Rotation.CLOCKWISE_180;
