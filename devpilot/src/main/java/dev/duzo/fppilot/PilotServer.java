@@ -24,7 +24,6 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.phys.Vec3;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.NativeImage;
-import dev.duzo.fppilot.mixin.ScreenKeyState;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -295,12 +294,12 @@ public final class PilotServer {
     }
 
     private static void click(Screen screen, double x, double y, int button, int modifiers) {
-        ScreenKeyState.modifiers = modifiers;
+        HeldModifiers.bits = modifiers;
         try {
             screen.mouseClicked(x, y, button);
             screen.mouseReleased(x, y, button);
         } finally {
-            ScreenKeyState.modifiers = 0;
+            HeldModifiers.bits = 0;
         }
     }
 
