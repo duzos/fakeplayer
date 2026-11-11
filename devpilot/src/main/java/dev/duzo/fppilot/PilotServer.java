@@ -159,6 +159,7 @@ public final class PilotServer {
                 case "POST /type" -> onClient(() -> type(body));
                 case "POST /keypress" -> onClient(() -> keypress(body));
                 case "POST /connect" -> onClient(() -> connect(body));
+                case "POST /gui" -> onClient(() -> gui(body));
                 default -> null;
             };
             if (result == null) {
@@ -333,6 +334,15 @@ public final class PilotServer {
     }
 
     /** Joins a server: {"address": "play.example.com"}. */
+    // F1: store shots want no HUD, and the marker is drawn on the HUD
+    private static JsonObject gui(JsonObject body) {
+        Minecraft mc = Minecraft.getInstance();
+        mc.options.hideGui = body.has("hidden") && body.get("hidden").getAsBoolean();
+        JsonObject out = new JsonObject();
+        out.addProperty("hidden", mc.options.hideGui);
+        return out;
+    }
+
     private static JsonObject connect(JsonObject body) {
         Minecraft mc = Minecraft.getInstance();
         String address = string(body, "address");
