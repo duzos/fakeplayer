@@ -110,6 +110,9 @@ public class BuilderJobExecutor implements JobExecutor {
 	// items the source container was found not to hold, so WORK does not walk back for them every cell
 	private final Set<Item> dry = new HashSet<>();
 	private final Set<Integer> stuck = new HashSet<>();
+	// why the last stripe was set aside, said once no stripe is left open
+	private String stuckKey = "";
+	private String stuckMsg = "";
 
 	private Map<Item, Integer> blocked = new LinkedHashMap<>();
 	private String blockedMsg = "";
@@ -327,7 +330,8 @@ public class BuilderJobExecutor implements JobExecutor {
 			finish(level, entity);
 		} else if (!anyOpen) {
 			// every stripe left is one this Builder could not move on
-			block(level, entity, alertKey.isEmpty() ? "stuck" : alertKey,
+			if (!stuckKey.isEmpty()) block(level, entity, stuckKey, stuckMsg, Map.of());
+			else block(level, entity, alertKey.isEmpty() ? "stuck" : alertKey,
 					blockedMsg.isEmpty() ? "builder: nothing more can be placed" : blockedMsg, blocked);
 		} else {
 			entity.markIdle(); // every open stripe is held by another builder: waiting is not being stuck
@@ -356,7 +360,8 @@ public class BuilderJobExecutor implements JobExecutor {
 		SimpleContainer inv = entity.getInventory();
 		Map<Item, Integer> shortfall = shortfall(level, stripe, inv);
 		if (shortfall.isEmpty() || stocked) {
-			if (shortfall.isEmpty()) settle(level, entity);
+			// being stocked only ends a shortage; settling here would re-send any other alert every retry
+			if (shortfall.isEmpty() && !blocked.isEmpty()) settle(level, entity);
 			phase = Phase.WORK;
 			return;
 		}
@@ -484,12 +489,21 @@ public class BuilderJobExecutor implements JobExecutor {
 				if (n > 0) lack.put(e.getKey(), n);
 			}
 			block(level, entity, "short", shortMessage(lack), lack);
-		} else if (unreachable > 0) {
-			block(level, entity, "unreachable", "builder: cannot reach " + unreachable + " blocks of the build", Map.of());
-		} else if (deferred > 0) {
-			block(level, entity, "deferred", "builder: " + deferred + " blocks cannot be placed, nothing to hold them", Map.of());
 		} else {
-			block(level, entity, "unloaded", "builder: part of the build is in unloaded chunks", Map.of());
+			// set this stripe aside and build the others, which may also make it reachable; claim() blocks once none is open
+			if (unreachable > 0) {
+				stuckKey = "unreachable";
+				stuckMsg = "builder: cannot reach " + unreachable + (unreachable == 1 ? " block" : " blocks") + " of the build";
+			} else if (deferred > 0) {
+				stuckKey = "deferred";
+				stuckMsg = "builder: " + deferred + (deferred == 1 ? " block cannot" : " blocks cannot") + " be placed, nothing to hold them";
+			} else {
+				stuckKey = "unloaded";
+				stuckMsg = "builder: part of the build is in unloaded chunks";
+			}
+			dropClaim(level, entity);
+			phase = Phase.CLAIM;
+			nextCheck = 0;
 		}
 	}
 
@@ -731,6 +745,8 @@ public class BuilderJobExecutor implements JobExecutor {
 	private void completeStripe(ServerLevel level, FakePlayerEntity entity) {
 		dropClaim(level, entity);
 		stuck.clear();
+		stuckKey = "";
+		stuckMsg = "";
 		settle(level, entity);
 		phase = Phase.CLAIM;
 		nextCheck = 0;
@@ -822,6 +838,8 @@ public class BuilderJobExecutor implements JobExecutor {
 			}
 		}
 		stuck.clear();
+		stuckKey = "";
+		stuckMsg = "";
 		phase = Phase.INIT;
 	}
 
