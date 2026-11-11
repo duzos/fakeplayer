@@ -31,6 +31,12 @@ Install it on the server and on every client that joins.
 
 ![A skin grabbed from a username and applied to a fake player](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/skin-example.png)
 
+![A fake asleep in a bed](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/sleeping.png)
+Asleep in a bed at night
+
+![A speech bubble over a fake](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/speech-bubble.png)
+What it says shows over its head
+
 ## Jobs
 
 - Bond a fake, pick a job from its menu and place the markers it hands you. It follows you while you do.
@@ -61,6 +67,15 @@ Install it on the server and on every client that joins.
 ![Crafter](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/crafter.png)
 **Crafter** crafting by hand at its table
 
+![Builder](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/builder-house.png)
+**Builder** after putting up a house
+
+![Schematic picker](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/builder-picker.png)
+Picking a build, with a spinning preview
+
+![Build hologram](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/builder-hologram.png)
+A ghost of the build before you place it
+
 ## Storage and requests
 
 - A **Quartermaster** runs your storeroom, and **Runners** bring fakes whatever they run out of, like a new pickaxe.
@@ -72,6 +87,8 @@ Install it on the server and on every client that joins.
 - **Chunk Anchor** keeps a fake working while you're away.
 - **Possession Link** swaps you into a fake's body. You get its inventory and stand where it stands, and R swaps you back.
 - Fakes ride boats, minecarts and seats, and can drive Create trains.
+
+![A fake riding a minecart](https://raw.githubusercontent.com/Duzos/fakeplayer/master/docs/img/riding-minecart.png)
 
 ## Controls and commands
 
