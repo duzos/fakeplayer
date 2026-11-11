@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.SpreadingSnowyDirtBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -39,6 +40,8 @@ public enum PlacePass {
 	 * stair shape and waterlogging follow from the surroundings and would never settle. */
 	public static boolean matches(BlockState want, BlockState have) {
 		if (want.isAir()) return have.isAir() || isFluidLike(have);
+		// grass, mycelium and paths turn to dirt under a solid block, so dirt there is what the build settles to
+		if (have.is(Blocks.DIRT) && (want.getBlock() instanceof SpreadingSnowyDirtBlock || want.is(Blocks.DIRT_PATH))) return true;
 		if (want.getBlock() != have.getBlock()) return false;
 		for (Property<?> p : IDENTITY) {
 			if (want.hasProperty(p) && !want.getValue(p).equals(have.getValue(p))) return false;
