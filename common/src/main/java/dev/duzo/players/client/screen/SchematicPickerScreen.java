@@ -290,7 +290,7 @@ public class SchematicPickerScreen extends Screen {
 
 	@Override
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-		if (event.button() == 0 && event.x() >= listX && event.x() < listX + LIST_W
+		if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && event.x() >= listX && event.x() < listX + LIST_W
 				&& event.y() >= listY && event.y() < listY + visibleRows() * ROW_H) {
 			int row = scroll + (int) ((event.y() - listY) / ROW_H);
 			if (row < shown.size()) {
