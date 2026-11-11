@@ -1,6 +1,7 @@
 package dev.duzo.players.client;
 
 import dev.duzo.players.Constants;
+import dev.duzo.players.client.renderers.AnchorHologram;
 import dev.duzo.players.client.renderers.SessionItemRenderer;
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
@@ -8,7 +9,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 
 @EventBusSubscriber(modid = Constants.MOD_ID, value = Dist.CLIENT)
 public class ClientBusEvents {
@@ -23,10 +24,12 @@ public class ClientBusEvents {
 		PlayersCommonClient.onClientStopping();
 	}
 
+	// AfterTranslucentBlocks only fires without improved transparency; this fires once a frame on both
+	// paths. The fishing bobber/line are drawn by FakeFishingHookRenderer via the entity submit-node
+	// pipeline, so only the session overlay and the anchor ghost need it.
 	@SubscribeEvent
-	public static void onRenderLevel(RenderLevelStageEvent.AfterTranslucentBlocks e) {
-		// The fishing bobber/line are drawn by FakeFishingHookRenderer via the entity submit-node
-		// pipeline; only the region/waypoint/chest gizmo overlay needs this world-render hook.
+	public static void onSubmitGeometry(SubmitCustomGeometryEvent e) {
 		SessionItemRenderer.render(e.getPoseStack());
+		AnchorHologram.submitGhost(e.getPoseStack(), e.getSubmitNodeCollector());
 	}
 }
